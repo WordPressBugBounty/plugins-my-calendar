@@ -185,7 +185,7 @@ function mc_bulk_message( $results, $action ) {
 		 * @param {array} $ids Array of event IDs being handled.
 		 */
 		do_action( 'mc_mass_' . $action . '_events', $ids );
-		$message = mc_show_notice( sprintf( $success, $result, $total, $diff ) );
+		$message = mc_show_notice( sprintf( $success, $result, $total, $diff ), true, false, 'success' );
 	} else {
 		$message = mc_show_error( $error, false );
 	}
@@ -679,6 +679,12 @@ function mc_list_events() {
 			$filter = "'$filter'";
 		}
 		$join = '';
+		// Set up standard filter limits - normal database fields.
+		if ( '' === $limit && '' !== $filter ) {
+			$limit = "WHERE $restrict = $filter";
+		} elseif ( '' !== $limit && '' !== $filter ) {
+			$limit .= " AND $restrict = $filter";
+		}
 		// Set up filter format for categories.
 		if ( 'event_category' === $restrict ) {
 			$cat_limit       = mc_select_category( $filter );
@@ -686,12 +692,7 @@ function mc_list_events() {
 			$select_category = ( isset( $cat_limit[1] ) ) ? $cat_limit[1] : '';
 			$limit          .= ' ' . $select_category;
 		}
-		// Set up standard filter limits - normal database fields.
-		if ( '' === $limit && '' !== $filter ) {
-			$limit = "WHERE $restrict = $filter";
-		} elseif ( '' !== $limit && '' !== $filter && 'event_category' !== $restrict ) {
-			$limit .= " AND $restrict = $filter";
-		}
+
 		// Define default limits if none otherwise set.
 		if ( '' === $limit ) {
 			$limit .= ( 'event_flagged' !== $restrict ) ? ' WHERE event_flagged = 0' : '';
@@ -709,15 +710,17 @@ function mc_list_events() {
 		$limit .= ( 'archived' !== $restrict ) ? ' AND e.event_status = 1' : ' AND e.event_status = 0';
 		// Toggle query type depending on whether we're limiting categories, which requires a join.
 		if ( 'event_category' !== $sortbyvalue ) {
-			$events = $wpdb->get_results( $wpdb->prepare( 'SELECT e.event_id FROM ' . my_calendar_table() . " AS e $join $limit ORDER BY $sortbyvalue " . 'LIMIT %d, %d', $query['query'], $query['items_per_page'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+			$events     = $wpdb->get_results( $wpdb->prepare( 'SELECT e.event_id FROM ' . my_calendar_table() . " AS e $join $limit ORDER BY $sortbyvalue " . 'LIMIT %d, %d', $query['query'], $query['items_per_page'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+			$found_rows = $wpdb->get_col( 'SELECT COUNT(*) FROM  ' . my_calendar_table() . " AS e $join $limit ORDER BY $sortbyvalue" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		} else {
-			$limit  = str_replace( array( 'WHERE ' ), '', $limit );
-			$limit  = ( strpos( $limit, 'AND' ) === 0 ) ? $limit : 'AND ' . $limit;
-			$events = $wpdb->get_results( $wpdb->prepare( 'SELECT DISTINCT e.event_id FROM ' . my_calendar_table() . ' AS e ' . $join . ' JOIN ' . my_calendar_categories_table() . " AS c WHERE e.event_category = c.category_id $limit ORDER BY c.category_name $sortbydirection " . 'LIMIT %d, %d', $query['query'], $query['items_per_page'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+			$limit      = str_replace( array( 'WHERE ' ), '', $limit );
+			$limit      = ( strpos( $limit, 'AND' ) === 0 ) ? $limit : 'AND ' . $limit;
+			$events     = $wpdb->get_results( $wpdb->prepare( 'SELECT DISTINCT e.event_id FROM ' . my_calendar_table() . ' AS e ' . $join . ' JOIN ' . my_calendar_categories_table() . " AS c WHERE e.event_category = c.category_id $limit ORDER BY c.category_name $sortbydirection " . 'LIMIT %d, %d', $query['query'], $query['items_per_page'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+			$found_rows = $wpdb->get_col( 'SELECT COUNT(*) FROM  ' . my_calendar_table() . ' AS e ' . $join . ' JOIN ' . my_calendar_categories_table() . " AS c WHERE e.event_category = c.category_id $limit ORDER BY c.category_name $sortbydirection" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+
 		}
-		$found_rows = $wpdb->get_col( 'SELECT FOUND_ROWS();' );
-		$items      = $found_rows[0];
-		$num_pages  = ceil( $items / $query['items_per_page'] );
+		$items     = $found_rows[0];
+		$num_pages = ceil( $items / $query['items_per_page'] );
 		if ( $num_pages > 1 ) {
 			$page_links = paginate_links(
 				array(
@@ -730,7 +733,8 @@ function mc_list_events() {
 					'mid_size'  => 2,
 				)
 			);
-			printf( "<div class='tablenav'><div class='tablenav-pages'>%s</div></div>", $page_links );
+			$nav_label  = esc_attr( __( 'Events Pagination', 'my-calendar' ) );
+			printf( "<nav class='tablenav' aria-label='$nav_label'><div class='tablenav-pages'>%s</div></nav>", $page_links );
 		}
 
 		// Display a link to clear filters if set.
@@ -739,14 +743,14 @@ function mc_list_events() {
 			$filtered = "<a class='mc-clear-filters' href='" . admin_url( 'admin.php?page=my-calendar-manage' ) . "'><span class='dashicons dashicons-no' aria-hidden='true'></span> " . __( 'Clear filters', 'my-calendar' ) . '</a>';
 		}
 		?>
-		<div class="mc-admin-header">
+		<nav class="mc-admin-header" aria-label="<?php esc_attr_e( 'Search and Filter', 'my-calendar' ); ?>">
 			<?php
 			// Display links to different statuses.
 			echo wp_kses( mc_status_links( $allow_filters ), mc_kses_elements() );
 			// Display event search.
 			mc_admin_event_search();
 			?>
-		</div>
+		</nav>
 		<?php
 		if ( ! empty( $events ) ) {
 			?>
@@ -768,6 +772,7 @@ function mc_list_events() {
 					<tr>
 					<?php
 					$admin_url = admin_url( "admin.php?page=my-calendar-manage&order=$sortbydirection&paged=" . $query['current'] );
+					$admin_url = isset( $_GET['limit'] ) ? add_query_arg( 'limit', sanitize_text_field( $_GET['limit'] ), $admin_url ) : $admin_url;
 					$url       = add_query_arg( 'sort', '1', $admin_url );
 					$col_head  = mc_table_header( __( 'ID', 'my-calendar' ), $sortbydirection, $sortby, '1', $url );
 					$url       = add_query_arg( 'sort', '2', $admin_url );

@@ -61,9 +61,9 @@ function my_calendar_group_edit() {
 					if ( false === $result ) {
 						$message = mc_show_error( __( 'Event not updated.', 'my-calendar' ) . " $url", false );
 					} elseif ( 0 === $result ) {
-						$message = mc_show_notice( "#$event_id: " . __( 'Nothing was changed in that update.', 'my-calendar' ) . "  $url", false );
+						$message = mc_show_notice( "#$event_id: " . __( 'Nothing was changed in that update.', 'my-calendar' ) . "  $url", false, false, 'info' );
 					} else {
-						$message = mc_show_notice( "#$event_id: " . __( 'Event updated successfully', 'my-calendar' ) . ". $url", false );
+						$message = mc_show_notice( "#$event_id: " . __( 'Event updated successfully', 'my-calendar' ) . ". $url", false, false, 'success' );
 					}
 				}
 				break;
@@ -80,10 +80,10 @@ function my_calendar_group_edit() {
 						if ( false === $result ) {
 							$message = mc_show_error( __( 'Event not grouped.', 'my-calendar' ), false );
 						} elseif ( 0 === $result ) {
-							$message = mc_show_notice( "#$event_id: " . __( 'Nothing was changed in that update.', 'my-calendar' ), false );
+							$message = mc_show_notice( "#$event_id: " . __( 'Nothing was changed in that update.', 'my-calendar' ), false, false, 'warning' );
 						} else {
 							// Translators: Event group ID.
-							$message = mc_show_notice( sprintf( __( 'Group %s: Events grouped successfully', 'my-calendar' ), "#$event_id" ), false );
+							$message = mc_show_notice( sprintf( __( 'Group %s: Events grouped successfully', 'my-calendar' ), "#$event_id" ), false, false, 'success' );
 						}
 					}
 				}
@@ -201,9 +201,9 @@ function my_calendar_save_group( $action, $output, $event_id, $post = array() ) 
 			if ( false === $result ) {
 				$message = mc_show_error( "#$event_id; " . __( 'Your event was not updated.', 'my-calendar' ) . " $url", false );
 			} elseif ( 0 === $result ) {
-				$message = mc_show_notice( "#$event_id: " . __( 'Nothing was changed in that update.', 'my-calendar' ) . " $url", false );
+				$message = mc_show_notice( "#$event_id: " . __( 'Nothing was changed in that update.', 'my-calendar' ) . " $url", false, false, 'warning' );
 			} else {
-				$message = mc_show_notice( "#$event_id: " . __( 'Event updated successfully', 'my-calendar' ) . ". $url", false );
+				$message = mc_show_notice( "#$event_id: " . __( 'Event updated successfully', 'my-calendar' ) . ". $url", false, false, 'success' );
 			}
 		} else {
 			$message = mc_show_error( "#$event_id: " . __( 'You do not have sufficient permissions to edit that event.', 'my-calendar' ), false );
@@ -797,22 +797,10 @@ function mc_list_groups() {
 	}
 	$query_limit = ( ( $current - 1 ) * $items_per_page );
 	$events      = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . my_calendar_table() . " $limit ORDER BY $sortbyvalue $sortbydirection LIMIT %d, %d", $query_limit, $items_per_page ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
-	$found_rows  = $wpdb->get_col( 'SELECT FOUND_ROWS();' );
+	$found_rows  = $wpdb->get_col( 'SELECT COUNT(*) FROM  ' . my_calendar_table() ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 	$items       = $found_rows[0];
 	?>
 	<div class='inside'>
-		<div class="mc-admin-header">
-		<ul class="links">
-			<li>
-				<a <?php echo ( isset( $_GET['limit'] ) && 'grouped' === $_GET['limit'] ) ? ' class="active-link"' : ''; ?> href="<?php echo admin_url( 'admin.php?page=my-calendar-manage&groups=true&amp;limit=grouped#my-calendar-admin-table' ); ?>"><?php esc_html_e( 'Grouped Events', 'my-calendar' ); ?></a>
-			</li>
-			<li>
-				<a <?php echo ( isset( $_GET['limit'] ) && 'ungrouped' === $_GET['limit'] ) ? ' class="active-link"' : ''; ?> href="<?php echo admin_url( 'admin.php?page=my-calendar-manage&groups=true&amp;limit=ungrouped#my-calendar-admin-table' ); ?>"><?php esc_html_e( 'Ungrouped Events', 'my-calendar' ); ?></a>
-			</li>
-			<li>
-				<a <?php echo ( isset( $_GET['limit'] ) && 'all' === $_GET['limit'] || ! isset( $_GET['limit'] ) ) ? ' class="active-link"' : ''; ?> href="<?php echo admin_url( 'admin.php?page=my-calendar-manage&groups=true#my-calendar-admin-table' ); ?>"><?php esc_html_e( 'All', 'my-calendar' ); ?></a>
-			</li>
-		</ul>
 	<?php
 	$num_pages = ceil( $items / $items_per_page );
 	if ( $num_pages > 1 ) {
@@ -827,10 +815,23 @@ function mc_list_groups() {
 				'mid_size'  => 1,
 			)
 		);
-		printf( "<div class='tablenav'><div class='tablenav-pages'>%s</div></div>", $page_links );
+		$nav_label  = esc_attr( __( 'Events Pagination', 'my-calendar' ) );
+		printf( "<nav class='tablenav' aria-label='$nav_label'><div class='tablenav-pages'>%s</div></nav>", $page_links );
 	}
 	?>
-		</div>
+		<nav class="mc-admin-header" aria-label="<?php esc_attr_e( 'Filter Events', 'my-calendar' ); ?>">
+			<ul class="links">
+				<li>
+					<a <?php echo ( isset( $_GET['limit'] ) && 'grouped' === $_GET['limit'] ) ? ' class="active-link"' : ''; ?> href="<?php echo admin_url( 'admin.php?page=my-calendar-manage&groups=true&amp;limit=grouped#my-calendar-admin-table' ); ?>"><?php esc_html_e( 'Grouped Events', 'my-calendar' ); ?></a>
+				</li>
+				<li>
+					<a <?php echo ( isset( $_GET['limit'] ) && 'ungrouped' === $_GET['limit'] ) ? ' class="active-link"' : ''; ?> href="<?php echo admin_url( 'admin.php?page=my-calendar-manage&groups=true&amp;limit=ungrouped#my-calendar-admin-table' ); ?>"><?php esc_html_e( 'Ungrouped Events', 'my-calendar' ); ?></a>
+				</li>
+				<li>
+					<a <?php echo ( isset( $_GET['limit'] ) && 'all' === $_GET['limit'] || ! isset( $_GET['limit'] ) ) ? ' class="active-link"' : ''; ?> href="<?php echo admin_url( 'admin.php?page=my-calendar-manage&groups=true#my-calendar-admin-table' ); ?>"><?php esc_html_e( 'All', 'my-calendar' ); ?></a>
+				</li>
+			</ul>
+		</nav>
 	<?php
 	if ( ! empty( $events ) ) {
 		?>
@@ -848,6 +849,7 @@ function mc_list_groups() {
 					<tr>
 						<?php
 						$admin_url = admin_url( "admin.php?page=my-calendar-manage&groups=true&order=$sort&paged=$current" );
+						$admin_url = isset( $_GET['limit'] ) ? add_query_arg( 'limit', sanitize_text_field( $_GET['limit'] ), $admin_url ) : $admin_url;
 						$url       = add_query_arg( 'sort', '1', $admin_url );
 						$col_head  = mc_table_header( __( 'ID', 'my-calendar' ), $sort, $sortby, '1', $url );
 						$url       = add_query_arg( 'sort', '8', $admin_url );

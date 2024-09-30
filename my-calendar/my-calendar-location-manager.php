@@ -43,14 +43,14 @@ function my_calendar_manage_locations() {
 			);
 			// Translators: Delete link.
 			$notice = sprintf( __( 'Are you sure you want to delete this location? %s', 'my-calendar' ), '<a class="button delete" href="' . esc_url( add_query_arg( $args, admin_url( 'admin.php?page=my-calendar-location-manager&mode=delete&confirm=true' ) ) ) . '">' . __( 'Delete', 'my-calendar' ) . '</a>' );
-			mc_show_notice( $notice );
+			mc_show_notice( $notice, true, false, 'warning' );
 		}
 	}
 	if ( isset( $_GET['default'] ) && is_numeric( $_GET['default'] ) ) {
 		$mcnonce = wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' );
 		if ( $mcnonce ) {
 			mc_update_option( 'default_location', (int) $_GET['default'] );
-			mc_show_notice( __( 'Default Location Changed', 'my-calendar' ) );
+			mc_show_notice( __( 'Default Location Changed', 'my-calendar' ), true, false, 'success' );
 		} else {
 			mc_show_error( __( 'Invalid security check; please try again!', 'my-calendar' ) );
 		}
@@ -169,7 +169,7 @@ function mc_clean_duplicate_locations() {
 			 */
 			do_action( 'mc_clean_duplicate_locations', $deleted, $failed );
 			// Translators: Number of locations deleted, number selected.
-			$message = mc_show_notice( sprintf( __( '%1$d locations deleted successfully out of %2$d selected', 'my-calendar' ), count( $deleted ), $total ), false );
+			$message = mc_show_notice( sprintf( __( '%1$d locations deleted successfully out of %2$d selected', 'my-calendar' ), count( $deleted ), $total ), false, false, 'success' );
 		} else {
 			$message = mc_show_error( __( 'Your locations have not been deleted. Please investigate.', 'my-calendar' ), false );
 		}
@@ -296,7 +296,7 @@ function mc_manage_locations() {
 
 	$query_limit = ( ( $current - 1 ) * $items_per_page );
 	$locations   = $wpdb->get_results( $wpdb->prepare( 'SELECT location_id FROM ' . my_calendar_locations_table() . " $search ORDER BY $orderby $query_order LIMIT %d, %d", $query_limit, $items_per_page ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
-	$found_rows  = $wpdb->get_col( 'SELECT FOUND_ROWS();' );
+	$found_rows  = $wpdb->get_col( 'SELECT COUNT(*) FROM  ' . my_calendar_locations_table() . " $search ORDER BY $orderby $query_order" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 	$items       = $found_rows[0];
 	$pagination  = '';
 
@@ -313,13 +313,14 @@ function mc_manage_locations() {
 				'mid_size'  => 1,
 			)
 		);
-		$pagination = sprintf( "<div class='tablenav'><div class='tablenav-pages'>%s</div></div>", $page_links );
+		$nav_label  = esc_attr( __( 'Locations Pagination', 'my-calendar' ) );
+		$pagination = sprintf( "<nav class='tablenav' aria-label='$nav_label'><div class='tablenav-pages'>%s</div></nav>", $page_links );
 	}
 
 	if ( ! empty( $locations ) ) {
+		echo wp_kses_post( $pagination );
 		?>
 	<div class="mc-admin-header locations">
-		<?php echo wp_kses_post( $pagination ); ?>
 		<div class='mc-search'>
 			<form action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-location-manager' ) ); ?>" method="post" role='search'>
 				<div>
@@ -360,6 +361,7 @@ function mc_manage_locations() {
 				$col_head .= mc_table_header( __( 'City', 'my-calendar' ), $order, $sortby, 'city', $url );
 				$url       = add_query_arg( 'orderby', 'state', $admin_url );
 				$col_head .= mc_table_header( __( 'State/Province', 'my-calendar' ), $order, $sortby, 'state', $url );
+				$col_head .= mc_table_header( __( 'Events', 'my-calendar' ), $order, $sortby, 'count', '' );
 				echo wp_kses( $col_head, mc_kses_elements() );
 				/**
 				 * Add custom column table headers to Location Manager.
@@ -444,8 +446,17 @@ function mc_verify_location( $location ) {
  * @return string
  */
 function mc_location_manager_row( $location ) {
-	$card   = mc_hcard( $location, 'true', 'false', 'location' );
-	$verify = mc_verify_location( $location );
+	$card            = mc_hcard( $location, 'true', 'false', 'location' );
+	$verify          = mc_verify_location( $location );
+	$count           = mc_count_location_events( $location->location_id );
+	$filters         = array(
+		'filter'   => $location->location_id,
+		'restrict' => 'where',
+	);
+	$location_filter = add_query_arg( $filters, admin_url( 'admin.php?page=my-calendar-manage' ) );
+	if ( $count ) {
+		$count = '<a href="' . esc_url( $location_filter ) . '">' . $count . '</a>';
+	}
 	if ( ! $verify ) {
 		return '';
 	}
@@ -492,6 +503,7 @@ function mc_location_manager_row( $location ) {
 		</td>
 		<td>' . esc_html( $location->location_city ) . '</td>
 		<td>' . esc_html( $location->location_state ) . '</td>' . $custom_location_cells . '
+		<td>' . $count . '</td>
 	</tr>';
 
 	return $row;

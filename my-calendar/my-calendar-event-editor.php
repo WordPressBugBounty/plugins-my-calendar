@@ -149,7 +149,7 @@ function mc_event_post( $action, $data, $event_id, $result = false ) {
  * Add post meta data to an event post.
  *
  * @param int   $post_id Post ID.
- * @param array $post Post object.
+ * @param array $post POST data.
  * @param array $data Event POST data or event data.
  * @param int   $event_id Event ID.
  */
@@ -163,6 +163,7 @@ function mc_add_post_meta_data( $post_id, $post, $data, $event_id ) {
 		update_post_meta( $post_id, '_mc_guid', $guid );
 	}
 	update_post_meta( $post_id, '_mc_event_shortcode', $data['shortcode'] );
+	// Event access characteristics.
 	$events_access = '';
 	if ( isset( $post['events_access'] ) ) {
 		$events_access = map_deep( $post['events_access'], 'sanitize_text_field' );
@@ -173,32 +174,29 @@ function mc_add_post_meta_data( $post_id, $post, $data, $event_id ) {
 		}
 	}
 	$time_label = '';
-	if ( isset( $_POST['event_time_label'] ) ) {
-		$time_label = sanitize_text_field( $_POST['event_time_label'] );
+	if ( isset( $post['event_time_label'] ) ) {
+		$time_label = sanitize_text_field( $post['event_time_label'] );
 	} else {
+		// If this is not set, don't change it.
+		$time_label = get_post_meta( $post_id, '_event_time_label', true );
 		// My Calendar Rest API.
 		if ( isset( $post['data'] ) && isset( $post['data']['event_time_label'] ) ) {
 			$time_label = $post['data']['event_time_label'];
 		}
 	}
-	$same_day = '';
-	if ( isset( $_POST['event_same_day'] ) ) {
-		$same_day = sanitize_text_field( $_POST['event_same_day'] );
+	$same_day = 'false';
+	if ( isset( $post['event_same_day'] ) ) {
+		$same_day = 'true';
 	} else {
 		// My Calendar Rest API.
 		if ( isset( $post['data'] ) && isset( $post['data']['event_same_day'] ) ) {
-			$same_day = $post['data']['event_same_day'];
+			$same_day = 'true';
 		}
 	}
-	if ( $events_access ) {
-		update_post_meta( $post_id, '_mc_event_access', $events_access );
-	}
-	if ( $time_label ) {
-		update_post_meta( $post_id, '_event_time_label', $time_label );
-	}
-	if ( $same_day ) {
-		update_post_meta( $post_id, '_event_same_day', 'true' );
-	}
+	// Event access characteristics.
+	update_post_meta( $post_id, '_mc_event_access', $events_access );
+	update_post_meta( $post_id, '_event_time_label', $time_label );
+	update_post_meta( $post_id, '_event_same_day', $same_day );
 
 	$mc_event_id = get_post_meta( $post_id, '_mc_event_id', true );
 	if ( ! $mc_event_id ) {
@@ -587,7 +585,7 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 				if ( mc_can_edit_event( $event_id ) && '' !== $edit_link ) {
 					$edit_event = sprintf( ' <a href="%s">' . __( 'Continue editing event.', 'my-calendar' ) . '</a>', $edit_link );
 				}
-				$message = mc_show_notice( __( 'Event draft saved.', 'my-calendar' ) . $edit_event, false, 'draft-saved' );
+				$message = mc_show_notice( __( 'Event draft saved.', 'my-calendar' ) . $edit_event, false, 'draft-saved', 'success' );
 			} else {
 				// jd_doTwitterAPIPost was changed to wpt_post_to_twitter on 1.19.2017.
 				if ( function_exists( 'wpt_post_to_twitter' ) && isset( $post['mc_twitter'] ) && '' !== trim( $post['mc_twitter'] ) ) {
@@ -600,8 +598,10 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 				}
 
 				if ( '' !== trim( $event_error ) ) {
+					$type    = 'error';
 					$message = $event_error;
 				} else {
+					$type    = 'success';
 					$message = __( 'Event added. It will now show on the calendar.', 'my-calendar' );
 					if ( $event_link ) {
 						// Translators: URL to view event in calendar.
@@ -611,9 +611,10 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 							$message .= sprintf( __( ' <a href="%s" class="button">Edit Event</a>', 'my-calendar' ), $edit_link );
 						}
 					} else {
+						$type     = 'error';
 						$message .= __( ' No link was generated for this event. There may be an unknown error.', 'my-calendar' );
 					}
-					$message = mc_show_notice( $message, false, 'new-event' );
+					$message = mc_show_notice( $message, false, 'new-event', $type );
 				}
 			}
 		}
@@ -681,7 +682,7 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 					} else {
 						// Only dates were changed.
 						$result  = mc_update_instance( $event_instance, $event_id, $update );
-						$message = mc_show_notice( __( 'Date/time information for this event has been updated.', 'my-calendar' ) . " $url", false, 'date-updated' );
+						$message = mc_show_notice( __( 'Date/time information for this event has been updated.', 'my-calendar' ) . " $url", false, 'date-updated', 'success' );
 					}
 				}
 			} else {
@@ -753,7 +754,7 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 					 */
 					do_action( 'mc_transition_event', (int) $post['prev_event_status'], $new_event_status, $action, $data, $event_id );
 				}
-				$message = mc_show_notice( __( 'Event updated successfully', 'my-calendar' ) . ". $url", false, 'event-updated' );
+				$message = mc_show_notice( __( 'Event updated successfully', 'my-calendar' ) . ". $url", false, 'event-updated', 'success' );
 			}
 		} else {
 			$message = mc_show_error( __( 'You do not have sufficient permissions to edit that event.', 'my-calendar' ), false );
@@ -834,7 +835,7 @@ function mc_delete_event( $event_id ) {
 				 */
 				do_action( 'mc_delete_event', $event_id, $post_id );
 			}
-			$message = mc_show_notice( __( 'Event deleted successfully', 'my-calendar' ), false, 'event-deleted' );
+			$message = mc_show_notice( __( 'Event deleted successfully', 'my-calendar' ), false, 'event-deleted', 'success' );
 		} else {
 			$message = mc_show_error( __( 'Despite issuing a request to delete, the event still remains in the database. Please investigate.', 'my-calendar' ), false );
 		}
@@ -1556,7 +1557,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 						$notice = __( 'The dates for this event have been added or modified.', 'my-calendar' );
 					}
 					$notice .= ' ' . __( 'Changing the date or repetition pattern will reset its scheduled dates.', 'my-calendar' );
-					mc_show_notice( $notice );
+					mc_show_notice( $notice, true, false, 'warning' );
 				}
 			}
 			echo mc_controls( $mode, $has_data, $data );
@@ -1570,9 +1571,9 @@ function mc_form_fields( $data, $mode, $event_id ) {
 				$edit_event = sprintf( ' <a href="%s">' . __( 'Edit the root event.', 'my-calendar' ) . '</a>', $edit_url );
 				// Translators: Date of a specific event occurrence.
 				$message = sprintf( __( 'You are editing the <strong>%s</strong> date of this event. Other dates for this event will not be changed.', 'my-calendar' ), $date ) . $edit_event;
-				mc_show_notice( $message );
+				mc_show_notice( $message, true, false, 'info' );
 			} elseif ( isset( $_GET['date'] ) && empty( $_GET['date'] ) ) {
-				mc_show_notice( __( 'The ID for an event date was not provided. <strong>You are editing this entire recurring event series.</strong>', 'my-calendar' ) );
+				mc_show_notice( __( 'The ID for an event date was not provided. <strong>You are editing this entire recurring event series.</strong>', 'my-calendar' ), true, false, 'warning' );
 			}
 			?>
 			<fieldset class="details">
@@ -2052,13 +2053,13 @@ function mc_event_access() {
 	 *
 	 * @return {array}
 	 */
-	$event_access = apply_filters( 'mc_event_access_choices', $choices );
+	$events_access = apply_filters( 'mc_event_access_choices', $choices );
 
-	return $event_access;
+	return $events_access;
 }
 
 /**
- * Form to select accessibility features.
+ * Form to select event accessibility features.
  *
  * @param string $form Form HTML.
  * @param object $data Event data.
@@ -2148,7 +2149,7 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 	$event_image        = '';
 	$event_phone        = '';
 	$event_phone2       = '';
-	$event_access       = '';
+	$location_access    = '';
 	$event_tickets      = '';
 	$event_registration = '';
 	$event_author       = '';
@@ -2355,8 +2356,8 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 				$event_zoom        = ! empty( $post['event_zoom'] ) ? $post['event_zoom'] : '';
 				$event_phone       = ! empty( $post['event_phone'] ) ? $post['event_phone'] : '';
 				$event_phone2      = ! empty( $post['event_phone2'] ) ? $post['event_phone2'] : '';
-				$event_access      = ! empty( $post['event_access'] ) ? $post['event_access'] : '';
-				$event_access      = ! empty( $post['event_access_hidden'] ) ? unserialize( $post['event_access_hidden'] ) : $event_access;
+				$location_access   = ! empty( $post['event_access'] ) ? $post['event_access'] : '';
+				$location_access   = ! empty( $post['event_access_hidden'] ) ? unserialize( $post['event_access_hidden'] ) : $location_access;
 				$has_location_data = false;
 
 				if ( '' !== trim( $event_label . $event_street . $event_street2 . $event_city . $event_state . $event_postcode . $event_region . $event_country . $event_url . $event_longitude . $event_latitude . $event_zoom . $event_phone . $event_phone2 ) ) {
@@ -2381,7 +2382,7 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 							'location_zoom'      => $event_zoom,
 							'location_phone'     => $event_phone,
 							'location_phone2'    => $event_phone2,
-							'location_access'    => ( is_array( $event_access ) ) ? serialize( $event_access ) : '',
+							'location_access'    => ( is_array( $location_access ) ) ? serialize( $location_access ) : '',
 						);
 						$loc_id         = mc_insert_location( $add_loc );
 						$saved_location = $loc_id;
@@ -2509,7 +2510,7 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 		'event_link'         => $event_link,
 		'event_recur'        => $recur,
 		'event_image'        => $event_image,
-		'event_access'       => ( is_array( $event_access ) ) ? serialize( $event_access ) : '',
+		'event_access'       => ( is_array( $location_access ) ) ? serialize( $location_access ) : '',
 		'event_tickets'      => $event_tickets,
 		'event_registration' => $event_registration,
 		'event_repeats'      => $repeats,
@@ -2582,7 +2583,7 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 		$submission->event_group_id     = $event_group_id;
 		$submission->event_span         = $event_span;
 		$submission->event_hide_end     = $event_hide_end;
-		$submission->event_access       = ( is_array( $event_access ) ) ? serialize( $event_access ) : '';
+		$submission->event_access       = ( is_array( $location_access ) ) ? serialize( $location_access ) : '';
 		$submission->events_access      = ( is_array( $events_access ) ) ? serialize( $events_access ) : '';
 		$submission->event_tickets      = $event_tickets;
 		$submission->event_registration = $event_registration;
