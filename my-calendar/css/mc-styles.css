@@ -82,6 +82,11 @@ ul.links li {
 	line-height: 1.4;
 }
 
+.my-calendar-admin .metabox-holder .mc-postbox > h2:not(.mc-heading-inline),
+.my-calendar-admin .metabox-holder .postbox > h2:not(.mc-heading-inline) {
+	display: flex;
+}
+
 .my-calendar-admin .metabox-holder .mc-postbox > h2 {
 	padding: 8px 0;
 	margin-top: 24px;
@@ -307,6 +312,11 @@ li.datetime-template:nth-of-type(even) {
 	display: none;
 }
 
+p.event_span {
+	display: flex;
+	gap: 4px;
+}
+
 p.event_span.checkboxes {
 	border: 1px solid #c3c4c7;
 	border-radius: 3px;
@@ -326,7 +336,9 @@ ol.mc-repeat-events .buttons {
 }
 
 ol.mc-repeat-events li:last-of-type .buttons {
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: 4px;
 }
 
 ul.mc-file-list ul {
@@ -1235,10 +1247,6 @@ label[for=e_host] {
 	padding: 5px;
 }
 
-.mc-admin-mode .dashicons {
-	font-size: 16px;
-}
-
 .my-calendar-admin .mc_permissions .checkboxes li {
 	display: block;
 }
@@ -1348,7 +1356,7 @@ ul.mc-variables li:has(.wp-picker-active) label {
 }
 
 .my-calendar-contextual-help .dashicons:not( h2 .dashicons ) {
-	line-height: inherit;
+	line-height: 1;
 	height: auto;
 	width: auto;
 }
@@ -1362,6 +1370,10 @@ ul.mc-variables li:has(.wp-picker-active) label {
 
 .wrap .notice a.my-calendar-contextual-help {
 	display: inline;
+}
+
+.my-calendar-contextual-help .dashicons {
+	text-decoration: none;
 }
 
 .wrap a.my-calendar-contextual-help .help-label-text {

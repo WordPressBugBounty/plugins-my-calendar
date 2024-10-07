@@ -74,6 +74,7 @@ function mc_time_html( $event, $type ) {
 
 	$time = "
 	<div class='time-block'>
+		<span class='mc-icon' aria-hidden='true'></span>
 		<p>$time_content</p>
 	</div>";
 
@@ -1722,11 +1723,15 @@ function my_calendar( $args ) {
 	$site     = ( isset( $args['site'] ) && '' !== trim( $args['site'] ) ) ? $args['site'] : false;
 	$months   = isset( $args['months'] ) ? $args['months'] : false;
 
+	$list_js = mc_get_option( 'list_javascript' );
+	$grid_js = mc_get_option( 'calendar_javascript' );
+	$mini_js = mc_get_option( 'mini_javascript' );
 	// Get options before switching sites in multisite environments.
-	$list_js_class = ( '1' !== mc_get_option( 'list_javascript' ) ) ? 'listjs' : '';
-	$grid_js_class = ( '1' !== mc_get_option( 'calendar_javascript' ) ) ? 'gridjs' : '';
-	$mini_js_class = ( '1' !== mc_get_option( 'mini_javascript' ) ) ? 'minijs' : '';
+	$list_js_class = ( '1' !== $list_js ) ? 'listjs' : '';
+	$grid_js_class = ( '1' !== $grid_js ) ? 'gridjs' : '';
+	$mini_js_class = ( '1' !== $mini_js ) ? 'minijs' : '';
 	$ajax_js_class = ( '1' !== mc_get_option( 'ajax_javascript' ) ) ? 'ajaxjs' : '';
+	$has_modal     = ( 'modal' === $list_js || 'modal' === $grid_js || 'modal' === $mini_js ) ? 'has-modal' : '';
 	$style_class   = sanitize_html_class( str_replace( '.css', '', mc_get_option( 'css_file' ) ) );
 	$date_format   = mc_date_format();
 	$start_of_week = ( get_option( 'start_of_week' ) === '1' ) ? 1 : 7; // convert start of week to ISO 8601 (Monday/Sunday).
@@ -1786,6 +1791,7 @@ function my_calendar( $args ) {
 		$params['format'],
 		$params['time'],
 		$main_class,
+		$has_modal,
 	);
 	/**
 	 * Filter classes used on the main My Calendar wrapper element.
@@ -2516,7 +2522,7 @@ function mc_wrap_title( $title, $params = '' ) {
 		if ( 'modal' === mc_get_option( 'list_javascript' ) ) {
 			$uses_modal = ' js-modal';
 		}
-		$is_anchor       = '<button type="button" ' . $params . ' class="mc-text-button' . $uses_modal . '">';
+		$is_anchor       = '<button type="button" ' . $params . ' class="mc-text-button' . $uses_modal . '"><span class="mc-icon" aria-hidden="true"></span>';
 		$is_close_anchor = '</button>';
 	} else {
 		$is_anchor       = '';

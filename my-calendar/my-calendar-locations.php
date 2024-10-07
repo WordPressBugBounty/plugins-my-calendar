@@ -803,6 +803,9 @@ function mc_get_location_coordinates( $location_id = false, $address = array() )
 		$zip     = ( isset( $address['zip'] ) ) ? $address['zip'] : '';
 		$country = ( isset( $address['country'] ) ) ? $address['country'] : '';
 	}
+	if ( ! $street && ! $street2 && ! $city && ! $zip && ! $country ) {
+		return array();
+	}
 
 	$coordinates = Geolocation::get_coordinates( $street, $street2, $city, $zip, $country );
 
@@ -1833,14 +1836,14 @@ function mc_default_countries( $query = '' ) {
  */
 function mc_display_location_details( $content ) {
 	if ( is_singular( 'mc-locations' ) && in_the_loop() && is_main_query() ) {
-		$location = mc_get_location_id( get_the_ID() );
-		$location = mc_get_location( $location );
+		$loc_id   = mc_get_location_id( get_the_ID() );
+		$location = mc_get_location( $loc_id );
 		if ( ! is_object( $location ) ) {
 			return $content;
 		}
 		$args = array(
-			'ltype'    => 'name',
-			'lvalue'   => $location->location_label,
+			'ltype'    => 'id',
+			'lvalue'   => $loc_id,
 			'type'     => 'events',
 			'after'    => 5,
 			'before'   => 0,
