@@ -17,7 +17,7 @@
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/license/gpl-2.0.txt
  * Domain Path: lang
- * Version:     3.5.18
+ * Version:     3.5.19
  */
 
 /*
@@ -54,7 +54,7 @@ function mc_get_version( $version = true ) {
 	if ( ! $version ) {
 		return get_option( 'mc_version', '' );
 	}
-	return '3.5.18';
+	return '3.5.19';
 }
 
 define( 'MC_DEBUG', false );
@@ -183,15 +183,6 @@ require __DIR__ . '/my-calendar-call-template.php';
 require __DIR__ . '/my-calendar-help.php';
 require __DIR__ . '/my-calendar-ajax.php';
 require __DIR__ . '/my-calendar-import.php';
-
-add_action( 'plugins_loaded', 'mc_load_textdomain' );
-/**
- * Load internationalization.
- */
-function mc_load_textdomain() {
-	// Shipped translations removed @v3.3.0.
-	load_plugin_textdomain( 'my-calendar' );
-}
 
 // Add actions.
 add_action( 'admin_menu', 'my_calendar_menu' );
