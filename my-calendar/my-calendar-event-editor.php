@@ -24,7 +24,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return int|false post ID or false if post ID not available or created.
  */
 function mc_event_post( $action, $data, $event_id, $result = false ) {
-	// if the event save was successful.
 	$post_id = false;
 	// Check if this is an ajax request.
 	$post_post = isset( $_POST['post'] ) ? $_POST['post'] : array();
@@ -146,7 +145,7 @@ function mc_event_post( $action, $data, $event_id, $result = false ) {
 }
 
 /**
- * Add post meta data to an event post.
+ * Add post meta data to an event post. Copies event information into the post meta fields.
  *
  * @param int   $post_id Post ID.
  * @param array $post POST data.
@@ -480,6 +479,33 @@ function my_calendar_edit() {
 }
 
 /**
+ * Do event save actions. Create event post, update post meta, and run actions.
+ *
+ * @param string    $action Current action: edit, copy, add.
+ * @param array     $data Data updated.
+ * @param int       $event_id Event ID.
+ * @param int|false $result Result of the DB update query.
+ *
+ * @return int Event post ID.
+ */
+function mc_do_event_save_actions( $action, $data, $event_id, $result ) {
+	$event_post = mc_event_post( $action, $data, $event_id, $result );
+	/**
+	 * Run action when an event is saved.
+	 *
+	 * @hook mc_save_event
+	 *
+	 * @param {string}    $action Current action: edit, copy, add.
+	 * @param {array}     $data Data updated.
+	 * @param {int}       $event_id Event ID.
+	 * @param {int|false} $result Result of the DB update query.
+	 */
+	do_action( 'mc_save_event', $action, $data, $event_id, $result );
+
+	return $event_post;
+}
+
+/**
  * Save an event to the database
  *
  * @param string      $action Type of action.
@@ -497,9 +523,9 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 	$formats    = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d' );
 
 	if ( ( 'add' === $action || 'copy' === $action ) && true === $proceed ) {
-		$add  = $output[2]; // add format here.
-		$data = $output[2];
-		$cats = $add['event_categories'];
+		$add    = $output[2]; // add format here.
+		$update = $output[2];
+		$cats   = $add['event_categories'];
 
 		unset( $add['event_categories'] );
 		// My Calendar no longer saves location data to the events table, and it'll cause problems if it's in the array.
@@ -540,19 +566,8 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 			$event_link  = '';
 			$edit_link   = '';
 
-			$event_post = mc_event_post( $action, $data, $event_id, $result );
-			/**
-			 * Run action when an event is saved.
-			 *
-			 * @hook mc_save_event
-			 *
-			 * @param {string}    $action Current action: edit, copy, add.
-			 * @param {array}     $data Data updated.
-			 * @param {int}       $event_id Event ID.
-			 * @param {int|false} $result Result of the DB update query.
-			 */
-			do_action( 'mc_save_event', $action, $data, $event_id, $result );
-			$event = mc_get_first_event( $event_id );
+			$event_post = mc_do_event_save_actions( $action, $update, $event_id, $result );
+			$event      = mc_get_first_event( $event_id );
 
 			if ( 'true' === mc_get_option( 'event_mail' ) ) {
 				// insert_id is last occurrence inserted in the db.
@@ -658,6 +673,7 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 				$is_changed     = mc_compare( $update, $event_id );
 				$event_instance = (int) $post['event_instance'];
 				if ( $is_changed ) {
+					// Split an event into multiple separate events.
 					// if changed, create new event, match group id, update instance to reflect event connection, same group id.
 					// if group ID == 0, need to add group ID to both records.
 					// if a single instance is edited, it should not inherit recurring settings from parent.
@@ -671,17 +687,17 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 						$location                 = absint( $post['preset_location'] );
 						$update['event_location'] = $location;
 					}
-					$wpdb->insert( my_calendar_table(), $update, $formats );
-					// need to get this variable into URL for form submit.
+					$result    = $wpdb->insert( my_calendar_table(), $update, $formats );
 					$new_event = $wpdb->insert_id;
 					mc_update_category_relationships( $cats, $new_event );
-					$result = mc_update_instance( $event_instance, $new_event, $update );
+					mc_update_instance( $event_instance, $new_event, $update );
+					$event_post = mc_do_event_save_actions( 'add', $update, $new_event, $result );
 				} else {
 					if ( $update['event_begin'][0] === $post['prev_event_begin'] && $update['event_end'][0] === $post['prev_event_end'] ) {
 						// There were no changes at all.
 					} else {
 						// Only dates were changed.
-						$result  = mc_update_instance( $event_instance, $event_id, $update );
+						mc_update_instance( $event_instance, $event_id, $update );
 						$message = mc_show_notice( __( 'Date/time information for this event has been updated.', 'my-calendar' ) . " $url", false, 'date-updated', 'success' );
 					}
 				}
@@ -717,20 +733,8 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 						mc_increment_event( $event_id, array(), false, $instances );
 					}
 				}
+				$event_post = mc_do_event_save_actions( $action, $update, $event_id, $result );
 			}
-			$data       = $update;
-			$event_post = mc_event_post( $action, $data, $event_id, $result );
-			/**
-			 * Run action when an event is saved.
-			 *
-			 * @hook mc_save_event
-			 *
-			 * @param {string}    $action Current action: edit, copy, add.
-			 * @param {array}     $data Data updated.
-			 * @param {int}       $event_id Event ID.
-			 * @param {int|false} $result Result of the DB update query.
-			 */
-			do_action( 'mc_save_event', $action, $data, $event_id, $result );
 			if ( false === $result ) {
 				$message = mc_show_error( __( 'Your event was not updated.', 'my-calendar' ) . " $url", false );
 			} else {
@@ -749,10 +753,10 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 					 * @param {int}    $prev_event_status Previous status.
 					 * @param {int}    $new_event_status New status.
 					 * @param {string} $action Action being performed.
-					 * @param {array}  $data Submitted event data.
+					 * @param {array}  $update Submitted event data.
 					 * @param {int}    $event_id Event ID.
 					 */
-					do_action( 'mc_transition_event', (int) $post['prev_event_status'], $new_event_status, $action, $data, $event_id );
+					do_action( 'mc_transition_event', (int) $post['prev_event_status'], $new_event_status, $action, $update, $event_id );
 				}
 				$message = mc_show_notice( __( 'Event updated successfully', 'my-calendar' ) . ". $url", false, 'event-updated', 'success' );
 			}
@@ -1463,7 +1467,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 	$has_data = ( is_object( $data ) ) ? true : false;
 	if ( $data ) {
 		// This was previously only shown if $data was an object. Don't know why.
-		$test = mc_test_occurrence_overlap( $data );
+		mc_test_occurrence_overlap( $data );
 	}
 	$instance = ( isset( $_GET['date'] ) ) ? (int) $_GET['date'] : false;
 	if ( $instance ) {
@@ -1567,7 +1571,8 @@ function mc_form_fields( $data, $mode, $event_id ) {
 			if ( ! empty( $_GET['date'] ) ) {
 				$event      = mc_get_event( $instance );
 				$date       = date_i18n( mc_date_format(), mc_strtotime( $event->occur_begin ) );
-				$edit_url   = esc_url( admin_url( 'admin.php?page=my-calendar&mode=edit&event_id=' . $data->event_id ) );
+				$root_id    = ( isset( $_GET['event_id'] ) ) ? (int) $_GET['event_id'] : $data->event_id;
+				$edit_url   = esc_url( admin_url( 'admin.php?page=my-calendar&mode=edit&event_id=' . $root_id ) );
 				$edit_event = sprintf( ' <a href="%s">' . __( 'Edit the root event.', 'my-calendar' ) . '</a>', $edit_url );
 				// Translators: Date of a specific event occurrence.
 				$message = sprintf( __( 'You are editing the <strong>%s</strong> date of this event. Other dates for this event will not be changed.', 'my-calendar' ), $date ) . $edit_event;
@@ -1825,7 +1830,6 @@ function mc_form_fields( $data, $mode, $event_id ) {
 						if ( ! mc_event_published( $data ) ) {
 							$view_url = add_query_arg( 'preview', 'true', mc_get_permalink( $first ) );
 						}
-						$tag_url     = admin_url( "admin.php?page=my-calendar-design&mc-event=$first->occur_id#my-calendar-templates" );
 						$tag_preview = add_query_arg(
 							array(
 								'iframe'   => 'true',
@@ -1927,7 +1931,8 @@ function mc_event_location_dropdown_block( $data, $hide_extras = false ) {
 			}
 			$fields .= '</select>';
 		} else {
-			$location_label = ( $event_location && is_numeric( $event_location ) ) ? mc_get_location( $event_location )->location_label : '';
+			$location       = ( $event_location && is_numeric( $event_location ) ) ? mc_get_location( $event_location ) : false;
+			$location_label = ( $location ) ? $location->location_label : '';
 			$fields        .= '<div id="mc-locations-autocomplete" class="mc-autocomplete autocomplete">
 				<input class="autocomplete-input" type="text" placeholder="' . __( 'Search locations...', 'my-calendar' ) . '" id="l_preset" value="' . esc_attr( $location_label ) . '" />
 				<ul class="autocomplete-result-list"></ul>
@@ -2188,7 +2193,7 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 			unset( $post['event_repeats'] );
 		}
 		$every = ! empty( $post['event_every'] ) ? (int) $post['event_every'] : 1;
-		if ( strlen( $recur > 1 ) ) {
+		if ( strlen( $recur ) > 1 ) {
 			$recur = substr( $recur, 0, 1 );
 		}
 		$begin = trim( $post['event_begin'][ $i ] );
