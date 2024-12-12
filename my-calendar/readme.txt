@@ -3,10 +3,10 @@ Contributors: joedolson
 Donate link: https://www.joedolson.com/donate/
 Tags: event manager, event calendar, venue, location, accessibility
 Requires at least: 4.9
-Tested up to: 6.6
+Tested up to: 6.7
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.5.20
+Stable tag: 3.5.21
 License: GPLv2 or later
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -107,6 +107,12 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.5.21 =
+
+* Bug fix: iCal feed link incorrect.
+* Bug fix: Pass time frame into navigation calculation to help prevent calendars from switching formats when multiple calendars appear on a page.
+* Code docs improvements.
 
 = 3.5.20 =
 

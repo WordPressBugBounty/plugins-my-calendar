@@ -290,6 +290,7 @@ function mc_nav( $date, $format, $time, $show_months, $id, $site = false ) {
 				'month' => $prev['month'],
 				'dy'    => $prev['day'],
 				'cid'   => $id,
+				'time'  => $time,
 			),
 			array()
 		);
@@ -313,6 +314,7 @@ function mc_nav( $date, $format, $time, $show_months, $id, $site = false ) {
 				'month' => $next['month'],
 				'dy'    => $next['day'],
 				'cid'   => $id,
+				'time'  => $time,
 			),
 			array()
 		);
@@ -477,7 +479,7 @@ function mc_sub_links() {
 
 	$google = str_replace( $search, $replace, get_feed_link( 'my-calendar-google' ) );
 	$google = add_query_arg( 'cid', $google, 'https://www.google.com/calendar/render' );
-	$ical   = str_replace( $search, $replace, get_feed_link( 'my-calendar-ical' ) );
+	$ical   = str_replace( $search, $replace, get_feed_link( 'my-calendar-ics' ) );
 
 	$sub_google = "<li class='ics google'><a href='" . esc_url( $google ) . "' rel='nofollow'><span class='mc-icon' aria-hidden='true'></span>" . __( '<span class="maybe-hide">Subscribe in </span>Google', 'my-calendar' ) . '</a></li>';
 	$sub_ical   = "<li class='ics ical'><a href='" . esc_url( $ical ) . "' rel='nofollow'><span class='mc-icon' aria-hidden='true'></span>" . __( '<span class="maybe-hide">Subscribe in </span>iCal', 'my-calendar' ) . '</a></li>';
