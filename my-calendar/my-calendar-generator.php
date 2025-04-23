@@ -56,18 +56,29 @@ function mc_generate( $format = 'shortcode' ) {
 				default:
 					$shortcode = 'my_calendar';
 			}
-			$keys = array( 'category', 'ltype', 'lvalue', 'search', 'format', 'time', 'year', 'month', 'day', 'months', 'above', 'below', 'author', 'host', 'order', 'from', 'to', 'type', 'skip', 'after', 'before', 'template', 'fallback', 'show_recurring', 'weekends' );
+			$keys = array( 'navigation', 'category', 'ltype', 'lvalue', 'search', 'format', 'time', 'year', 'month', 'day', 'months', 'above', 'below', 'author', 'host', 'order', 'from', 'to', 'type', 'skip', 'after', 'before', 'preset_template', 'template', 'fallback', 'show_recurring', 'weekends' );
 			$post = map_deep( $_POST, 'sanitize_text_field' );
-			if ( ! isset( $post['weekends'] ) ) {
+			if ( ! isset( $post['weekends'] ) && 'main' === $type ) {
 				$post['weekends'] = 'false';
 			}
 			foreach ( $post as $key => $value ) {
 				if ( in_array( $key, $keys, true ) ) {
-					if ( 'template' === $key ) {
+					if ( 'preset_template' === $key && 'list' !== $value ) {
+						$v = $value;
+					}
+					$is_preset = ( isset( $post['preset_template'] ) && 'list' !== $post['preset_template'] ) ? true : false;
+					// Handle preset_template not set or preset_template is 'custom'.
+					if ( 'template' === $key && ! $is_preset ) {
 						$template = mc_create_template( $value, array( 'mc_template_key' => $templatekey ) );
 						$v        = $template;
 						$append   = "<a href='" . add_query_arg( 'mc_template', $template, admin_url( 'admin.php?page=my-calendar-design#my-calendar-templates' ) ) . "'>" . __( 'Edit Custom Template', 'my-calendar' ) . ' &rarr;</a>';
 					} else {
+						if ( 'template' === $key && $is_preset ) {
+							continue;
+						}
+						if ( 'preset_template' === $key ) {
+							$key = 'template';
+						}
 						if ( is_array( $value ) ) {
 							if ( in_array( 'all', $value, true ) ) {
 								unset( $value[0] );
@@ -109,7 +120,7 @@ function mc_generate( $format = 'shortcode' ) {
  */
 function mc_generator( $type, $data = array() ) {
 	?>
-	<form action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-shortcodes' ) ) . '#mc_' . $type; ?>" method="POST" id="my-calendar-generate">
+	<form action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-shortcodes' ) ) . '#mc_' . esc_attr( $type ); ?>" method="POST" id="my-calendar-generate">
 	<?php mc_calendar_generator_fields( $data, $type ); ?>
 	<p>
 		<input type="submit" class="button-primary" name="generator" value="<?php esc_html_e( 'Generate Shortcode', 'my-calendar' ); ?>"/>
@@ -125,7 +136,7 @@ function mc_generator( $type, $data = array() ) {
 function my_calendar_shortcodes() {
 	?>
 
-	<div class="wrap my-calendar-admin">
+	<div class="wrap my-calendar-admin my-calendar-shortcodes">
 	<h1><?php esc_html_e( 'Generate Shortcodes', 'my-calendar' ); ?></h1>
 
 	<div class="postbox-container jcd-wide">
@@ -153,7 +164,7 @@ function my_calendar_shortcodes() {
 					 *
 					 * @return {string}
 					 */
-					echo apply_filters( 'mc_generator_tabs', '' );
+					echo wp_kses( apply_filters( 'mc_generator_tabs', '' ), mc_kses_elements() );
 					?>
 				</div>
 				<div class='wptab mc_main' id='mc_main' aria-live='assertive' aria-labelledby='tab_mc_main' role="tabpanel">
@@ -176,7 +187,7 @@ function my_calendar_shortcodes() {
 				 *
 				 * @return {string}
 				 */
-				echo apply_filters( 'mc_generator_tab_content', '', $data );
+				echo wp_kses( apply_filters( 'mc_generator_tab_content', '', $data ), mc_kses_elements() );
 				?>
 			</div>
 		</div>

@@ -155,16 +155,18 @@ function mc_datetime_cmp( $a, $b ) {
  *
  * @param object $a event object.
  * @param object $b event object.
+ * @param int    $compare_date Alternate date to compare against.
  *
  * @return integer (ternary value)
  */
-function mc_timediff_cmp( $a, $b ) {
+function mc_timediff_cmp( $a, $b, $compare_date = 0 ) {
+	$compare    = ( $compare_date ) ? strtotime( $compare_date ) : 'NOW';
 	$a          = $a . current_time( ' H:i:s' );
 	$b          = $b . current_time( ' H:i:s' );
 	$event_dt_a = strtotime( $a );
 	$event_dt_b = strtotime( $b );
-	$diff_a     = mc_date_diff_precise( $event_dt_a );
-	$diff_b     = mc_date_diff_precise( $event_dt_b );
+	$diff_a     = mc_date_diff_precise( $event_dt_a, $compare );
+	$diff_b     = mc_date_diff_precise( $event_dt_b, $compare );
 
 	if ( $diff_a === $diff_b ) {
 		return 0;
@@ -363,8 +365,8 @@ function mc_ordinal( $number ) {
  * @return boolean true if early exit is qualified.
  */
 function mc_exit_early( $event, $process_date ) {
-	// if event is not approved, return without processing.
-	if ( 1 !== (int) $event->event_approved && ! mc_is_preview() ) {
+	// if event is in trash, return without processing.
+	if ( 2 === (int) $event->event_approved && ! mc_is_preview() ) {
 		return true;
 	}
 
@@ -417,12 +419,17 @@ function mc_private_event( $event, $type = true ) {
 	if ( ! is_object( $event ) || ! property_exists( $event, 'category_private' ) ) {
 		return true;
 	}
-	if ( $type ) {
-		// Checking whether this should currently be hidden.
-		$status = ( 1 === absint( $event->category_private ) && ! is_user_logged_in() ) ? true : false;
+	// If this event has the private state.
+	if ( property_exists( $event, 'event_approved' ) && 4 === (int) $event->event_approved ) {
+		$status = ( is_user_logged_in() ) ? false : true;
 	} else {
-		// Checking whether this is supposed to be private.
-		$status = ( 1 === absint( $event->category_private ) ) ? true : false;
+		if ( $type ) {
+			// Checking whether this should currently be hidden.
+			$status = ( 1 === absint( $event->category_private ) && ! is_user_logged_in() ) ? true : false;
+		} else {
+			// Checking whether this is supposed to be private.
+			$status = ( 1 === absint( $event->category_private ) ) ? true : false;
+		}
 	}
 
 	/**

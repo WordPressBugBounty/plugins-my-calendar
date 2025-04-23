@@ -40,38 +40,39 @@ function mc_update_category( $field, $data, $category ) {
  * @return array images in directory.
  */
 function mc_directory_list( $directory ) {
+	global $wp_filesystem;
+	require_once ABSPATH . '/wp-admin/includes/file.php';
+	WP_Filesystem();
 	// If icons are disabled, don't parse the directory.
 	if ( ! function_exists( 'mime_content_type' ) || ( 'true' === mc_get_option( 'hide_icons' ) ) ) {
 		return array();
 	}
-	if ( ! file_exists( $directory ) ) {
+	if ( ! $wp_filesystem->exists( $directory ) ) {
 		return array();
 	}
 	$results = ( WP_DEBUG ) ? array() : get_transient( 'mc_icon_list' );
 	if ( empty( $results ) ) {
 		$results = array();
-		$handler = opendir( $directory );
+		$files   = list_files( $directory );
 		// keep going until all files in directory have been read.
-		while ( false !== ( $file = readdir( $handler ) ) ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
+		foreach ( $files as $file ) {
 			// if $file isn't this directory or its parent add it to the results array.
 			if ( strlen( $file ) < 5 ) {
 				continue;
 			}
-			$directory = trailingslashit( $directory );
-			if ( filesize( $directory . $file ) > 11 ) {
-				if ( '.' !== $file && '..' !== $file && ! is_dir( $directory . $file ) && (
-						'image/svg_xml' === mime_content_type( $directory . $file ) ||
-						'image/svg' === mime_content_type( $directory . $file ) ||
-						'image/svg+xml' === mime_content_type( $directory . $file ) ||
-						exif_imagetype( $directory . $file ) === IMAGETYPE_GIF ||
-						exif_imagetype( $directory . $file ) === IMAGETYPE_PNG ||
-						exif_imagetype( $directory . $file ) === IMAGETYPE_JPEG )
+			if ( filesize( $file ) > 11 ) {
+				if ( '.' !== $file && '..' !== $file && ! is_dir( $file ) && (
+						'image/svg_xml' === mime_content_type( $file ) ||
+						'image/svg' === mime_content_type( $file ) ||
+						'image/svg+xml' === mime_content_type( $file ) ||
+						exif_imagetype( $file ) === IMAGETYPE_GIF ||
+						exif_imagetype( $file ) === IMAGETYPE_PNG ||
+						exif_imagetype( $file ) === IMAGETYPE_JPEG )
 				) {
-					$results[] = $file;
+					$results[ $file ] = str_replace( trailingslashit( $directory ), '', $file );
 				}
 			}
 		}
-		closedir( $handler );
 		sort( $results, SORT_STRING );
 		set_transient( 'mc_icon_list', $results, MONTH_IN_SECONDS );
 	}
@@ -132,7 +133,7 @@ function mc_get_private_categories() {
 function my_calendar_manage_categories() {
 	global $wpdb;
 	?>
-	<div class="wrap my-calendar-admin">
+	<div class="wrap my-calendar-admin my-calendar-categories">
 		<?php
 		my_calendar_check_db();
 		$append           = array();
@@ -315,7 +316,7 @@ function mc_update_cat( $category ) {
 	$where       = array(
 		'category_id' => $category_id,
 	);
-	$cat_name    = strip_tags( $category['category_name'] );
+	$cat_name    = wp_strip_all_tags( $category['category_name'] );
 	$term_exists = term_exists( $cat_name, 'mc-event-category' );
 	if ( ! $term_exists ) {
 		$term = wp_insert_term( $cat_name, 'mc-event-category' );
@@ -354,7 +355,7 @@ function mc_create_category( $category ) {
 		return false;
 	}
 	$formats     = array( '%s', '%s', '%s', '%d', '%d' );
-	$cat_name    = strip_tags( $category['category_name'] );
+	$cat_name    = wp_strip_all_tags( $category['category_name'] );
 	$term_exists = term_exists( $cat_name, 'mc-event-category' );
 	if ( ! $term_exists ) {
 		$term = wp_insert_term( $cat_name, 'mc-event-category' );
@@ -375,7 +376,7 @@ function mc_create_category( $category ) {
 		'category_term'    => $term,
 	);
 
-	$add = array_map( 'mc_kses_post', $add );
+	$add = array_map( 'wp_kses_post', $add );
 	/**
 	 * Filter data before inserting a new category.
 	 *
@@ -456,7 +457,7 @@ function mc_edit_category_form( $view = 'edit', $cat_id = false ) {
 
 					<div class="inside">
 						<form id="my-calendar" method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-categories' ) ); ?>">
-							<div><input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce( 'my-calendar-nonce' ); ?>"/></div>
+							<div><input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/></div>
 							<?php
 							if ( 'add' === $view ) {
 								?>
@@ -481,7 +482,7 @@ function mc_edit_category_form( $view = 'edit', $cat_id = false ) {
 								$color = '';
 								$icon  = '';
 							}
-							$color = strip_tags( $color );
+							$color = wp_strip_all_tags( $color );
 							if ( ! empty( $cur_cat ) && is_object( $cur_cat ) ) {
 								$cat_name = stripslashes( $cur_cat->category_name );
 							} else {
@@ -503,7 +504,7 @@ function mc_edit_category_form( $view = 'edit', $cat_id = false ) {
 							<?php
 							if ( ! function_exists( 'mime_content_type' ) ) {
 								?>
-								<div class="notice"><p><?php _e( 'Category Icons require the <code>mime_content_type</code> function, which is not available on your system.', 'my-calendar' ); ?></p></div>
+								<div class="notice"><p><?php echo wp_kses_post( __( 'Category Icons require the <code>mime_content_type</code> function, which is not available on your system.', 'my-calendar' ) ); ?></p></div>
 								<?php
 							}
 							if ( 'true' !== mc_get_option( 'hide_icons' ) ) {
@@ -512,7 +513,7 @@ function mc_edit_category_form( $view = 'edit', $cat_id = false ) {
 							<div class="category-icon-selector">
 								<label for="cat_icon"><?php esc_html_e( 'Category Icon', 'my-calendar' ); ?></label>
 								<div class="mc-autocomplete autocomplete" id="mc-icons-autocomplete">
-									<input type="text" class="autocomplete-input" id="cat_icon" name='category_icon' placeholder="<?php _e( 'Search for an icon', 'my-calendar' ); ?>" value="<?php echo esc_attr( $icon ); ?>" />
+									<input type="text" class="autocomplete-input" id="cat_icon" name='category_icon' placeholder="<?php esc_attr_e( 'Search for an icon', 'my-calendar' ); ?>" value="<?php echo esc_attr( $icon ); ?>" />
 									<ul class="autocomplete-result-list"></ul>
 								</div>
 								<?php mc_help_link( __( 'Show Category Icons', 'my-calendar' ), __( 'Category Icons', 'my-calendar' ), 'Category Icons', 6 ); ?>
@@ -548,7 +549,7 @@ function mc_edit_category_form( $view = 'edit', $cat_id = false ) {
 								 *
 								 * @return {string}
 								 */
-								echo apply_filters( 'mc_category_fields', '', $cur_cat );
+								echo wp_kses( apply_filters( 'mc_category_fields', '', $cur_cat ), mc_kses_elements() );
 								if ( 'add' === $view ) {
 									$save_text = __( 'Add Category', 'my-calendar' );
 								} else {
@@ -602,13 +603,18 @@ function mc_edit_category_form( $view = 'edit', $cat_id = false ) {
 					<div class="inside">
 					<ul class="checkboxes icon-list">
 			<?php
-			$dir       = plugin_dir_path( __FILE__ );
-			$url       = plugin_dir_url( __FILE__ );
-			$directory = trailingslashit( str_replace( '/my-calendar', '', $dir ) ) . 'my-calendar-custom/icons';
-			$path      = str_replace( '/my-calendar', '/my-calendar-custom/icons', $url );
-			$iconlist  = mc_directory_list( $directory );
+			$dir = plugin_dir_path( __FILE__ );
+			$url = plugin_dir_url( __FILE__ );
+			if ( str_contains( $dir, 'my-calendar/src' ) ) {
+				$directory = trailingslashit( str_replace( '/my-calendar/src', '', $dir ) ) . 'my-calendar-custom/icons';
+				$path      = trailingslashit( str_replace( '/my-calendar/src', '/my-calendar-custom/icons', $url ) );
+			} else {
+				$directory = trailingslashit( str_replace( '/my-calendar', '', $dir ) ) . 'my-calendar-custom/icons';
+				$path      = trailingslashit( str_replace( '/my-calendar', '/my-calendar-custom/icons', $url ) );
+			}
+			$iconlist = mc_directory_list( $directory );
 			foreach ( $iconlist as $icon ) {
-				echo '<li class="category-icon"><code>' . $icon . '</code><img src="' . $path . '/' . esc_html( $icon ) . '" alt="" aria-hidden="true"></li>';
+				echo '<li class="category-icon"><code>' . esc_html( $icon ) . '</code><img width="32" src="' . esc_url( $path . $icon ) . '" alt="" aria-hidden="true"></li>';
 			}
 			?>
 					</ul>
@@ -638,6 +644,7 @@ function mc_category_settings_update() {
 	if ( isset( $_POST['mc_category_settings'] ) && wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
 		mc_update_option( 'hide_icons', ( ! empty( $_POST['mc_hide_icons'] ) && 'on' === $_POST['mc_hide_icons'] ) ? 'true' : 'false' );
 		mc_update_option( 'apply_color', $_POST['mc_apply_color'] );
+		delete_transient( 'mc_generated_category_styles' );
 
 		$message = mc_show_notice( __( 'My Calendar Category Configuration Updated', 'my-calendar' ), false, false, 'success' );
 	}
@@ -842,17 +849,17 @@ function mc_manage_categories() {
 	}
 	if ( ! empty( $categories ) ) {
 		?>
-		<table class="widefat striped page fixed mc-categories" id="my-calendar-admin-table">
+		<table class="widefat striped page fixed mc-responsive-table mc-categories" id="my-calendar-admin-table">
 		<thead>
 		<tr>
 			<th scope="col">
 				<?php
-				echo ( '2' === (string) $co ) ? wp_kses_post( '<a href="' . esc_url( admin_url( 'admin.php?page=my-calendar-categories&amp;co=1' ) ) . '">' . __( 'ID', 'my-calendar' ) . '</a>' ) : __( 'ID', 'my-calendar' );
+				echo ( '2' === (string) $co ) ? wp_kses_post( '<a href="' . esc_url( admin_url( 'admin.php?page=my-calendar-categories&amp;co=1' ) ) . '">' . __( 'ID', 'my-calendar' ) . '</a>' ) : esc_html__( 'ID', 'my-calendar' );
 				?>
 			</th>
 			<th scope="col">
 				<?php
-				echo ( '1' === (string) $co ) ? wp_kses_post( '<a href="' . esc_url( admin_url( 'admin.php?page=my-calendar-categories&amp;co=2' ) ) . '">' . __( 'Category Name', 'my-calendar' ) . '</a>' ) : __( 'Category Name', 'my-calendar' );
+				echo ( '1' === (string) $co ) ? wp_kses_post( '<a href="' . esc_url( admin_url( 'admin.php?page=my-calendar-categories&amp;co=2' ) ) . '">' . __( 'Category Name', 'my-calendar' ) . '</a>' ) : esc_html__( 'Category Name', 'my-calendar' );
 				?>
 			</th>
 			<th scope="col"><?php esc_html_e( 'Events', 'my-calendar' ); ?></th>
@@ -891,14 +898,14 @@ function mc_manage_categories() {
 			$default_text = sprintf( __( 'Set %s as Default', 'my-calendar' ), '<span class="screen-reader-text">' . $cat_name . '</span>' );
 			$mcnonce      = wp_create_nonce( 'mcnonce' );
 			if ( $default_category === (string) $cat->category_id ) {
-				echo ' <strong>' . __( '(Default)', 'my-calendar' ) . '</strong>';
+				echo ' <strong>' . esc_html__( '(Default)', 'my-calendar' ) . '</strong>';
 				$default = '<span class="mc_default">' . __( 'Default Category', 'my-calendar' ) . '</span>';
 			} else {
 				$url     = add_query_arg( '_mcnonce', $mcnonce, admin_url( "admin.php?page=my-calendar-categories&amp;default=$cat->category_id" ) );
 				$default = '<a href="' . esc_url( $url ) . '">' . $default_text . '</a>';
 			}
 			if ( mc_get_option( 'skip_holidays_category' ) === (string) $cat->category_id ) {
-				echo ' <strong>' . __( '(Holiday)', 'my-calendar' ) . '</strong>';
+				echo ' <strong>' . esc_html__( '(Holiday)', 'my-calendar' ) . '</strong>';
 			}
 			?>
 				<div class="row-actions">
@@ -910,14 +917,14 @@ function mc_manage_categories() {
 					if ( '1' !== (string) $cat->category_id ) {
 						echo ' | ';
 						?>
-						<a href="<?php echo add_query_arg( '_mcnonce', $mcnonce, admin_url( "admin.php?page=my-calendar-categories&amp;mode=delete&amp;category_id=$cat->category_id" ) ); ?>" class="delete" onclick="return confirm('<?php _e( 'Are you sure you want to delete this category?', 'my-calendar' ); ?>')"><?php echo wp_kses_post( $delete_cat ); ?></a>
+						<a href="<?php echo esc_url( add_query_arg( '_mcnonce', $mcnonce, admin_url( "admin.php?page=my-calendar-categories&amp;mode=delete&amp;category_id=$cat->category_id" ) ) ); ?>" class="delete" onclick="return confirm('<?php esc_html_e( 'Are you sure you want to delete this category?', 'my-calendar' ); ?>')"><?php echo wp_kses_post( $delete_cat ); ?></a>
 						<?php
 					}
 					?>
 				</div>
 			</td>
 			<td><?php echo wp_kses_post( $count ); ?></td>
-			<td><?php echo ( '1' === (string) $cat->category_private ) ? __( 'Yes', 'my-calendar' ) : __( 'No', 'my-calendar' ); ?></td>
+			<td><?php echo ( '1' === (string) $cat->category_private ) ? esc_html__( 'Yes', 'my-calendar' ) : esc_html__( 'No', 'my-calendar' ); ?></td>
 			<?php
 			if ( ! $hide_icon || ! $hide_color ) {
 				$has_color  = ( '' !== $cat->category_color && strlen( $cat->category_color ) > 2 ) ? true : false;
@@ -934,9 +941,8 @@ function mc_manage_categories() {
 				if ( ! $icon ) {
 					$icon_bg = 'transparent';
 				}
-				$style = ( '' !== $icon_bg ) ? ' style="text-align:center;vertical-align:middle;background-color:' . esc_attr( $icon_bg ) . '"' : '';
 				?>
-			<td<?php echo $style; ?>><?php echo ( $icon ) ? wp_kses( $icon, mc_kses_elements() ) : ''; ?></td>
+			<td <?php echo ( '' !== $icon_bg ) ? ' style="text-align:center;vertical-align:middle;background-color:' . esc_attr( $icon_bg ) . '"' : ''; ?>><?php echo ( $icon ) ? wp_kses( $icon, mc_kses_elements() ) : ''; ?></td>
 				<?php
 			}
 			if ( ! $hide_color ) {
@@ -982,7 +988,7 @@ function mc_profile() {
 		<fieldset><legend style="font-size:1rem;font-weight:600"><?php esc_html_e( 'Allowed Categories', 'my-calendar' ); ?></legend>
 			<ul class='checkboxes'>
 				<li><input type="checkbox" name="mc_user_permissions[]" value="all" id="mc_edit_all" <?php echo esc_html( $selected ); ?>> <label for="mc_edit_all"><?php esc_html_e( 'Edit All Categories', 'my-calendar' ); ?></li>
-				<?php echo mc_category_select( $permissions, true, true, 'mc_user_permissions[]' ); ?>
+				<?php echo wp_kses( mc_category_select( $permissions, true, true, 'mc_user_permissions[]' ), mc_kses_elements() ); ?>
 			</ul>
 		</fieldset>
 			<?php
@@ -996,7 +1002,7 @@ function mc_profile() {
 			 *
 			 * @return {string}
 			 */
-			echo apply_filters( 'mc_user_fields', '', $user_edit );
+			echo wp_kses( apply_filters( 'mc_user_fields', '', $user_edit ), mc_kses_elements() );
 			?>
 		</div>
 		<?php
@@ -1112,11 +1118,12 @@ function mc_category_select( $data = false, $option = true, $multiple = false, $
 					$selected = ( null === $data ) ? '' : ' checked="checked"';
 				}
 			}
-			$category_name = strip_tags( stripslashes( trim( $cat->category_name ) ) );
+			$category_name = wp_strip_all_tags( stripslashes( trim( $cat->category_name ) ) );
 			$category_name = ( '' === $category_name ) ? '(' . __( 'Untitled category', 'my-calendar' ) . ')' : $category_name;
 			if ( $multiple ) {
-				$icon = '<span style="display:inline-block;max-width:1em;margin-left:6px;vertical-align:middle;">' . mc_category_icon( $cat ) . '</span>';
-				$c    = '<li class="mc_cat_' . $cat->category_id . '"><input type="checkbox"' . $selected . ' name="' . esc_attr( $name ) . '" id="' . $id . $cat->category_id . '" value="' . $cat->category_id . '" ' . $selected . ' /> <label for="' . $id . $cat->category_id . '">' . $category_name . $icon . '</label></li>';
+				$icon = mc_category_icon( $cat );
+				$icon = ( $icon ) ? '<div class="mc-category-icon-wrapper">' . $icon . '</div>' : '';
+				$c    = '<li class="mc_cat_' . $cat->category_id . '"><input type="checkbox"' . $selected . ' name="' . esc_attr( $name ) . '" id="' . $id . $cat->category_id . '" value="' . $cat->category_id . '" ' . $selected . ' /> <label for="' . $id . $cat->category_id . '">' . $icon . $category_name . '</label></li>';
 			} else {
 				$c = '<option value="' . $cat->category_id . '" ' . $selected . '>' . $category_name . '</option>';
 			}
@@ -1208,6 +1215,7 @@ function mc_admin_category_list( $event ) {
 		}
 		$string .= " <a class='mc_filter primary-category' href='" . esc_url( $url ) . "'><span class='screen-reader-text'>" . __( 'Show only: ', 'my-calendar' ) . '</span>' . esc_html( $cat->category_name ) . '</a>';
 	}
+	$string = '<span class="mc-category-item">' . $string . '</span>';
 
 	if ( is_array( $categories ) ) {
 		foreach ( $categories as $category ) {
@@ -1218,14 +1226,14 @@ function mc_admin_category_list( $event ) {
 				$color  = ( 0 !== strpos( $color, '#' ) ) ? '#' . $color : $color;
 				$color  = ( '#' !== $color ) ? '<span class="category-color" style="background-color:' . $color . ';"></span>' : '';
 				if ( isset( $_GET['groups'] ) ) {
-					$cats[] = $color . ' ' . mc_get_category_detail( $category, 'category_name' );
+					$cats[] = '<span class="mc-category-item">' . $color . ' ' . mc_get_category_detail( $category, 'category_name' ) . '</span>';
 				} else {
-					$cats[] = $color . ' <a href="' . $filter . '" class="secondary-category">' . mc_get_category_detail( $category, 'category_name' ) . '</a>';
+					$cats[] = '<span class="mc-category-item">' . $color . ' <a href="' . $filter . '" class="secondary-category">' . mc_get_category_detail( $category, 'category_name' ) . '</a></span>';
 				}
 			}
 		}
 		if ( count( $cats ) > 0 ) {
-			$string .= ', ' . implode( ', ', $cats );
+			$string .= implode( ' ', $cats );
 		}
 	}
 
@@ -1328,49 +1336,76 @@ function mc_categories_html( $results, $primary, $output = 'html' ) {
 /**
  * Get category icon by filename.
  *
- * @param string $file File name.
+ * @param string $file File name or full SVG HTML string.
  * @param bool   $is_custom Querying a custom icon.
+ * @param string $file_name If passing an SVG icon into `$file`, provided the text alternative or file name.
  *
  * @return string
  */
-function mc_get_img( $file, $is_custom = false ) {
-	$parent_path = plugin_dir_path( __DIR__ );
-	$parent_url  = plugin_dir_url( __DIR__ );
-	$url         = plugin_dir_url( __FILE__ );
-	$self        = plugin_dir_path( __FILE__ );
-	global $wp_filesystem;
-	require_once ABSPATH . '/wp-admin/includes/file.php';
-	WP_Filesystem();
-
-	if ( $is_custom ) {
-		$path = $parent_path . 'my-calendar-custom/icons/';
-		$link = $parent_url . 'my-calendar-custom/icons/';
+function mc_get_img( $file, $is_custom = false, $file_name = '' ) {
+	$is_core_svg   = ( 0 === stripos( $file, '<svg' ) ) ? true : false;
+	$svg           = ( 0 === stripos( $file, '<svg' ) ) ? $file : false;
+	$is_custom_key = ( $is_custom ) ? 'custom' : 'core';
+	$label_id      = ( $svg ) ? sanitize_title( $file_name ) : sanitize_title( $file );
+	$image_key     = $label_id . '-' . $is_custom_key;
+	$image         = ( ! $svg ) ? get_transient( $image_key ) : false;
+	if ( $image ) {
+		return $image;
 	} else {
-		$path = $self . 'images/icons/';
-		$link = $url . 'images/icons/';
-	}
-	$file = ( $is_custom ) ? $file : str_replace( '.png', '.svg', $file );
-	if ( false === stripos( $file, '.svg' ) ) {
-		if ( $wp_filesystem->exists( $path . $file ) ) {
-			return '<img src="' . esc_url( $link . $file ) . '" alt="" />';
-		} else {
-			return '';
-		}
-	}
-	$src      = $path . $file;
-	$label_id = sanitize_title( $file );
-	$svg      = ( $wp_filesystem->exists( $src ) ) ? $wp_filesystem->get_contents( $src ) : false;
-	$image    = '<img src="data:image/png;base64,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" alt="Error fetching image" />';
-	if ( $svg ) {
-		$image = $svg;
-		// If remote access is blocked, this will not return an SVG.
-		if ( 0 === stripos( $image, '<svg' ) ) {
-			$image = str_replace( '<svg ', '<svg focusable="false" role="img" aria-labelledby="' . $label_id . '" class="category-icon" ', $image );
-			$image = str_replace( '<path ', "<title id='" . $label_id . "'>$file</title><path ", $image );
-		}
-	}
+		// If the value passed to mc_get_img is an SVG, that's the icon to use.
+		if ( ! $is_core_svg ) {
+			if ( null === $is_custom ) {
+				$is_custom = mc_is_custom_icon();
+			}
+			$parent_path = plugin_dir_path( __DIR__ );
+			$parent_url  = plugin_dir_url( __DIR__ );
+			$url         = plugin_dir_url( __FILE__ );
+			$self        = plugin_dir_path( __FILE__ );
+			// If running from a subdirectory, plugin_dir_path will be a level up.
+			if ( str_contains( $parent_path, 'my-calendar' ) && $is_custom ) {
+				$parent_path = str_replace( 'my-calendar/', '', $parent_path );
+				$parent_url  = str_replace( 'my-calendar/', '', $parent_url );
+			}
+			global $wp_filesystem;
+			require_once ABSPATH . '/wp-admin/includes/file.php';
+			WP_Filesystem();
 
-	return $image;
+			if ( $is_custom ) {
+				$path = $parent_path . 'my-calendar-custom/icons/';
+				$link = $parent_url . 'my-calendar-custom/icons/';
+			} else {
+				$path = $self . 'images/icons/';
+				$link = $url . 'images/icons/';
+			}
+			$file = ( $is_custom ) ? $file : str_replace( '.png', '.svg', $file );
+			if ( false === stripos( $file, '.svg' ) ) {
+				if ( $wp_filesystem->exists( $path . $file ) ) {
+					return '<img src="' . esc_url( $link . $file ) . '" alt="" />';
+				} else {
+					return '';
+				}
+			}
+			$src   = $path . $file;
+			$svg   = ( $wp_filesystem->exists( $src ) ) ? $wp_filesystem->get_contents( $src ) : false;
+			$image = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAIfElEQVR4nO2dX2wcVxXGr9P8axQiJKAtiUNW8WTOdz0rqLTiDaiVGuKQhCitCoIXnoMUkJAQr32Ayi4hNOKJB6haHtJSQSUKglLqFJo0beOoTZydc9drFKEEN1JRGkyMRGm8POy4tdP1xuvdnXN35nzS78WypXPP93n+3Lkz15iMqWZM31QY7mRgPwNHGPgxA88w8BIDkwzMMHCNgRsM1BJuJD+bSX7nJbb2V8nfHomt3TcVhjtrxvRJj091iyphuM0RfZWB4wy8wsDsImM7zSwDp2NrH3NEDzmirdLjz50uFQobHdFIYnili2avFOeIfsLAnmoQbJDuTyZVjqL1DOx3RE8y8C8PTF+O6ww8EVu7b6JUWifdt55XbO0uRzTKwFUPzG2VqwwcLw8ORtJ97DlVwvBzDDzHwLwHRnaCUwwc0IvIJqoZ0xdbe8gRveGBYd3inCM6qEG4RZUw3MvAhAcGpcVZBvZI911cjogY+J0HhkjxQmxtUdqH1DVRKm3i+iTL/zwwQZp3HdHY5f7+O6V9SUWxtcMM/M2DxvtG1RHtlvana0omcEYZuOlBs31lnoGfTZRKm6T96qgc0acZuOhBg3uFC5mZP2Dg67z0wYuyMv7DwDel/Vu1asbckcyRSzey1zlaM2aNtJ8tqRxF62Nrn/ageVnhN5cKhY3Svq5I5SjazMDzHjQta4xXg2CLtL9NNVks3s3AOQ+alVUmpgcG7pL2uaEYKDBQ9aBJWWeKgYK030tUDYJPMOA8aE4uiK2dLkfRPdK+G2OMqQbBFtbDvgTn37j33o+Kmp+s1PmTB83IK+Niy9BqxqxJVs5KNyHXOKJna8bckXoAdJLHHxzRWKrmM/AN6UG3yszMTEtI19si847oYCrmJw925jwYtAZgKf+cLBa3d9X8S4XCRgYueDBYDUBjXu3qcnQGfurBIDUATXBEo10xP1nJ07PLtPMSgMSj+zpq/kSptCm2dtqDwWkAVka5o6cCri/glB6UBqAFHNH3OmL+1K5dloF3pQekAWiZudjaHW0HgIE/eDAYDcDqeKYt85M3dqQHoQFog/Lg4P2rMr9mTB8Dr0sPQAPQNqdXFYDY2kMeFK8B6ADlwcHPtxyArL2lm+cAMPB8q//9wx4UrQHoIJUw/OyKA8AZufLXAHyAI3p2pf/9u7iHp3w1AMsyXw2CgdsGwBGNeVCsBqA7/LCp+ROl0joG3vKgUA1Ad3ir6TMCBg54UKQGoIs4opFm5/9fSheoAeg6jzc0P1nt4/NHGDUAHcARvVOOovWNLv5GpIvTAKRDbO1wo/P/cenCNACpcbRRAKY8KEwDkA7lJeZXwnCbB0VpAFIktvaTi6/+vyZdkAYgdR7MzflfA9CQY4sD8IoHBWkA0uWUMSZ5yxf4twcFaQDS5XrNmD5TjqLAg2I0AALE1u7I9Py/BqA5lTDcaxzRt6UL0QDI4IgOZ+KtHw3A6oitfdRwfVNF8WI0ACIBeNow8BfpQjQAYowbzsln3DUADTlvuL5frnQhGgAZrhiu73YpXYgGQIZrhusbE0gXogGQYc4w8J4HhWgAZHhPA6AB0FNAjgMwpxeB+Q7ANcPAPzwoRAMgw2XDwKQHhWgAZHjTMHDSg0I0AAI4oj/rw6AcB2DhYZA+Ds5pABzRmGHgiHQhGgCxABw2DOyXLkQDIBaAETMVhjulC9EAyDBZLG5f+CBkZl8L1wAsS31ZePJiyGkPClJSJLb25cXvBj4mXZCSOh+8Iu6IHvKgICVFYmsPLQ7AVumClHT50N7DDFSki1JS4+KHvhCi1wG54keNPhGzx4PClBRouIlENQg2cE4Wh+SZZT8TlxwFnpAuUOkusbU/b2h+ch2wT7pApet8adkAnBwaWss5eVMopzT/WLQxxjiiUQ8KVbpAbO0PmppvjFn4ZIxuGOFBzR1mfioMd942AMlR4PceFKwB6Cy/XZH5SQB2e1CwBqCDtLx1HAPnpIvWAHSMV1syPzkKHPSgcA1AB4it/XLLATDGmNja16SL1wC0zevvr/xpVZyh5wN5DYAj2r0q8xeUlTuCPAbAET3VlvnGvD8v8F/pwWgAWma2Eobb2g6AMdnYTDKHAfhuR8w3xpjL/f13MlD1YFAagJVx8bZz/q0qmRzq2SniHAXgZsuTPiuVLhvrCZrvD9yOklVDb3owSKUxZzp+6L9V5cHBiIEbHgxWWcrb1SDo76r5C4qtPcQ9fD2QQeYd0VdSMX9BDBz1YOBKnUdSNd+Y+mZTjugpDwafd07UjFmTegCMMWaiVFrHwB89aEJeebEaBBtEzF+QI/oIAxMeNCNvnC1H0WZR8xdUCcOPM+A8aEouiK2dniwW75b2fYkYKHDGdyD3hKnY2h3SfjcUAx9j4IwHTcoqZ6cHBu6S9rmpylG0mfXCsBu8WA2CLdL+rkjlKFrPwAkPmpYVfn2pUNgo7WtLSuYJxlhnDNthnoFHxO7zO6HY2mEGrnrQzF7j7VWv5vVN1SDoj6192YOm9gTJauyCtG8dVfLm8cMM3JRusMfMM3C86490JcXAfZyT3Upb5ELXVvL4ppNDQ2sd0XcYmPWg8dLMMfDwsp9tybIc0VZH9KQHJkjxXDmKPiXtg7jKg4P3O6K/emBIWpxp+42dLCq29guc4VnE2NrXMnNr101VwvAzyakhC7uazjPwAgMHpPvac5osFrfH1n6fgb97YGSrzDii0WoQDEj3seeV3DWMMPC4I3rHA3OX4xoDv2Bgz8mhobXSfcukylG0Prb2i1zf7azsgekXGTgaWzucy1s5aZWj6B4GHmTgGAOnuLufu72eTGkfY+AB71blqOpioFAJw72xtd+KrX00Wb08zsB5Bq4kh+rFk1Czyc+uJL8zzsCJ5G8PO6IRb1fhtKn/A1gcn5iUtxXEAAAAAElFTkSuQmCC" alt="Error fetching image" />';
+		} else {
+			$file = $file_name;
+		}
+		if ( $svg ) {
+			$image = $svg;
+			// If remote access is blocked, this will not return an SVG.
+			if ( 0 === stripos( $image, '<svg' ) ) {
+				$image = str_replace( '<svg ', '<svg focusable="false" role="img" aria-labelledby="' . $label_id . '" class="category-icon" ', $image );
+				$image = str_replace( '<path ', "<title id='" . $label_id . "'>$file</title><path ", $image );
+			}
+		}
+		// If this was fetched as a file, then set the transient.
+		if ( ! $is_core_svg ) {
+			set_transient( $image_key, $image, MONTH_IN_SECONDS );
+		}
+
+		return $image;
+	}
 }
 
 /**
@@ -1421,27 +1456,34 @@ function mc_category_icon( $event, $type = 'html' ) {
 		if ( 'true' !== mc_get_option( 'hide_icons' ) ) {
 			if ( '' !== $event->category_icon ) {
 				if ( mc_is_custom_icon() ) {
-					$path = str_replace( 'my-calendar', 'my-calendar-custom/icons', $url );
-					$src  = $path . $event->category_icon;
+					if ( str_contains( $url, 'my-calendar/src' ) ) {
+						$path = str_replace( 'my-calendar/src', 'my-calendar-custom/icons', $url );
+					} else {
+						$path = str_replace( 'my-calendar', 'my-calendar-custom/icons', $url );
+					}
+					$src = $path . $event->category_icon;
 				} else {
-					$path = plugins_url( 'images/icons', __FILE__ ) . '/';
-					$src  = $path . str_replace( '.png', '.svg', $event->category_icon );
+					$path  = plugins_url( 'images/icons', __FILE__ ) . '/';
+					$src   = $path . str_replace( '.png', '.svg', $event->category_icon );
+					$image = mc_generate_category_icon( $event );
 				}
 				$hex      = ( strpos( $event->category_color, '#' ) !== 0 ) ? '#' : '';
 				$color    = $hex . $event->category_color;
 				$cat_name = __( 'Category', 'my-calendar' ) . ': ' . esc_attr( $event->category_name );
 				if ( 'html' === $type ) {
-					if ( false !== stripos( $src, '.svg' ) ) {
-						$image = get_option( 'mc_category_icon_' . $context . '_' . $event->category_id, '' );
-						// If there's a value, but it's not an svg, zero out.
-						if ( $image && 0 !== stripos( $image, '<svg' ) ) {
-							$image = '';
+					if ( ! $image ) {
+						if ( false !== stripos( $src, '.svg' ) ) {
+							$image = get_option( 'mc_category_icon_' . $context . '_' . $event->category_id, '' );
+							// If there's a value, but it's not an svg, zero out.
+							if ( $image && 0 !== stripos( $image, '<svg' ) ) {
+								$image = '';
+							}
+							if ( '' === $image ) {
+								$image = mc_generate_category_icon( $event );
+							}
+						} else {
+							$image = '<img src="' . esc_url( $src ) . '" alt="' . esc_attr( $cat_name ) . '" class="category-icon" style="background:' . esc_attr( $color ) . '" />';
 						}
-						if ( '' === $image ) {
-							$image = mc_generate_category_icon( $event );
-						}
-					} else {
-						$image = '<img src="' . esc_url( $src ) . '" alt="' . esc_attr( $cat_name ) . '" class="category-icon" style="background:' . esc_attr( $color ) . '" />';
 					}
 				} else {
 					$image = $path . $event->category_icon;
@@ -1484,11 +1526,12 @@ function mc_generate_category_icon( $source ) {
 	if ( '' === $source->category_icon ) {
 		return '';
 	}
-	$path  = plugin_dir_path( __FILE__ ) . 'images/icons/';
-	$src   = $path . str_replace( '.png', '.svg', $source->category_icon );
-	$hex   = ( strpos( $source->category_color, '#' ) !== 0 ) ? '#' : '';
-	$color = $hex . $source->category_color;
-	$apply = mc_get_option( 'apply_color' );
+	$path     = plugin_dir_path( __FILE__ ) . 'images/icons/';
+	$filename = str_replace( '.png', '.svg', $source->category_icon );
+	$src      = $path . $filename;
+	$hex      = ( strpos( $source->category_color, '#' ) !== 0 ) ? '#' : '';
+	$color    = $hex . $source->category_color;
+	$apply    = mc_get_option( 'apply_color' );
 	if ( 'background' === $apply ) {
 		$color = mc_inverse_color( $color );
 	}
@@ -1506,10 +1549,14 @@ function mc_generate_category_icon( $source ) {
 		$context  = 'category';
 	}
 	$label_id = 'cat_' . $occur_id;
-	global $wp_filesystem;
-	require_once ABSPATH . '/wp-admin/includes/file.php';
-	WP_Filesystem();
-	$image = ( $wp_filesystem->exists( $src ) ) ? $wp_filesystem->get_contents( $src ) : false;
+	$image    = ( isset( mc_get_core_icons()[ $filename ] ) ) ? mc_get_core_icons()[ $filename ] : false;
+	// Fetch this image from file if it is not found in the array set.
+	if ( ! $image ) {
+		global $wp_filesystem;
+		require_once ABSPATH . '/wp-admin/includes/file.php';
+		WP_Filesystem();
+		$image = ( $wp_filesystem->exists( $src ) ) ? $wp_filesystem->get_contents( $src ) : false;
+	}
 	if ( 0 === stripos( $image, '<svg' ) ) {
 		$image = str_replace( '<svg ', '<svg style="fill:' . $color . '" focusable="false" role="img" aria-labelledby="' . $label_id . '" class="category-icon" ', $image );
 		$image = str_replace( '<path ', "<title id='" . $label_id . "'>" . esc_html( $cat_name ) . '</title><path ', $image );

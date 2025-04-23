@@ -2,11 +2,11 @@
 Contributors: joedolson
 Donate link: https://www.joedolson.com/donate/
 Tags: event manager, event calendar, venue, location, accessibility
-Requires at least: 4.9
-Tested up to: 6.7
+Requires at least: 6.4
+Tested up to: 6.8
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.5.21
+Stable tag: 3.6.0
 License: GPLv2 or later
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -107,6 +107,56 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.6.0 =
+
+* Feature: Added 'Cancelled' state as an event status option. Cancelled events are public, but marked as cancelled.
+* Feature: Added text setting to customize 'Cancelled' text.
+* Feature: Added 'Private' state as an event status option. Private events are public, but only to logged-in users.
+* Feature: Added default template designs for upcoming events and other list outputs.
+* Feature: Made default template designs selectable globally and individually by shortcode/widget.
+* Feature: Add main shortcode parameter to define custom classes.
+* Feature: Improve AJAX editing of single instances to support dynamic editing as well as deletion.
+* Feature: Add option to automatically copy PHP templates into your theme.
+* Feature: Add "edit in theme" link in PHP template browser when custom template exists.
+* Feature: Add `mc_date_badge()` to generate a formatted date badge on events.
+* Feature: Add CSS variables targeting list presets.
+* Feature: Add previous and next events navigation in Upcoming Events list.
+* Change: Improved UX when copying events.
+* Change: Improve design of category selector for widgets and user permissions.
+* Change: Change table responsiveness to be driven by container width rather than viewport width.
+* Change: Added wrapper around upcoming lists and other list outputs.
+* Change: Added support for My Calendar CSS variables inside upcoming lists and other list outputs.
+* Change: Added variables for weekend grid headers.
+* Change: Added class to disable responsive styles.
+* Change: Extensive fixes to responsive behavior in the admin.
+* Change: Support usertime JS updates in Upcoming Events lists.
+* Change: Minimum WordPress version to 6.4.
+* Change: Update autocomplete to version 3.0.3.
+* Change: Don't render single events in main shortcode if pretty permalinks enabled.
+* Change: Polish themes.
+* Filters: Added filter to modify categories shown in category key `mc_category_key_array`.
+* Bug fix: Fix deprecated jQuery methods.
+* Bug fix: Hide admin notices inside the Help modal.
+* Bug fix: Prevent invalid event IDs in canonical link generator.
+* Bug fix: Change `webcal` protocols to `webcals`.
+* Bug fix: Change instance key to use full date and time.
+* Bug fix: Don't display search results if the page content contains the main shortcode.
+* Bug fix: Enqueue front-end admin styles in back-end admin.
+* Bug fix: Add missing attributes to kses handler.
+* Bug fix: Misc. design tweaks to handle additional theme design cases.
+* Bug fix: Start time didn't display if event started at midnight.
+* Bug fix: 24 hour time template used saved template instead of forcing 24 hour time.
+* Bug fix: Prevent double padding or missing padding on event titles.
+* Bug fix: When disabling event title links, don't disable event details in card view.
+* Bug fix: Don't show week numbers in card view.
+* Bug fix: Validate occurrence IDs before attempting redirect.
+* Bug fix: Default admin events view is not 'all', and 'all' should not be marked active.
+* Security: Misc. hardening.
+* Structure: Move action scheduler into vendor directory.
+* Accessibility: Reduce animations when prefers-reduced-motion applied.
+* Accessibility: Announce when main calendar is loading changes.
+* Performance: Move SVG resources to code, to avoid excess file lookups.
 
 = 3.5.21 =
 

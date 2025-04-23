@@ -14,16 +14,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Generate stylesheet editor
+ * Update styles on save.
  */
-function my_calendar_style_edit() {
+function my_calendar_update_styles() {
 	$message = '';
-	if ( ! current_user_can( 'mc_edit_styles' ) ) {
-		echo wp_kses_post( '<p>' . __( 'You do not have permission to customize styles on this site.', 'my-calendar' ) . '</p>' );
-
-		return;
-	}
-
 	if ( isset( $_POST['mc_edit_style'] ) ) {
 		$nonce = $_REQUEST['_wpnonce'];
 		if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
@@ -47,9 +41,9 @@ function my_calendar_style_edit() {
 					$styles[ $key ] = $val;
 				}
 			}
-			if ( isset( $_POST['new_style_text_var'] ) ) {
-				$key = sanitize_text_field( $_POST['new_style_text_var']['key'] );
-				$val = sanitize_text_field( $_POST['new_style_text_var']['val'] );
+			if ( isset( $_POST['new_style_var_text'] ) ) {
+				$key = sanitize_text_field( $_POST['new_style_var_text']['key'] );
+				$val = sanitize_text_field( $_POST['new_style_var_text']['val'] );
 				if ( $key && $val ) {
 					if ( 0 !== strpos( $key, '--' ) ) {
 						$key = '--' . $key;
@@ -57,11 +51,31 @@ function my_calendar_style_edit() {
 					$styles['text'][ $key ] = $val;
 				}
 			}
+			if ( isset( $_POST['new_style_var_sizing'] ) ) {
+				$key = sanitize_text_field( $_POST['new_style_var_sizing']['key'] );
+				$val = sanitize_text_field( $_POST['new_style_var_sizing']['val'] );
+				if ( $key && $val ) {
+					if ( 0 !== strpos( $key, '--' ) ) {
+						$key = '--' . $key;
+					}
+					$styles['sizing'][ $key ] = $val;
+				}
+			}
+			if ( isset( $_POST['new_style_var_list_presets'] ) ) {
+				$key = sanitize_text_field( $_POST['new_style_var_list_presets']['key'] );
+				$val = sanitize_text_field( $_POST['new_style_var_list_presets']['val'] );
+				if ( $key && $val ) {
+					if ( 0 !== strpos( $key, '--' ) ) {
+						$key = '--' . $key;
+					}
+					$styles['list-presets'][ $key ] = $val;
+				}
+			}
 			foreach ( $_POST['style_vars'] as $key => $value ) {
-				if ( 'text' === $key ) {
+				if ( 'text' === $key || 'sizing' === $key || 'list-presets' === $key ) {
 					foreach ( $value as $var => $text ) {
 						if ( '' !== trim( $text ) ) {
-							$styles['text'][ $var ] = sanitize_text_field( $text );
+							$styles[ $key ][ $var ] = sanitize_text_field( $text );
 						}
 					}
 				} else {
@@ -82,12 +96,25 @@ function my_calendar_style_edit() {
 					unset( $styles['text'][ $del ] );
 				}
 			}
+			if ( isset( $_POST['delete_var_sizing'] ) ) {
+				$delete = map_deep( $_POST['delete_var_sizing'], 'sanitize_text_field' );
+				foreach ( $delete as $del ) {
+					unset( $styles['sizing'][ $del ] );
+				}
+			}
+			if ( isset( $_POST['delete_var_list_presets'] ) ) {
+				$delete = map_deep( $_POST['delete_var_list_presets'], 'sanitize_text_field' );
+				foreach ( $delete as $del ) {
+					unset( $styles['list-presets'][ $del ] );
+				}
+			}
 			mc_update_option( 'style_vars', $styles );
 		}
 
 		$message .= ' ' . __( 'Style Settings Saved', 'my-calendar' ) . '.';
 
-		mc_show_notice( $message, true, false, 'success' );
+		$message = mc_show_notice( $message, false, false, 'success' );
+		set_transient( 'mc_styles_updated', $message, 10 );
 	}
 	if ( isset( $_POST['mc_choose_style'] ) ) {
 		$nonce = $_REQUEST['_wpnonce'];
@@ -96,60 +123,69 @@ function my_calendar_style_edit() {
 		}
 		$mc_css_file = stripcslashes( sanitize_file_name( $_POST['mc_css_file'] ) );
 		mc_update_option( 'css_file', $mc_css_file );
-		$message = '<p><strong>' . __( 'New theme selected.', 'my-calendar' ) . '</strong></p>';
-		echo wp_kses_post( "<div id='message' class='updated fade'>$message</div>" );
+		$message = __( 'New theme selected.', 'my-calendar' );
+		$message = mc_show_notice( $message, false, false, 'success' );
+		set_transient( 'mc_styles_updated', $message, 10 );
 	}
+}
+add_action( 'admin_init', 'my_calendar_update_styles' );
 
+/**
+ * Generate stylesheet editor
+ */
+function my_calendar_style_edit() {
+	if ( ! current_user_can( 'mc_edit_styles' ) ) {
+		echo wp_kses_post( '<p>' . __( 'You do not have permission to customize styles on this site.', 'my-calendar' ) . '</p>' );
+
+		return;
+	}
+	$message = get_transient( 'mc_styles_updated' );
+	if ( $message ) {
+		echo wp_kses_post( $message );
+		delete_transient( 'mc_styles_updated' );
+	}
 	$mc_show_css = mc_get_option( 'show_css' );
 	?>
 	<div class="my-calendar-style-settings">
 	<?php
-	echo mc_stylesheet_selector();
+	mc_stylesheet_selector();
 	$file = mc_get_option( 'css_file' );
 	?>
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-design' ) ); ?>">
-		<input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce( 'my-calendar-nonce' ); ?>" />
+		<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>" />
 		<input type="hidden" value="true" name="mc_edit_style" />
 		<input type="hidden" name="mc_css_file" value="<?php echo esc_attr( $file ); ?>" />
+		<div class="mc-general-style-options">
+			<div class="mc-input-with-note">
+				<p>
+					<label for="mc_show_css"><?php esc_html_e( 'Load CSS only on selected pages', 'my-calendar' ); ?></label><br />
+					<input type="text" id="mc_show_css" name="mc_show_css" value="<?php echo esc_attr( $mc_show_css ); ?>" aria-describedby="mc_css_info" />
+				</p>
+				<span id="mc_css_info"><i class="dashicons dashicons-editor-help" aria-hidden="true"></i><?php esc_html_e( 'Comma-separated post IDs', 'my-calendar' ); ?></span>
+			</div>
+			<p>
+				<input type="checkbox" id="use_styles" name="use_styles" <?php checked( mc_get_option( 'use_styles' ), 'true' ); ?> />
+				<label for="use_styles"><?php esc_html_e( 'Disable styles', 'my-calendar' ); ?></label>
+			</p>
+		</div>
 		<fieldset class="mc-css-variables">
 			<legend><?php esc_html_e( 'CSS Variables', 'my-calendar' ); ?></legend>
 			<?php
-			$output      = '';
-			$text_output = '';
-			$styles      = mc_get_option( 'style_vars' );
-			$styles      = mc_style_variables( $styles );
-			foreach ( $styles as $var => $style ) {
-				if ( 'text' === $var ) {
-					foreach ( $style as $variable => $value ) {
-						$variable_id = 'mc' . sanitize_key( $variable );
-						if ( ! in_array( $variable, array_keys( mc_style_variables()['text'] ), true ) ) {
-							// Translators: CSS variable name.
-							$delete = " <input type='checkbox' id='delete_var_$variable_id' name='delete_var_text[]' value='" . esc_attr( $variable ) . "' /><label for='delete_var_$variable_id'>" . sprintf( esc_html__( 'Delete %s', 'my-calendar' ), '<span class="screen-reader-text">' . $variable . '</span>' ) . '</label>';
-						} else {
-							$delete = '';
-						}
-						$text_output .= "<li><label for='$variable_id'>" . esc_html( $variable ) . "</label> <input class='mc-text-input' type='text' id='$variable_id' data-variable='$variable' name='style_vars[text][$variable]' value='" . esc_attr( $value ) . "' />$delete</li>";
-					}
-				} else {
-					$var_id = 'mc' . sanitize_key( $var );
-					if ( ! in_array( $var, array_keys( mc_style_variables() ), true ) ) {
-						// Translators: CSS variable name.
-						$delete = " <input type='checkbox' id='delete_var_$var_id' name='delete_var[]' value='" . esc_attr( $var ) . "' /><label for='delete_var_$var_id'>" . sprintf( esc_html__( 'Delete %s', 'my-calendar' ), '<span class="screen-reader-text">' . $var . '</span>' ) . '</label>';
-					} else {
-						$delete = '';
-					}
-					$output .= "<li><label for='$var_id'>" . esc_html( $var ) . "</label> <input class='mc-color-input' type='text' id='$var_id' data-variable='$var' name='style_vars[$var]' value='" . esc_attr( $style ) . "' />$delete</li>";
-				}
-			}
-			if ( $output ) {
-				echo '<h3>' . __( 'Color Variables', 'my-calendar' ) . '</h3>';
-				echo wp_kses( "<ul class='mc-variables'>$output</ul>", mc_kses_elements() );
+			$output         = mc_style_variable_editing();
+			$var_output     = $output['vars'];
+			$text_output    = $output['text'];
+			$sizing_output  = $output['sizing'];
+			$presets_output = $output['presets'];
+			if ( $var_output ) {
+				echo '<h3>' . esc_html__( 'Color Variables', 'my-calendar' ) . '</h3>';
+				echo wp_kses( "<ul class='mc-variables'>$var_output</ul>", mc_kses_elements() );
 			}
 			?>
 			<div class="mc-new-variable">
+				<button type="button" class="button-secondary add-new-variable" aria-expanded="false"><?php esc_html_e( 'Add Color Variable', 'my-calendar' ); ?></button>
 				<p>
 					<label for='new_style_var_key'><?php esc_html_e( 'New color variable', 'my-calendar' ); ?></label>
-					<input type='text' name='new_style_var[key]' id='new_style_var_key' />
+					<input type='text' name='new_style_var[key]' id='new_style_var_key' placeholder="--var-name" />
 				</p>
 				<p>
 					<label for='new_style_var_val'><?php esc_html_e( 'Color', 'my-calendar' ); ?></label>
@@ -158,32 +194,56 @@ function my_calendar_style_edit() {
 			</div>
 			<?php
 			if ( $text_output ) {
-				echo '<h3>' . __( 'Style Variables', 'my-calendar' ) . '</h3>';
+				echo '<h3>' . esc_html__( 'Text Size Variables', 'my-calendar' ) . '</h3>';
 				echo wp_kses( "<ul class='mc-variables'>$text_output</ul>", mc_kses_elements() );
 			}
 			?>
 			<div class="mc-new-variable">
+				<button type="button" class="button-secondary add-new-variable" aria-expanded="false"><?php esc_html_e( 'Add Text Variable', 'my-calendar' ); ?></button>
 				<p>
 					<label for='new_style_var_text_key'><?php esc_html_e( 'New text variable', 'my-calendar' ); ?></label>
-					<input type='text' name='new_style_var_text[key]' id='new_style_var_text_key' />
+					<input type='text' name='new_style_var_text[key]' id='new_style_var_text_key' placeholder="--var-name" />
 				</p>
 				<p>
 					<label for='new_style_var_text_val'><?php esc_html_e( 'Value', 'my-calendar' ); ?></label>
 					<input type='text' class="mc-text-input" name='new_style_var_text[val]' id='new_style_var_text_val' />
 				</p>
 			</div>
+			<?php
+			if ( $sizing_output ) {
+				echo '<h3>' . esc_html__( 'Size Variables', 'my-calendar' ) . '</h3>';
+				echo wp_kses( "<ul class='mc-variables'>$sizing_output</ul>", mc_kses_elements() );
+			}
+			?>
+			<div class="mc-new-variable">
+				<button type="button" class="button-secondary add-new-variable" aria-expanded="false"><?php esc_html_e( 'Add Sizing Variable', 'my-calendar' ); ?></button>
+				<p>
+					<label for='new_style_var_sizing_key'><?php esc_html_e( 'New size variable', 'my-calendar' ); ?></label>
+					<input type='text' name='new_style_var_sizing[key]' id='new_style_var_sizing_key' placeholder="--var-name" />
+				</p>
+				<p>
+					<label for='new_style_var_sizing_val'><?php esc_html_e( 'Value', 'my-calendar' ); ?></label>
+					<input type='text' class="mc-text-input" name='new_style_var_sizing[val]' id='new_style_var_sizing_val' />
+				</p>
+			</div>
+			<?php
+			if ( $presets_output ) {
+				echo '<h3>' . esc_html__( 'Upcoming Events Variables', 'my-calendar' ) . '</h3>';
+				echo wp_kses( "<ul class='mc-variables'>$presets_output</ul>", mc_kses_elements() );
+			}
+			?>
+			<div class="mc-new-variable">
+				<button type="button" class="button-secondary add-new-variable" aria-expanded="false"><?php esc_html_e( 'Add List Variable', 'my-calendar' ); ?></button>
+				<p>
+					<label for='new_style_var_list_presets_key'><?php esc_html_e( 'New list variable', 'my-calendar' ); ?></label>
+					<input type='text' name='new_style_var_list_presets[key]' id='new_style_var_list_presets_key' placeholder="--var-name" />
+				</p>
+				<p>
+					<label for='new_style_var_list_presets_val'><?php esc_html_e( 'Value', 'my-calendar' ); ?></label>
+					<input type='text' class="mc-text-input" name='new_style_var_list_presets[val]' id='new_style_var_list_presets_val' />
+				</p>
+			</div>
 		</fieldset>
-		<div class="mc-input-with-note">
-			<p>
-				<label for="mc_show_css"><?php esc_html_e( 'Load CSS only on selected pages', 'my-calendar' ); ?></label><br />
-				<input type="text" id="mc_show_css" name="mc_show_css" value="<?php echo esc_attr( $mc_show_css ); ?>" aria-describedby="mc_css_info" />
-			</p>
-			<span id="mc_css_info"><i class="dashicons dashicons-editor-help" aria-hidden="true"></i><?php esc_html_e( 'Comma-separated post IDs', 'my-calendar' ); ?></span>
-		</div>
-		<p>
-			<input type="checkbox" id="use_styles" name="use_styles" <?php checked( mc_get_option( 'use_styles' ), 'true' ); ?> />
-			<label for="use_styles"><?php esc_html_e( 'Disable styles', 'my-calendar' ); ?></label>
-		</p>
 		<p>
 				<input type="submit" name="save" class="button-primary button-adjust" value="<?php esc_attr_e( 'Save Changes', 'my-calendar' ); ?>" />
 		</p>
@@ -198,15 +258,80 @@ function my_calendar_style_edit() {
 }
 
 /**
- * Display color contrast array of custom variables.
+ * Generate style variable editing lists.
  *
- * @return string
+ * @return array
+ */
+function mc_style_variable_editing() {
+	$output         = array();
+	$text_output    = '';
+	$sizing_output  = '';
+	$presets_output = '';
+	$var_output     = '';
+	$styles         = mc_get_option( 'style_vars' );
+	$styles         = mc_style_variables( $styles );
+	foreach ( $styles as $var => $style ) {
+		if ( 'text' === $var ) {
+			foreach ( $style as $variable => $value ) {
+				$variable_id = 'mc' . sanitize_key( $variable );
+				if ( ! in_array( $variable, array_keys( mc_style_variables()[ $var ] ), true ) ) {
+					// Translators: CSS variable name.
+					$delete = " <input type='checkbox' id='delete_var_$variable_id' name='delete_var_text[]' value='" . esc_attr( $variable ) . "' /><label for='delete_var_$variable_id'>" . sprintf( esc_html__( 'Delete %s', 'my-calendar' ), '<span class="screen-reader-text">' . $variable . '</span>' ) . '</label>';
+				} else {
+					$delete = '';
+				}
+				$text_output .= "<li><label for='$variable_id'>" . esc_html( $variable ) . "</label> <input class='mc-text-input' type='text' id='$variable_id' data-variable='$variable' name='style_vars[$var][$variable]' value='" . esc_attr( $value ) . "' />$delete</li>";
+			}
+			$output['text'] = $text_output;
+		} elseif ( 'sizing' === $var ) {
+			foreach ( $style as $variable => $value ) {
+				$variable_id = 'mc' . sanitize_key( $variable );
+				if ( ! in_array( $variable, array_keys( mc_style_variables()[ $var ] ), true ) ) {
+					// Translators: CSS variable name.
+					$delete = " <input type='checkbox' id='delete_var_$variable_id' name='delete_var_sizing[]' value='" . esc_attr( $variable ) . "' /><label for='delete_var_$variable_id'>" . sprintf( esc_html__( 'Delete %s', 'my-calendar' ), '<span class="screen-reader-text">' . $variable . '</span>' ) . '</label>';
+				} else {
+					$delete = '';
+				}
+				$sizing_output .= "<li><label for='$variable_id'>" . esc_html( $variable ) . "</label> <input class='mc-text-input' type='text' id='$variable_id' data-variable='$variable' name='style_vars[$var][$variable]' value='" . esc_attr( $value ) . "' />$delete</li>";
+			}
+			$output['sizing'] = $sizing_output;
+		} elseif ( 'list-presets' === $var ) {
+			foreach ( $style as $variable => $value ) {
+				$variable_id = 'mc' . sanitize_key( $variable );
+				if ( ! in_array( $variable, array_keys( mc_style_variables()[ $var ] ), true ) ) {
+					// Translators: CSS variable name.
+					$delete = " <input type='checkbox' id='delete_var_$variable_id' name='delete_var_list_presets[]' value='" . esc_attr( $variable ) . "' /><label for='delete_var_$variable_id'>" . sprintf( esc_html__( 'Delete %s', 'my-calendar' ), '<span class="screen-reader-text">' . $variable . '</span>' ) . '</label>';
+				} else {
+					$delete = '';
+				}
+				$presets_output .= "<li><label for='$variable_id'>" . esc_html( $variable ) . "</label> <input class='mc-text-input' type='text' id='$variable_id' data-variable='$variable' name='style_vars[$var][$variable]' value='" . esc_attr( $value ) . "' />$delete</li>";
+			}
+			$output['presets'] = $presets_output;
+		} else {
+			$var_id = 'mc' . sanitize_key( $var );
+			if ( ! in_array( $var, array_keys( mc_style_variables() ), true ) ) {
+				// Translators: CSS variable name.
+				$delete = " <input type='checkbox' id='delete_var_$var_id' name='delete_var[]' value='" . esc_attr( $var ) . "' /><label for='delete_var_$var_id'>" . sprintf( esc_html__( 'Delete %s', 'my-calendar' ), '<span class="screen-reader-text">' . $var . '</span>' ) . '</label>';
+			} else {
+				$delete = '';
+			}
+			$var_output    .= "<li><label for='$var_id'>" . esc_html( $var ) . "</label> <input class='mc-color-input' type='text' id='$var_id' data-variable='$var' name='style_vars[$var]' value='" . esc_attr( $style ) . "' />$delete</li>";
+			$output['vars'] = $var_output;
+		}
+	}
+	return $output;
+}
+
+/**
+ * Display color contrast array of custom variables.
  */
 function mc_display_contrast_variables() {
 	$styles = mc_get_option( 'style_vars', array() );
 	$styles = mc_style_variables( $styles );
 	// Eliminate text settings.
 	unset( $styles['text'] );
+	unset( $styles['sizing'] );
+	unset( $styles['list-presets'] );
 	$colors = array();
 	// Eliminate duplicate colors and transparency. Only compare unique colors.
 	foreach ( $styles as $variable => $color ) {
@@ -229,12 +354,19 @@ function mc_display_contrast_variables() {
 		$row  .= '</tr>';
 		$body .= $row;
 	}
-	$header = '<thead><tr>' . $head . '</tr></thead>';
-	$body   = '<tbody>' . $body . '</tbody>';
-
-	$output = '<table class="mc-contrast-table striped"><caption>' . __( 'Accessible Color Combinations', 'my-calendar' ) . '</caption>' . $header . $body . '</table>';
-
-	return $output;
+	?>
+	<table class="mc-contrast-table mc-responsive-table striped">
+		<caption><?php esc_html_e( 'Accessible Color Combinations', 'my-calendar' ); ?></caption>
+		<thead>
+			<tr>
+				<?php echo wp_kses_post( $head ); ?>
+			</tr>
+		</thead>
+		<tbody>
+			<?php echo wp_kses_post( $body ); ?>
+		</tbody>
+	</table>
+	<?php
 }
 
 /**
@@ -262,59 +394,72 @@ function mc_test_contrast( $color1, $color2 ) {
 
 /**
  * Display stylesheet selector as added component in sidebar.
- *
- * @return string
  */
 function mc_stylesheet_selector() {
-	$dir              = plugin_dir_path( __DIR__ );
-	$options          = '';
-	$return           = '
-	<div class="style-selector">
-	<form method="post" action="' . esc_url( admin_url( 'admin.php?page=my-calendar-design' ) ) . '">
-		<input type="hidden" name="_wpnonce" value="' . wp_create_nonce( 'my-calendar-nonce' ) . '"/><input type="hidden" value="true" name="mc_choose_style"/>';
+	$dir = plugin_dir_path( __DIR__ );
+	?>
+<div class="style-selector">
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-design' ) ); ?>">
+		<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/>
+		<input type="hidden" value="true" name="mc_choose_style" />
+		<div>
+			<p>
+				<label for="mc_css_file"><?php esc_html_e( 'Select Theme (optional)', 'my-calendar' ); ?></label><br />
+				<select name="mc_css_file" id="mc_css_file"><option value=""><?php esc_html_e( 'None', 'my-calendar' ); ?></option>
+	<?php
 	$custom_directory = str_replace( '/my-calendar/', '', $dir ) . '/my-calendar-custom/styles/';
 	$directory        = __DIR__ . '/styles/';
 	$files            = mc_css_list( $custom_directory );
 	if ( ! empty( $files ) ) {
-		$options .= '<optgroup label="' . __( 'Your Custom Stylesheets', 'my-calendar' ) . '">';
+		?>
+					<optgroup label="<?php esc_html_e( 'Your Custom Stylesheets', 'my-calendar' ); ?>">
+		<?php
 		foreach ( $files as $value ) {
 			$test     = 'mc_custom_' . $value;
 			$filepath = mc_get_style_path( $test );
 			$path     = pathinfo( $filepath );
 			if ( 'css' === $path['extension'] ) {
-				$selected = ( mc_get_option( 'css_file' ) === $test ) ? ' selected="selected"' : '';
-				$options .= "<option value='mc_custom_$value'$selected>$value</option>\n";
+				$selected = ( mc_get_option( 'css_file' ) === $test ) ? true : false;
+				?>
+						<option value='mc_custom_<?php echo esc_attr( $value ); ?>'<?php selected( true, $selected ); ?>><?php echo esc_html( $value ); ?></option>
+				<?php
 			}
 		}
-		$options .= '</optgroup>';
+		?>
+					</optgroup>
+		<?php
 	}
-	$files    = mc_css_list( $directory );
-	$options .= '<optgroup label="' . __( 'Installed Stylesheets', 'my-calendar' ) . '">';
-	$current  = mc_get_option( 'css_file' );
+	$files = mc_css_list( $directory );
+	?>
+					<optgroup label="<?php esc_html_e( 'Installed Stylesheets', 'my-calendar' ); ?>">
+	<?php
+	$current = mc_get_option( 'css_file' );
 	foreach ( $files as $value ) {
 		$filepath = mc_get_style_path( $value );
 		$path     = pathinfo( $filepath );
 		if ( isset( $path['extension'] ) && 'css' === $path['extension'] ) {
-			$selected = ( $current === $value ) ? ' selected="selected"' : '';
-			$options .= "<option value='$value'$selected>$value</option>\n";
+			$selected = ( $current === $value ) ? true : false;
+			?>
+						<option value='<?php echo esc_attr( $value ); ?>'<?php selected( true, $selected ); ?>><?php echo esc_html( $value ); ?></option>
+			<?php
 		}
 	}
-	$options .= '</optgroup>';
-	$return  .= '
-		<div>
-			<p>
-				<label for="mc_css_file">' . __( 'Select Theme (optional)', 'my-calendar' ) . '</label><br />
-				<select name="mc_css_file" id="mc_css_file"><option value="">' . __( 'None', 'my-calendar' ) . '</option>' . $options . '</select>
+	?>
+					</optgroup>
+				</select>
 			</p>
 			<p>
-				<input type="submit" name="save" class="button-primary" value="' . __( 'Choose Style', 'my-calendar' ) . '"/>
+				<input type="submit" name="save" class="button-primary" value="<?php esc_html_e( 'Choose Style', 'my-calendar' ); ?>" />
 			</p>
 		</div>
-	</form>';
-	$link     = add_query_arg( 'mcpreview', mc_get_option( 'css_file' ), mc_get_uri() );
-	$return  .= '<a href="' . esc_url( $link ) . '" class="preview-link" data-css="' . esc_attr( mc_get_option( 'css_file' ) ) . '">' . __( 'Preview Stylesheet', 'my-calendar' ) . '</a></div>';
-
-	return $return;
+	</form>
+	<?php
+	$file = ( mc_get_option( 'css_file' ) ) ? mc_get_option( 'css_file' ) : 'none';
+	$link = add_query_arg( 'mcpreview', $file, mc_get_uri() );
+	?>
+	<a href="<?php echo esc_url( $link ); ?>" class="preview-link" data-css="<?php echo esc_attr( $file ); ?>"><?php esc_html_e( 'Preview Stylesheet', 'my-calendar' ); ?></a>
+</div>
+	<?php
 }
 
 /**

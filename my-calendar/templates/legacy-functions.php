@@ -79,7 +79,7 @@ function mc_legacy_template_draw_event( $event, $type, $process_date, $time, $te
 		if ( false === $details ) {
 			$details = wp_kses_post( mc_get_details( $tags, $template, $type ) );
 			// Set details to false if it has no content.
-			$details = ( '' === trim( strip_tags( $details ) ) ) ? false : $details;
+			$details = ( '' === trim( wp_strip_all_tags( $details ) ) ) ? false : $details;
 		}
 	}
 
@@ -149,8 +149,8 @@ function mc_legacy_template_draw_event( $event, $type, $process_date, $time, $te
 				$permalink     = mc_get_permalink( $event );
 				$aria          = '';
 				// If the event title is already in the details label, omit ARIA.
-				if ( false === stripos( strip_tags( $details_label ), strip_tags( $event_title ) ) ) {
-					$aria = " aria-label='" . esc_attr( "$details_label: " . strip_tags( $event_title ) ) . "'";
+				if ( false === stripos( wp_strip_all_tags( $details_label ), wp_strip_all_tags( $event_title ) ) ) {
+					$aria = " aria-label='" . esc_attr( "$details_label: " . wp_strip_all_tags( $event_title ) ) . "'";
 				}
 				if ( _mc_is_url( $permalink ) ) {
 					$more = "	<p class='mc-details'><a$aria href='" . esc_url( $permalink ) . "'>$details_label</a></p>\n";
@@ -223,13 +223,13 @@ function mc_legacy_template_draw_event( $event, $type, $process_date, $time, $te
 
 			if ( 'true' === $display_desc || mc_output_is_visible( 'description', $type, $event ) ) {
 				if ( '' !== trim( $event->event_desc ) ) {
-					$description = wpautop( stripcslashes( mc_kses_post( $event->event_desc ) ), 1 );
+					$description = wpautop( wp_kses( wp_unslash( $event->event_desc ), 'mycalendar' ), 1 );
 					$description = "	<div class='longdesc description'>$description</div>";
 				}
 			}
 
 			if ( 'true' === $display_reg || mc_output_is_visible( 'tickets', $type, $event ) ) {
-				$info     = wpautop( stripcslashes( mc_kses_post( $event->event_registration ) ) );
+				$info     = wpautop( wp_kses( wp_unslash( $event->event_registration ), 'mycalendar' ), 1 );
 				$url      = esc_url( $event->event_tickets );
 				$external = ( $url && mc_external_link( $url ) ) ? 'external' : '';
 				$text     = ( '' !== mc_get_option( 'buy_tickets', '' ) ) ? mc_get_option( 'buy_tickets' ) : __( 'Buy Tickets', 'my-calendar' );
@@ -243,7 +243,7 @@ function mc_legacy_template_draw_event( $event, $type, $process_date, $time, $te
 
 			if ( 'true' === $display_short || mc_output_is_visible( 'excerpt', $type, $event ) ) {
 				if ( '' !== trim( $event->event_short ) ) {
-					$short = wpautop( stripcslashes( mc_kses_post( $event->event_short ) ), 1 );
+					$short = wpautop( wp_kses( wp_unslash( $event->event_short ), 'mycalendar' ), 1 );
 					$short = "	<div class='shortdesc description'>$short</div>";
 				}
 			}
@@ -398,6 +398,8 @@ function mc_format_upcoming_event( $event, $template, $type ) {
 	if ( '1' === $details['event_span'] ) {
 		$classes .= ' multiday';
 	}
+	$classes .= ( str_contains( $template, 'list_preset_' ) ) ? " list-preset $template" : '';
+
 	if ( 'list' === $type ) {
 		$prepend = "\n<li class=\"$classes\">";
 		$append  = "</li>\n";

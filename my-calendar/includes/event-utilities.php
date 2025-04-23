@@ -116,3 +116,143 @@ function mcs_check_conflicts( $begin, $time, $end, $endtime, $loc_id ) {
 
 	return ( ! empty( $results ) ) ? $results : false;
 }
+
+/**
+ * Get all states, labels, types. Valid types are 'hidden', 'public', and 'private'. Hidden statuses
+ * are not output to public APIs or shown on calendars at all. Private statuses are shown to logged-in users.
+ *
+ * @return array
+ */
+function mc_event_states() {
+	$states = array(
+		'0' => array(
+			'type'  => 'hidden',
+			'label' => __( 'Draft', 'my-calendar' ),
+		),
+		'1' => array(
+			'type'  => 'public',
+			'label' => __( 'Published', 'my-calendar' ),
+		),
+		'2' => array(
+			'type'  => 'hidden',
+			'label' => __( 'Trash', 'my-calendar' ),
+		),
+		'3' => array(
+			'type'  => 'public',
+			'label' => __( 'Cancelled', 'my-calendar' ),
+		),
+		'4' => array(
+			'type'  => 'private',
+			'label' => __( 'Private', 'my-calendar' ),
+		),
+	);
+
+	/**
+	 * Filter available event status types.
+	 *
+	 * @hook mc_event_states
+	 *
+	 * @param {array} Array of states where key is the integer value of the
+	 *                state and the value is an array with type and label.
+	 *
+	 * @return {array}
+	 */
+	$states = apply_filters( 'mc_event_states', $states );
+
+	return $states;
+}
+
+/**
+ * Get an array of states by type.
+ *
+ * @param  string $type 'public', 'private', or, 'hidden'.
+ *
+ * @return array
+ */
+function mc_event_states_by_type( $type ) {
+	$statuses = mc_event_states();
+	$values   = array();
+	foreach ( $statuses as $key => $value ) {
+		if ( $type === $value['type'] ) {
+			$values[] = $key;
+		}
+	}
+
+	/**
+	 * Filter the display type for event states.
+	 *
+	 * @hook mc_event_states_by_type
+	 *
+	 * @param {array}  $values Array of integers representing the event states that match the passed type.
+	 * @param {string} $type Publication type requested.
+	 */
+	return apply_filters( 'mc_event_states_by_type', $values, $type );
+}
+
+/**
+ * Get the publication type of a status.
+ *
+ * @param int $state An integer status value.
+ *
+ * @return string 'public', 'private', or 'hidden'.
+ */
+function mc_event_states_type( $state ) {
+	$states = mc_event_states();
+	$return = $states[ $state ]['type'];
+
+	/**
+	 * Filter the display conditions of an event status. Events can either be public; private; or hidden.
+	 * Public events are visible to all; private events are visible to logged-in users; and hidden events are not visible.
+	 *
+	 * @hook mc_event_states_type
+	 *
+	 * @param {string} $return Type for the current status.
+	 * @param {int}    $states An integer representation of a status.
+	 *
+	 * @return {string}
+	 */
+	return apply_filters( 'mc_event_states_type', $return, $states );
+}
+
+/**
+ * Get the label for an event state.
+ *
+ * @param int $state An integer state value.
+ *
+ * @return string Label for this state.
+ */
+function mc_event_states_label( $state ) {
+	$states = mc_event_states();
+	$return = $states[ $state ]['label'];
+
+	/**
+	 * Filter the label for an event state.
+	 *
+	 * @hook mc_event_states_label
+	 *
+	 * @param {string} $return Type for the current status.
+	 * @param {int}    $states An integer representation of a status.
+	 *
+	 * @return {string}
+	 */
+	return apply_filters( 'mc_event_states_label', $return, $states );
+}
+
+/**
+ * Get the integer value for an event state.
+ *
+ * @param string $label A text state value.
+ *
+ * @return int Integer representation of state.
+ */
+function mc_event_state_from_label( $label ) {
+	if ( ! $label ) {
+		return '';
+	}
+	$states = mc_event_states();
+	foreach ( $states as $state => $l ) {
+		if ( isset( $l['type'] ) && $label === $l['type'] ) {
+			return $state;
+		}
+	}
+}

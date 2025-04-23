@@ -17,7 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Save template changes.
  */
 function mc_templates_do_edit() {
-	if ( isset( $_GET['page'] ) && 'my-calendar-design' === $_GET['page'] ) {
+	$legacy_templating = ( 'true' === mc_get_option( 'disable_legacy_templates' ) ) ? false : true;
+	if ( isset( $_GET['page'] ) && 'my-calendar-design' === $_GET['page'] && $legacy_templating ) {
 		if ( ! empty( $_POST ) ) {
 			$nonce = $_REQUEST['_wpnonce'];
 			if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
@@ -68,38 +69,152 @@ add_action( 'admin_init', 'mc_templates_do_edit' );
  * Documentation for PHP templates.
  */
 function mc_php_templates_docs() {
+	$transient = get_transient( 'mc_file_copy' );
+	if ( $transient ) {
+		$message = $transient['message'];
+		$type    = $transient['type'];
+		wp_admin_notice( $message, array( 'type' => $type ) );
+		delete_transient( 'mc_file_copy' );
+	}
+	$theme        = wp_get_theme();
+	$theme_name   = $theme->get( 'Name' );
+	$theme_parent = $theme->get( 'Template' );
+	if ( '' === $theme_parent ) {
+		wp_admin_notice(
+			// translators: The name of the currently active theme.
+			sprintf( __( 'Your current theme, %s, is not a child theme. Updates to your theme will delete custom My Calendar templates.', 'my-calendar' ), $theme_name ),
+			array(
+				'type' => 'error',
+			)
+		);
+	}
+
 	$intro     = '<p>' . __( 'PHP templates are enabled. To customize templates, copy one or more of the following files into your theme directory.', 'my-calendar' ) . '</p>';
 	$intro    .= '<p><a href="https://docs.joedolson.com/my-calendar/php-templates/">' . __( 'Read the documentation.', 'my-calendar' ) . '</a></p>';
-	$file_list = '<h3>' . __( 'Available Templates', 'my-calendar' ) . '</h3><ul class="mc-file-list">
-		<li><code>/mc-templates/</code>
-			<ul>
-				<li><code>/mc-templates/event/</code>
-					<ul>
-						<li><code>/mc-templates/event/calendar-title.php</code></li>
-						<li><code>/mc-templates/event/calendar.php</code></li>
-						<li><code>/mc-templates/event/card-title.php</code></li>
-						<li><code>/mc-templates/event/card.php</code></li>
-						<li><code>/mc-templates/event/list-title.php</code></li>
-						<li><code>/mc-templates/event/list.php</code></li>
-						<li><code>/mc-templates/event/mini-title.php</code></li>
-						<li><code>/mc-templates/event/mini.php</code></li>
-						<li><code>/mc-templates/event/calendar-title.php</code></li>
-						<li><code>/mc-templates/event/next.php</code></li>
-						<li><code>/mc-templates/event/now.php</code></li>
-						<li><code>/mc-templates/event/single-title.php</code></li>
-						<li><code>/mc-templates/event/single.php</code></li>
-						<li><code>/mc-templates/event/today.php</code></li>
-						<li><code>/mc-templates/event/upcoming.php</code></li>
-					</ul>
-				</li>
-				<li><code>/mc-templates/location/</code>
-				<ul>
-					<li><code>/mc-templates/location/single.php</code></li>
-				</ul>
-			</li>
-		</ul>';
+	$templates = array(
+		'event'    => array(
+			'calendar-title',
+			'calendar',
+			'card-title',
+			'card',
+			'list-title',
+			'list',
+			'mini-title',
+			'mini',
+			'single-title',
+			'single',
+			'next',
+			'now',
+			'today',
+			'upcoming',
+		),
+		'location' => array(
+			'single',
+		),
+	);
+	$output    = '';
+	foreach ( $templates as $type => $template ) {
+		$base    = 'mc-templates/' . $type;
+		$output .= '<li><code>/' . $base . '</code><ul>';
+		foreach ( $template as $temp ) {
+			$exists    = mc_template_exists( '/' . $base . '/' . $temp . '.php' );
+			$edit_link = ( $exists ) ? add_query_arg( 'file', $base . '/' . $temp . '.php', admin_url( 'theme-editor.php' ) ) : '';
+			$id        = 'template_' . $type . '-' . $temp;
+			$nonce     = wp_nonce_field( 'mc-copy-file', '_wpnonce', true, false );
+			$button    = '<form method="post">' . $nonce . '<input type="hidden" name="mc_file_template" value="' . $type . '/' . $temp . '"><button type="submit" class="button-secondary" aria-describedby="' . $id . '">Copy to Theme</button></form>';
+			$append    = ( $exists ) ? '<span><span class="dashicons dashicons-yes" aria-hidden-"true"></span> <a href="' . esc_url( $edit_link ) . '">' . __( 'Edit in Theme', 'my-calendar' ) . '</a></span></span>' : $button;
+			$output   .= '<li>' . $append . '<code id="' . $id . '">/' . $base . '/' . $temp . '.php' . '</code></li>';
+		}
+		$output .= '</ul></li>';
+	}
+	$file_list = '<ul class="mc-file-list">' . $output . '</ul>';
+	$file_list = '<h3>' . __( 'Available Templates', 'my-calendar' ) . '</h3>' . $file_list;
 
 	return $intro . $file_list;
+}
+
+/**
+ * Copy a template from the plugin into the theme.
+ */
+function mc_move_template_to_theme_dir() {
+	if ( isset( $_POST['mc_file_template'] ) ) {
+		$nonce = $_REQUEST['_wpnonce'];
+		if ( ! wp_verify_nonce( $nonce, 'mc-copy-file' ) ) {
+			wp_die( 'My Calendar: Security check failed.' );
+		}
+		// Value should be a slash separated directory and filename, without extension.
+		$template        = array_map( 'sanitize_file_name', explode( '/', $_POST['mc_file_template'] ) );
+		$file            = $template[1];
+		$type            = $template[0];
+		$mc_template     = plugin_dir_path( __FILE__ ) . 'mc-templates/' . $type . '/' . $file . '.php';
+		$custom_template = get_template_directory() . '/mc-templates/' . $type . '/' . $file . '.php';
+		$transient       = false;
+
+		global $wp_filesystem;
+		require_once ABSPATH . '/wp-admin/includes/file.php';
+		WP_Filesystem();
+
+		if ( ! $wp_filesystem->exists( $mc_template ) ) {
+			$transient = __( 'My Calendar template not found.', 'my-calendar' );
+			$transient = array(
+				'message' => $transient,
+				'type'    => 'error',
+			);
+		}
+		if ( $wp_filesystem->exists( $custom_template ) ) {
+			$transient = __( 'My Calendar template already exists in the target theme.', 'my-calendar' );
+			$transient = array(
+				'message' => $transient,
+				'type'    => 'error',
+			);
+		}
+		if ( ! $transient ) {
+			// If directories don't exist yet, create them.
+			if ( ! $wp_filesystem->exists( get_template_directory() . '/mc-templates/' ) ) {
+				$wp_filesystem->mkdir( get_template_directory() . '/mc-templates/' );
+			}
+			if ( ! $wp_filesystem->exists( get_template_directory() . '/mc-templates/' . $type . '/' ) ) {
+				$wp_filesystem->mkdir( get_template_directory() . '/mc-templates/' . $type . '/' );
+			}
+			// Attempt to copy file.
+			if ( ! $wp_filesystem->copy( $mc_template, $custom_template ) ) {
+				$transient = __( 'Failed to copy My Calendar template into theme directory.', 'my-calendar' );
+				$transient = array(
+					'message' => $transient,
+					'type'    => 'error',
+				);
+			} else {
+				// translators: Name of template file copied.
+				$transient = sprintf( __( 'My Calendar template %s has been copied to your theme.', 'my-calendar' ), '<code>' . $type . '/' . $file . '.php</code>' );
+				$transient = array(
+					'message' => $transient,
+					'type'    => 'success',
+				);
+			}
+		}
+		set_transient( 'mc_file_copy', $transient, 15 );
+	}
+}
+add_action( 'init', 'mc_move_template_to_theme_dir' );
+
+/**
+ * Check whether a template already exists in the custom theme directory.
+ *
+ * @param string $path Template path.
+ *
+ * @return bool
+ */
+function mc_template_exists( $path ) {
+	global $wp_filesystem;
+	require_once ABSPATH . '/wp-admin/includes/file.php';
+	WP_Filesystem();
+
+	$path = get_template_directory() . $path;
+	if ( $wp_filesystem->exists( $path ) ) {
+		return true;
+	}
+
+	return false;
 }
 
 /**
@@ -111,7 +226,7 @@ function mc_templates_edit() {
 		return;
 	}
 	if ( 'true' === mc_get_option( 'disable_legacy_templates' ) ) {
-		echo mc_php_templates_docs();
+		echo wp_kses( mc_php_templates_docs(), mc_kses_elements() );
 		return;
 	}
 	$templates = mc_get_option( 'templates', array() );
@@ -149,7 +264,7 @@ function mc_templates_edit() {
 			<?php echo ( '' !== $core ) ? wp_kses_post( "<div class='template-description'>$core</div>" ) : ''; ?>
 			<form method="post" action="<?php echo esc_url( add_query_arg( 'mc_template', $key, admin_url( 'admin.php?page=my-calendar-design' ) ) ); ?>#my-calendar-templates">
 				<div>
-					<input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce( 'my-calendar-nonce' ); ?>"/>
+					<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/>
 				</div>
 			<?php
 			if ( 'add-new' === $key ) {
@@ -179,7 +294,7 @@ function mc_templates_edit() {
 					<label for="mc_template">
 					<?php
 					// Translators: template type.
-					printf( __( 'Custom Template (%s)', 'my-calendar' ), $key );
+					printf( esc_html__( 'Custom Template (%s)', 'my-calendar' ), esc_html( $key ) );
 					?>
 					</label><br/>
 					<textarea id="mc_template" name="mc_template" class="template-editor widefat" rows="16" cols="76"><?php echo esc_textarea( $template ); ?></textarea>
@@ -312,7 +427,7 @@ function mc_templates_edit() {
 				<h2>
 		<?php
 		// Translators: name of template being previewed.
-		printf( __( 'Template Preview: %s', 'my-calendar' ), ucfirst( $key ) );
+		printf( esc_html( __( 'Template Preview: %s', 'my-calendar' ) ), esc_html( ucfirst( $key ) ) );
 		?>
 				</h2>
 				<div class="template-preview mc-inside">
@@ -409,7 +524,6 @@ function mc_display_template_preview( $template, $mc_id = false ) {
  * @return string
  */
 function mc_display_template_tags( $mc_id = false, $render = 'code' ) {
-	$event   = false;
 	$data    = mc_get_template_tag_preview( $mc_id );
 	$output  = '';
 	$empty   = '';
@@ -531,7 +645,7 @@ function mc_key_exists( $key ) {
  */
 function mc_create_template( $template, $post = array() ) {
 	$key         = md5( $template );
-	$description = strip_tags( $post['mc_template_key'] );
+	$description = wp_strip_all_tags( $post['mc_template_key'] );
 	update_option( "mc_template_desc_$key", $description );
 	update_option( "mc_ctemplate_$key", $template );
 
@@ -584,7 +698,7 @@ function mc_admin_template_description( $key ) {
 	}
 
 	if ( ! mc_is_core_template( $key ) ) {
-		$return = strip_tags( stripslashes( get_option( "mc_template_desc_$key" ) ) );
+		$return = wp_strip_all_tags( stripslashes( get_option( "mc_template_desc_$key" ) ) );
 	}
 
 	return wpautop( $return );

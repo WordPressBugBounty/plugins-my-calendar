@@ -136,103 +136,98 @@ class My_Calendar_Mini_Widget extends WP_Widget {
 		?>
 		<div class="my-calendar-widget-wrapper my-calendar-mini-widget">
 		<p>
-			<label for="<?php echo $this->get_field_id( 'my_calendar_mini_title' ); ?>"><?php _e( 'Title', 'my-calendar' ); ?></label><br/>
-			<input class="widefat" type="text" id="<?php echo $this->get_field_id( 'my_calendar_mini_title' ); ?>" name="<?php echo $this->get_field_name( 'my_calendar_mini_title' ); ?>" value="<?php echo esc_attr( $title ); ?>"/>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_mini_title' ) ); ?>"><?php esc_html_e( 'Title', 'my-calendar' ); ?></label><br/>
+			<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_mini_title' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_mini_title' ) ); ?>" value="<?php echo esc_attr( $title ); ?>"/>
 		</p>
 		<?php
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
 			?>
 		<p>
-			<label for="<?php echo $this->get_field_id( 'site' ); ?>"><?php _e( 'Blog ID', 'my-calendar' ); ?></label><br/>
-			<input class="widefat" type="text" id="<?php echo $this->get_field_id( 'site' ); ?>" name="<?php echo $this->get_field_name( 'site' ); ?>" value="<?php echo esc_attr( $site ); ?>"/>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'site' ) ); ?>"><?php esc_html_e( 'Blog ID', 'my-calendar' ); ?></label><br/>
+			<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'site' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'site' ) ); ?>" value="<?php echo esc_attr( $site ); ?>"/>
 		</p>
 			<?php
 		}
 		?>
 		<p>
-			<label for="<?php echo $this->get_field_id( 'mc_link' ); ?>"><?php _e( 'Widget Title Link', 'my-calendar' ); ?></label><br/>
-			<input class="widefat" type="text" id="<?php echo $this->get_field_id( 'mc_link' ); ?>" name="<?php echo $this->get_field_name( 'mc_link' ); ?>" value="<?php echo esc_url( $widget_link ); ?>"/>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'mc_link' ) ); ?>"><?php esc_html_e( 'Widget Title Link', 'my-calendar' ); ?></label><br/>
+			<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'mc_link' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_link' ) ); ?>" value="<?php echo esc_url( $widget_link ); ?>"/>
 		</p>
 		<?php
-		$all_checked = '';
+		$all_checked = false;
 		if ( empty( $widget_category ) ) {
-			$all_checked = ' checked="checked"';
+			$all_checked = true;
 		}
 
 		?>
 		<fieldset>
-			<legend><?php _e( 'Categories to display:', 'my-calendar' ); ?></legend>
-			<ul style="padding:0;margin:0;list-style-type: none;columns:3">
+			<legend><?php esc_html_e( 'Categories to display:', 'my-calendar' ); ?></legend>
+			<ul class="mc-widget-categories">
 				<li>
-					<input type="checkbox" value="all" <?php echo $all_checked; ?> name="<?php echo $this->get_field_name( 'my_calendar_mini_category' ) . '[]'; ?>" id="<?php echo $this->get_field_id( 'my_calendar_mini_category' ); ?>"> <label for="<?php echo $this->get_field_id( 'my_calendar_mini_category' ); ?>"><?php _e( 'All', 'my-calendar' ); ?></label>
+					<input type="checkbox" value="all" <?php checked( true, $all_checked ); ?> name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_mini_category' ) . '[]' ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_mini_category' ) ); ?>"> <label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_mini_category' ) ); ?>"><?php esc_html_e( 'All', 'my-calendar' ); ?></label>
 				</li>
 			<?php
 			$select = mc_category_select( $widget_category, true, true, $this->get_field_name( 'my_calendar_mini_category' ) . '[]', $this->get_field_id( 'my_calendar_mini_category' ) );
-			echo $select;
+			echo wp_kses( $select, mc_kses_elements() );
 			?>
 			</ul>
 		</fieldset>
 		<p>
-			<label for="<?php echo $this->get_field_id( 'above' ); ?>"><?php _e( 'Navigation above calendar', 'my-calendar' ); ?></label>
-			<input type="text" class="widefat" name="<?php echo $this->get_field_name( 'above' ); ?>" id="<?php echo $this->get_field_id( 'above' ); ?>" value="<?php echo ( '' === $above ) ? 'nav,jump,print' : esc_attr( $above ); ?>" aria-describedby='<?php echo $this->get_field_id( 'below' ); ?>-navigation-fields' />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'above' ) ); ?>"><?php esc_html_e( 'Navigation above calendar', 'my-calendar' ); ?></label>
+			<input type="text" class="widefat" name="<?php echo esc_attr( $this->get_field_name( 'above' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'above' ) ); ?>" value="<?php echo ( '' === $above ) ? 'nav,jump,print' : esc_attr( $above ); ?>" aria-describedby='<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>-navigation-fields' />
 		</p>
 		<p>
-			<label for="<?php echo $this->get_field_id( 'below' ); ?>"><?php _e( 'Navigation below calendar', 'my-calendar' ); ?></label>
-			<input type="text" class="widefat" name="<?php echo $this->get_field_name( 'below' ); ?>" id="<?php echo $this->get_field_id( 'below' ); ?>" value="<?php echo ( '' === $below ) ? 'key' : esc_attr( $below ); ?>" aria-describedby='<?php echo $this->get_field_id( 'below' ); ?>-navigation-fields' /> <span id='<?php echo $this->get_field_id( 'below' ); ?>-navigation-fields' class="field-description" style="font-size: 13px;color:#555">
-			<?php _e( 'Navigation options:', 'my-calendar' ); ?> <code>nav,jump,print,key,feeds,exports,none</code><?php mc_help_link( __( 'Help', 'my-calendar' ), __( 'Navigation Keywords', 'my-calendar' ), 'navigation keywords', 3 ); ?>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>"><?php esc_html_e( 'Navigation below calendar', 'my-calendar' ); ?></label>
+			<input type="text" class="widefat" name="<?php echo esc_attr( $this->get_field_name( 'below' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>" value="<?php echo ( '' === $below ) ? 'key' : esc_attr( $below ); ?>" aria-describedby='<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>-navigation-fields' /> <span id='<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>-navigation-fields' class="field-description" style="font-size: 13px;color:#555">
+			<?php esc_html_e( 'Navigation options:', 'my-calendar' ); ?> <code>nav,jump,print,key,feeds,exports,none</code><?php mc_help_link( __( 'Help', 'my-calendar' ), __( 'Navigation Keywords', 'my-calendar' ), 'navigation keywords', 3 ); ?>
 		</span>
 		</p>
 
 		<p>
-			<label for="<?php echo $this->get_field_id( 'author' ); ?>"><?php _e( 'Limit by Author', 'my-calendar' ); ?></label><br/>
-			<select name="<?php echo $this->get_field_name( 'author' ); ?>" id="<?php echo $this->get_field_id( 'author' ); ?>" multiple="multiple" class="widefat">
-				<option value="all"><?php _e( 'All authors', 'my-calendar' ); ?></option>
-				<option value="current"><?php _e( 'Active User', 'my-calendar' ); ?></option>
-				<?php echo mc_selected_users( $author ); ?>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'author' ) ); ?>"><?php esc_html_e( 'Limit by Author', 'my-calendar' ); ?></label><br/>
+			<select name="<?php echo esc_attr( $this->get_field_name( 'author' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'author' ) ); ?>" multiple="multiple" class="widefat">
+				<option value="all"><?php esc_html_e( 'All authors', 'my-calendar' ); ?></option>
+				<option value="current"><?php esc_html_e( 'Active User', 'my-calendar' ); ?></option>
+				<?php echo wp_kses( mc_selected_users( $author ), mc_kses_elements() ); ?>
+			</select>
+		</p>
+		<p>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'host' ) ); ?>"><?php esc_html_e( 'Limit by Host', 'my-calendar' ); ?></label><br/>
+			<select name="<?php echo esc_attr( $this->get_field_name( 'host' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'host' ) ); ?>" multiple="multiple" class="widefat">
+				<option value="all"><?php esc_html_e( 'All hosts', 'my-calendar' ); ?></option>
+				<option value="current"><?php esc_html_e( 'Active User', 'my-calendar' ); ?></option>
+				<?php echo wp_kses( mc_selected_users( $host ), mc_kses_elements() ); ?>
 			</select>
 		</p>
 		<p>
 			<label
-				for="<?php echo $this->get_field_id( 'host' ); ?>"><?php _e( 'Limit by Host', 'my-calendar' ); ?></label><br/>
-			<select name="<?php echo $this->get_field_name( 'host' ); ?>" id="<?php echo $this->get_field_id( 'host' ); ?>" multiple="multiple" class="widefat">
-				<option value="all"><?php _e( 'All hosts', 'my-calendar' ); ?></option>
-				<option value="current"><?php _e( 'Active User', 'my-calendar' ); ?></option>
-				<?php echo mc_selected_users( $host ); ?>
+				for="<?php echo esc_attr( $this->get_field_id( 'ltype' ) ); ?>"><?php esc_html_e( 'Location (Type)', 'my-calendar' ); ?></label><br/>
+			<select name="<?php echo esc_attr( $this->get_field_name( 'ltype' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'ltype' ) ); ?>" class="widefat">
+				<option value=''><?php esc_html_e( 'All locations', 'my-calendar' ); ?></option>
+				<option value='event_label' <?php selected( $ltype, 'event_label' ); ?>><?php esc_html_e( 'Location Name', 'my-calendar' ); ?></option>
+				<option value='event_city' <?php selected( $ltype, 'event_city' ); ?>><?php esc_html_e( 'City', 'my-calendar' ); ?></option>
+				<option value='event_state' <?php selected( $ltype, 'event_state' ); ?>><?php esc_html_e( 'State', 'my-calendar' ); ?></option>
+				<option value='event_postcode' <?php selected( $ltype, 'event_postcode' ); ?>><?php esc_html_e( 'Postal Code', 'my-calendar' ); ?></option>
+				<option value='event_country' <?php selected( $ltype, 'event_country' ); ?>><?php esc_html_e( 'Country', 'my-calendar' ); ?></option>
+				<option value='event_region' <?php selected( $ltype, 'event_region' ); ?>><?php esc_html_e( 'Region', 'my-calendar' ); ?></option>
 			</select>
 		</p>
 		<p>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'lvalue' ) ); ?>"><?php esc_html_e( 'Location (Value)', 'my-calendar' ); ?></label><br/>
+			<input type="text" class="widefat" name="<?php echo esc_attr( $this->get_field_name( 'lvalue' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'lvalue' ) ); ?>" value="<?php echo esc_attr( $lvalue ); ?>" />
+		</p>
+		<p>
 			<label
-				for="<?php echo $this->get_field_id( 'ltype' ); ?>"><?php _e( 'Location (Type)', 'my-calendar' ); ?></label><br/>
-			<select name="<?php echo $this->get_field_name( 'ltype' ); ?>" id="<?php echo $this->get_field_id( 'ltype' ); ?>" class="widefat">
-				<option value=''><?php _e( 'All locations', 'my-calendar' ); ?></option>
-				<option value='event_label' <?php selected( $ltype, 'event_label' ); ?>><?php _e( 'Location Name', 'my-calendar' ); ?></option>
-				<option value='event_city' <?php selected( $ltype, 'event_city' ); ?>><?php _e( 'City', 'my-calendar' ); ?></option>
-				<option value='event_state' <?php selected( $ltype, 'event_state' ); ?>><?php _e( 'State', 'my-calendar' ); ?></option>
-				<option value='event_postcode' <?php selected( $ltype, 'event_postcode' ); ?>><?php _e( 'Postal Code', 'my-calendar' ); ?></option>
-				<option value='event_country' <?php selected( $ltype, 'event_country' ); ?>><?php _e( 'Country', 'my-calendar' ); ?></option>
-				<option value='event_region' <?php selected( $ltype, 'event_region' ); ?>><?php _e( 'Region', 'my-calendar' ); ?></option>
+				for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_mini_time' ) ); ?>"><?php esc_html_e( 'Mini-Calendar Timespan:', 'my-calendar' ); ?></label>
+			<select id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_mini_time' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_mini_time' ) ); ?>">
+				<option	value="month"<?php selected( 'month', $widget_time ); ?>><?php esc_html_e( 'Month', 'my-calendar' ); ?></option>
+				<option value="month+1"<?php selected( 'month+1', $widget_time ); ?>><?php esc_html_e( 'Next Month', 'my-calendar' ); ?></option>
+				<option value="week"<?php selected( 'week', $widget_time ); ?>><?php esc_html_e( 'Week', 'my-calendar' ); ?></option>
 			</select>
 		</p>
 		<p>
-			<label for="<?php echo $this->get_field_id( 'lvalue' ); ?>"><?php _e( 'Location (Value)', 'my-calendar' ); ?></label><br/>
-			<input type="text" class="widefat" name="<?php echo $this->get_field_name( 'lvalue' ); ?>" id="<?php echo $this->get_field_id( 'lvalue' ); ?>" value="<?php echo esc_attr( $lvalue ); ?>" />
-		</p>
-		<p>
-			<label
-				for="<?php echo $this->get_field_id( 'my_calendar_mini_time' ); ?>"><?php _e( 'Mini-Calendar Timespan:', 'my-calendar' ); ?></label>
-			<select id="<?php echo $this->get_field_id( 'my_calendar_mini_time' ); ?>" name="<?php echo $this->get_field_name( 'my_calendar_mini_time' ); ?>">
-				<option
-					value="month"<?php echo ( 'month' === $widget_time ) ? ' selected="selected"' : ''; ?>><?php _e( 'Month', 'my-calendar' ); ?></option>
-				<option
-					value="month+1"<?php echo ( 'month+1' === $widget_time ) ? ' selected="selected"' : ''; ?>><?php _e( 'Next Month', 'my-calendar' ); ?></option>
-				<option
-					value="week"<?php echo ( 'week' === $widget_time ) ? ' selected="selected"' : ''; ?>><?php _e( 'Week', 'my-calendar' ); ?></option>
-			</select>
-		</p>
-		<p>
-			<label
-				for="<?php echo $this->get_field_id( 'months' ); ?>"><?php _e( 'Months to show in list view', 'my-calendar' ); ?></label>
-			<input type="number" max="12" step="1" min="1" class="widefat" name="<?php echo $this->get_field_name( 'months' ); ?>" id="<?php echo $this->get_field_id( 'months' ); ?>" value="<?php echo ( '' === $months ) ? '' : esc_attr( $months ); ?>" />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'months' ) ); ?>"><?php esc_html_e( 'Months to show in list view', 'my-calendar' ); ?></label>
+			<input type="number" max="12" step="1" min="1" class="widefat" name="<?php echo esc_attr( $this->get_field_name( 'months' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'months' ) ); ?>" value="<?php echo ( '' === $months ) ? '' : esc_attr( $months ); ?>" />
 		</p>
 		</div>
 		<?php
@@ -247,8 +242,8 @@ class My_Calendar_Mini_Widget extends WP_Widget {
 	 * @return array $instance Updated instance.
 	 */
 	public function update( $new_data, $instance ) {
-		$instance['my_calendar_mini_title']    = mc_kses_post( $new_data['my_calendar_mini_title'] );
-		$instance['my_calendar_mini_time']     = mc_kses_post( $new_data['my_calendar_mini_time'] );
+		$instance['my_calendar_mini_title']    = wp_kses( $new_data['my_calendar_mini_title'], 'mycalendar' );
+		$instance['my_calendar_mini_time']     = wp_kses( $new_data['my_calendar_mini_time'], 'mycalendar' );
 		$instance['my_calendar_mini_category'] = ( in_array( 'all', (array) $new_data['my_calendar_mini_category'], true ) ) ? array() : $new_data['my_calendar_mini_category'];
 		$instance['above']                     = ( isset( $new_data['above'] ) && '' !== $new_data['above'] ) ? $new_data['above'] : 'none';
 		$instance['mc_link']                   = $new_data['mc_link'];

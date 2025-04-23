@@ -1,8 +1,10 @@
 (function ($) {
+	const { __, _x, _n, _nx } = wp.i18n;
+
 	'use strict';
 	$(function () {
 		mc_display_usertime();
-		const calendar = document.querySelectorAll( '.mc-main' );
+		const calendar = document.querySelectorAll( '.mc-main, .mc-event-list' );
 		if ( calendar ) {
 			calendar.forEach( (el) => {
 				let targetId = el.getAttribute( 'id' );
@@ -11,6 +13,51 @@
 			});
 		}
 	});
+
+	const loadmore = document.querySelectorAll( '.mc-loader' );
+	if ( loadmore ) {
+		loadmore.forEach( (el) => {
+			const parent = el.closest( 'ul' );
+			parent.setAttribute( 'tabindex', '-1' );
+			parent.addEventListener( 'click', function( e ) {
+				let targetParent = e.target.closest( 'button' );
+				if ( targetParent && targetParent.classList.contains( 'mc-loader' ) ) {
+					loadUpcoming( targetParent, parent );
+				}
+			});
+		});
+	}
+
+	function loadUpcoming( el, parent ) {
+		let request = new XMLHttpRequest();
+
+		request.open( 'POST', my_calendar.ajaxurl, true );
+		request.setRequestHeader( 'Content-Type', 'application/x-www-form-urlencoded;' );
+		request.onload = function () {
+			if ( this.status >= 200 && this.status < 400) {
+				let results = JSON.parse( this.response );
+				// Remove the list items.
+				parent.querySelectorAll( 'li' ).forEach( e => e.remove() );
+				// Append the response.
+				parent.innerHTML += results.response;
+				// Set focus to parent list.
+				parent.focus();
+				wp.a11y.speak( __( 'Upcoming events loaded', 'my-calendar' ) );
+			} else {
+				// Request failed.
+				parent.innerHTML += '<li>' + __( 'Upcoming Events failed to load', 'my-calendar' ) + '</li>';
+				wp.a11y.speak( __( 'Upcoming Events failed to load', 'my-calendar' ) );
+			}
+		};
+		request.onerror = function() {
+			// Connection error
+		};
+		let time = el.value;
+		let args = el.getAttribute( 'data-value' );
+		type = ( 'dates' === time ) ? 'dates' : 'time';
+
+		request.send('action=' + my_calendar.action + '&behavior=loadupcoming&' + type + '=' + time + '&args=' + args );
+	}
 
 	if ( 'true' === my_calendar.mini ) {
 		$( ".mini .calendar-events" ).hide();
@@ -119,6 +166,7 @@
 
 	if ( 'true' === my_calendar.ajax ) {
 		mc_render_buttons();
+		my_calendar_edit_toggles();
 		// Prevents spacebar from scrolling the page on links with button role.
 		$(document).on( 'keydown', '.my-calendar-header a:not(.mc-print a, .mc-export a), .my-calendar-footer a:not(.mc-print a, .mc-export a)', function(e) {
 			if ( 32 === e.which ) {
@@ -206,6 +254,7 @@
 
 				let height = calendar.height();
 				$('#' + ref ).html('<div class=\"mc-loading\"></div><div class=\"loading\" style=\"height:' + height + 'px\"><span class="screen-reader-text">Loading...</span></div>');
+				wp.a11y.speak( __( 'Loading', 'my-calendar' ) );
 				$( '#' + ref ).load( link + ' #' + ref + ' > *', function ( response, status, xhr ) {
 
 					if ( status == 'error' ) {
@@ -230,6 +279,7 @@
 						$('.mini .has-events').children().not('.mc-date-container').hide();
 					}
 					mc_render_buttons();
+					my_calendar_edit_toggles();
 					// All views.
 					$( '#' + targetId ).trigger( 'focus' );
 					let refText = $( '#mc_head_' + ref ).text();
@@ -316,43 +366,64 @@
 
 	$('.mc-main a[target=_blank]').append( ' <span class="dashicons dashicons-external" aria-hidden="true"></span><span class="screen-reader-text"> ' + my_calendar.newWindow + '</span>' );
 
+	function my_calendar_edit_toggles() {
+		const adminToggles = document.querySelectorAll( '.mc-toggle-edit' );
+		if ( adminToggles ) {
+			adminToggles.forEach( (el) => {
+				let controls = el.getAttribute( 'aria-controls' );
+				let controlled = document.querySelector( '#' + controls );
+				el.addEventListener( 'click', function(e) {
+					let position = el.offsetWidth + 8;
+					controlled.style.left = position + 'px';
+					let expanded = el.getAttribute( 'aria-expanded' );
+					if ( 'true' === expanded ) {
+						controlled.style.display = 'none';
+						el.setAttribute( 'aria-expanded', 'false' );
+					} else {
+						controlled.style.display = 'block';
+						el.setAttribute( 'aria-expanded', 'true' );
+					}
+				});
+			});
+		}
+	}
 	/**
 	 * Map ARIA attributes to My Calendar table so responsive view doesn't break table relationships.
 	 */
-		function my_calendar_table_aria() {
-			try {
-				const allTables = document.querySelectorAll('.mc-main.calendar table.my-calendar-table');
-				const allRowGroups = document.querySelectorAll('.mc-main.calendar table.my-calendar-table thead, .mc-main.calendar table.my-calendar-table tbody, .mc-main.calendar table.my-calendar-table tfoot');
-				const allRows = document.querySelectorAll('.mc-main.calendar table.my-calendar-table tr');
-				const allCells = document.querySelectorAll('.mc-main.calendar table.my-calendar-table td');
-				const allHeaders = document.querySelectorAll('.mc-main.calendar table.my-calendar-table th');
-				const allRowHeaders = document.querySelectorAll('.mc-main.calendar table.my-calendar-table th[scope=row]');
+	function my_calendar_table_aria() {
+		try {
+			const allTables = document.querySelectorAll('.mc-main.calendar table.my-calendar-table');
+			const allRowGroups = document.querySelectorAll('.mc-main.calendar table.my-calendar-table thead, .mc-main.calendar table.my-calendar-table tbody, .mc-main.calendar table.my-calendar-table tfoot');
+			const allRows = document.querySelectorAll('.mc-main.calendar table.my-calendar-table tr');
+			const allCells = document.querySelectorAll('.mc-main.calendar table.my-calendar-table td');
+			const allHeaders = document.querySelectorAll('.mc-main.calendar table.my-calendar-table th');
+			const allRowHeaders = document.querySelectorAll('.mc-main.calendar table.my-calendar-table th[scope=row]');
 
-				for (let i = 0; i < allTables.length; i++) {
-				  allTables[i].setAttribute('role','table');
-				}
-				for (let i = 0; i < allRowGroups.length; i++) {
-				  allRowGroups[i].setAttribute('role','rowgroup');
-				}
-				for (let i = 0; i < allRows.length; i++) {
-				  allRows[i].setAttribute('role','row');
-				}
-				for (let i = 0; i < allCells.length; i++) {
-				  allCells[i].setAttribute('role','cell');
-				}
-				for (let i = 0; i < allHeaders.length; i++) {
-				  allHeaders[i].setAttribute('role','columnheader');
-				}
-				// this accounts for scoped row headers
-				for (let i = 0; i < allRowHeaders.length; i++) {
-				  allRowHeaders[i].setAttribute('role','rowheader');
-				}
-				// caption role not needed as it is not a real role and
-				// browsers do not dump their own role with display block
-			} catch (e) {
-				console.log( "my_calendar_table_aria(): " + e );
+			for (let i = 0; i < allTables.length; i++) {
+				allTables[i].setAttribute('role','table');
 			}
+			for (let i = 0; i < allRowGroups.length; i++) {
+				allRowGroups[i].setAttribute('role','rowgroup');
+			}
+			for (let i = 0; i < allRows.length; i++) {
+				allRows[i].setAttribute('role','row');
+			}
+			for (let i = 0; i < allCells.length; i++) {
+				allCells[i].setAttribute('role','cell');
+			}
+			for (let i = 0; i < allHeaders.length; i++) {
+				allHeaders[i].setAttribute('role','columnheader');
+			}
+			// this accounts for scoped row headers
+			for (let i = 0; i < allRowHeaders.length; i++) {
+				allRowHeaders[i].setAttribute('role','rowheader');
+			}
+			// caption role not needed as it is not a real role and
+			// browsers do not dump their own role with display block
+		} catch (e) {
+			console.log( "my_calendar_table_aria(): " + e );
 		}
-		my_calendar_table_aria();
+	}
+	my_calendar_table_aria();
 	
 }(jQuery));

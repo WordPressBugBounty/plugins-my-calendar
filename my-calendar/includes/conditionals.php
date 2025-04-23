@@ -44,9 +44,12 @@ function mc_is_all_day( $event ) {
  * @return boolean
  */
 function mc_is_custom_icon() {
-	$on     = ( WP_DEBUG ) ? false : get_transient( 'mc_custom_icons' );
-	$dir    = trailingslashit( dirname( __DIR__, 1 ) );
-	$base   = trailingslashit( basename( $dir ) );
+	$on   = ( WP_DEBUG ) ? false : get_transient( 'mc_custom_icons' );
+	$dir  = trailingslashit( dirname( __DIR__, 1 ) );
+	$base = trailingslashit( basename( $dir ) );
+	if ( str_contains( $dir, 'my-calendar/src' ) ) {
+		$base = 'my-calendar/' . $base;
+	}
 	$custom = ( file_exists( str_replace( $base, '', $dir ) . 'my-calendar-custom/icons' ) );
 	if ( ! $custom ) {
 		// backcompat for old icon directories.
@@ -56,8 +59,6 @@ function mc_is_custom_icon() {
 	if ( $on && $custom ) {
 		$return = true;
 	} else {
-		$dir  = trailingslashit( dirname( __DIR__, 1 ) );
-		$base = trailingslashit( basename( $dir ) );
 		if ( $custom ) {
 			$results = mc_directory_list( str_replace( $base, '', $dir ) . 'my-calendar-custom/icons' );
 			if ( empty( $results ) ) {
@@ -125,6 +126,10 @@ function mc_is_tablet() {
  */
 function mc_is_preview() {
 	if ( isset( $_GET['preview'] ) && 'true' === $_GET['preview'] && current_user_can( 'mc_manage_events' ) ) {
+		$nonce = sanitize_text_field( wp_unslash( $_GET['mcpreviewnonce'] ) );
+		if ( ! wp_verify_nonce( $nonce, 'mcpreviewnonce' ) ) {
+			return false;
+		}
 		return true;
 	}
 
@@ -212,6 +217,22 @@ function mc_is_single_event() {
 }
 
 /**
+ * Determine whether event is published.
+ *
+ * @param object $event Event object.
+ *
+ * @return boolean
+ */
+function mc_event_published( $event ) {
+	$state = mc_event_states_type( $event->event_approved );
+	if ( 'public' === $state || is_user_logged_in() && 'private' === $state ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * Check whether an event should be hidden (privacy)
  *
  * @param object $event Event object.
@@ -239,7 +260,8 @@ function mc_event_is_hidden( $event ) {
 	 * @return {bool}
 	 */
 	$can_see = apply_filters( 'mc_user_can_see_private_events', is_user_logged_in(), $event );
-	if ( in_array( $category, $private, true ) && ! $can_see ) {
+	$state   = mc_event_states_type( $event->event_approved );
+	if ( ( in_array( $category, $private, true ) || 'private' === $state ) && ! $can_see ) {
 
 		return true;
 	}

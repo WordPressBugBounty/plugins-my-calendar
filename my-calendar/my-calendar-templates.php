@@ -35,6 +35,20 @@ function mc_template( $tags, $template, $type = 'list' ) {
  * @return string HTML output of template.
  */
 function mc_draw_template( $data, $template, $type = 'list', $event = false ) {
+	// Get the default list variant.
+	$original_default = mc_widget_default_list_template();
+	$default_template = mc_get_option( 'list_template', 'list' );
+	$is_custom        = ( $template !== $original_default && $template !== $default_template ) ? true : false;
+	if ( 'list' === $default_template && ! $is_custom && ! str_contains( $template, 'list_preset_' ) ) {
+		$template = $original_default;
+	}
+	if ( str_contains( $template, 'list_preset_' ) ) {
+		$meta_type = 'list';
+		$template  = ( str_contains( $template, 'list_preset_' ) ) ? $template : $default_template;
+		$template  = mc_get_preset_template( $template );
+	} else {
+		$meta_type = $type;
+	}
 	if ( is_object( $event ) ) {
 		$description_fields = array( 'excerpt', 'description', 'description_raw', 'description_stripped', 'ical_excerpt', 'shortdesc', 'shortdesc_raw', 'shortdesc_stripped', 'ical_desc' );
 		/**
@@ -62,7 +76,7 @@ function mc_draw_template( $data, $template, $type = 'list', $event = false ) {
 				 *
 				 * @return {string} Returning any non-empty string will shortcircuit template drawing.
 				 */
-				$data[ $field ] = apply_filters( 'mc_inner_content', $data[ $field ], $event, $type, '' );
+				$data[ $field ] = apply_filters( 'mc_inner_content', $data[ $field ], $event, $meta_type, '' );
 			}
 		}
 	}
@@ -80,7 +94,7 @@ function mc_draw_template( $data, $template, $type = 'list', $event = false ) {
 			// If a value is an object, ignore it.
 		} else {
 			if ( strpos( $template, '{' . $key ) !== false ) {
-				if ( 'list' !== $type ) {
+				if ( 'list' !== $meta_type ) {
 					if ( 'link' === $key && '' === $value ) {
 						$value = mc_get_uri( false, $data );
 					}
@@ -127,9 +141,47 @@ function mc_draw_template( $data, $template, $type = 'list', $event = false ) {
 	 *
 	 * @return {string} Formatted HTML.
 	 */
-	$template = apply_filters( 'mc_template', $template, $data, $type, $event );
+	$template = apply_filters( 'mc_template', $template, $data, $meta_type, $event );
 
 	return stripslashes( trim( $template ) );
+}
+
+/**
+ * Get a preset template for rendering.
+ *
+ * @param string $type Preset type.
+ *
+ * @return string
+ */
+function mc_get_preset_template( $type ) {
+	switch ( $type ) {
+		case 'list_preset_1':
+			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2">{linking_title}<br />{timerange}<br /><strong>{location}</strong>{city before=", "} {state}</div><div class="mc-group-3">{thumbnail}</div>';
+			break;
+		case 'list_preset_2':
+			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2"><a href="{permalink}">{timerange after="<br>"}<strong>{title}</strong><br />{location}{city before="<br>"} {state}</a></div><div class="mc-group-3">{thumbnail}</div>';
+			break;
+		case 'list_preset_3':
+			$template = '<div class="mc-group-1">{daterange before="<strong>" after="</strong>"}{timerange before="<br>"}</div><div><a href="{permalink}">{title}</a></div><div class="mc-group-3">{hcard}</div>';
+			break;
+		case 'list_preset_4':
+			$template = '<div class="mc-group-1">{image}</div><div class="list-card-contents mc-group-2">{linking_title}<div class="mc-date-group">{daterange before="<strong>" after="</strong>"}{timerange before="<br>"}</div><div class="location mc-group-3">{city after=", "} {state}</div></div>';
+			break;
+		default:
+			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2"><a href="{permalink}">{title}</a><br />{timerange}<br />{hcard}</div><div class="mc-group-3">{image}</div>';
+	}
+
+	/**
+	 * Filter the HTML output of default list presets.
+	 *
+	 * @hook mc_preset_template
+	 *
+	 * @param {string} $template The HTML and template tags used to construct a template preset.
+	 * @param {string} $type     The template preset type selected.
+	 */
+	$template = apply_filters( 'mc_preset_template', $template, $type );
+
+	return $template;
 }
 
 /**
@@ -144,7 +196,11 @@ function mc_setup_template( $template, $default_template ) {
 	// allow reference by file to external template.
 	$template = ( 'default' === $template ) ? '' : $template;
 	if ( '' !== $template && mc_file_exists( $template ) ) {
-		$template = file_get_contents( mc_get_file( $template ) );
+		global $wp_filesystem;
+		require_once ABSPATH . '/wp-admin/includes/file.php';
+		WP_Filesystem();
+
+		$template = $wp_filesystem->get_contents( mc_get_file( $template ) );
 	}
 	if ( mc_key_exists( $template ) ) {
 		$template = mc_get_custom_template( $template );
@@ -512,8 +568,8 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	 */
 	$e['date_end_utc'] = date_i18n( apply_filters( 'mc_date_utc_format', $date_format, 'template_end_ts' ), $event->ts_occur_end );
 	$notime            = esc_html( mc_notime_label( $event ) );
-	$e['time']         = ( '00:00:00' === mc_date( 'H:i:s', strtotime( $real_begin_date ), false ) ) ? $notime : mc_date( mc_time_format(), strtotime( $real_begin_date ), false );
-	$e['time24']       = ( '00:00' === mc_date( 'G:i', strtotime( $real_begin_date ), false ) ) ? $notime : mc_date( mc_time_format(), strtotime( $real_begin_date ), false );
+	$e['time']         = ( mc_is_all_day( $event ) ) ? $notime : mc_date( mc_time_format(), strtotime( $real_begin_date ), false );
+	$e['time24']       = ( mc_is_all_day( $event ) ) ? $notime : mc_date( 'G:i', strtotime( $real_begin_date ), false );
 	$endtime           = ( '23:59:59' === $event->event_end ) ? '00:00:00' : mc_date( 'H:i:s', strtotime( $real_end_date ), false );
 	$e['endtime']      = ( $real_end_date === $real_begin_date || '1' === $event->event_hide_end || '23:59:59' === mc_date( 'H:i:s', strtotime( $real_end_date ), false ) ) ? '' : date_i18n( mc_time_format(), strtotime( $endtime ) );
 	$e['runtime']      = mc_runtime( $event->ts_occur_begin, $event->ts_occur_end, $event );
@@ -523,7 +579,7 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	$e['dtend']        = mc_date( 'Y-m-d\TH:i:s', $hcal_dt_end, false );    // Date: hcal formatted end.
 	$e['userstart']    = '<time class="mc-user-time" data-label="' . __( 'Local time:', 'my-calendar' ) . '">' . mc_date( 'Y-m-d\TH:i:s\Z', $event->ts_occur_begin, false ) . '</time>';
 	$e['userend']      = '<time class="mc-user-time" data-label="' . __( 'Local time:', 'my-calendar' ) . '">' . mc_date( 'Y-m-d\TH:i:s\Z', $event->ts_occur_end, false ) . '</time>';
-	$e['datebadge']    = '<time class="mc-date-badge" datetime="' . mc_date( 'Y-m-d', strtotime( $real_begin_date ) ) . '"><span class="month">' . mc_date( 'M', strtotime( $real_begin_date ) ) . '</span><span class="day">' . mc_date( 'j', strtotime( $real_begin_date ) ) . '</span></time>';
+	$e['datebadge']    = mc_date_badge( $real_begin_date );
 	/**
 	 * Start date format used in 'date' and 'daterange' template tags. Fallback value for `datespan`. Default from My Calendar settings.
 	 *
@@ -571,7 +627,7 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	$e['cat_id']          = $event->event_category;
 	$e['category_id']     = $event->event_category;
 	$e['category']        = stripslashes( $event->category_name );
-	$e['ical_category']   = strip_tags( stripslashes( $event->category_name ) );
+	$e['ical_category']   = wp_strip_all_tags( stripslashes( $event->category_name ) );
 	$e['categories']      = ( property_exists( $event, 'categories' ) ) ? mc_categories_html( $event->categories, $event->event_category ) : mc_get_categories( $event, 'html' );
 	$e['ical_categories'] = ( property_exists( $event, 'categories' ) ) ? mc_categories_html( $event->categories, $event->event_category, 'text' ) : mc_get_categories( $event, 'text' );
 	$e['term']            = intval( $event->category_term );
@@ -590,17 +646,18 @@ function mc_create_tags( $event, $context = 'filters' ) {
 
 	// Special.
 	$e['skip_holiday'] = ( 0 === (int) $event->event_holiday ) ? 'false' : 'true';
-	$e['event_status'] = ( 1 === (int) $event->event_approved ) ? __( 'Published', 'my-calendar' ) : __( 'Draft', 'my-calendar' );
+	$e['event_status'] = mc_event_states_label( $event->event_approved );
+	$cancelled         = ( 3 === (int) $event->event_approved ) ? '<span class="mc-event-cancelled">' . trim( mc_get_option( 'cancel_text', mc_event_states_label( 3 ) . ':' ) ) . ' ' . '</span>' : '';
 
 	// General text fields.
 	$title                     = mc_search_highlight( $event->event_title );
-	$e['title']                = stripslashes( $title );
+	$e['title']                = $cancelled . stripslashes( $title );
 	$e['description']          = wpautop( stripslashes( $event->event_desc ) );
 	$e['description_raw']      = stripslashes( $event->event_desc );
-	$e['description_stripped'] = strip_tags( stripslashes( $event->event_desc ) );
+	$e['description_stripped'] = wp_strip_all_tags( stripslashes( $event->event_desc ) );
 	$e['shortdesc']            = wpautop( stripslashes( $event->event_short ) );
 	$e['shortdesc_raw']        = stripslashes( $event->event_short );
-	$e['shortdesc_stripped']   = strip_tags( stripslashes( $event->event_short ) );
+	$e['shortdesc_stripped']   = wp_strip_all_tags( stripslashes( $event->event_short ) );
 
 	// Registration fields.
 	$e['event_tickets']      = $event->event_tickets;
@@ -747,7 +804,7 @@ function mc_create_tags( $event, $context = 'filters' ) {
 		$e['ical_location']   = '';
 	}
 
-	$strip_desc = mc_newline_replace( strip_tags( $event->event_desc ) ) . ' ' . $e['link'];
+	$strip_desc = mc_newline_replace( wp_strip_all_tags( $event->event_desc ) ) . ' ' . $e['link'];
 	if ( mc_is_all_day( $event ) ) {
 		$google_start = mc_date( 'Ymd', strtotime( $dtstart ), false );
 		$google_end   = mc_date( 'Ymd', strtotime( $dtend ), false );
@@ -999,6 +1056,32 @@ function mc_get_details_label( $event, $e ) {
 	);
 
 	return $e_label;
+}
+
+/**
+ * Format a date into a badge.
+ *
+ * @param string $date Date in strtotime formattable string..
+ *
+ * @return string
+ */
+function mc_date_badge( $date ) {
+	$time  = strtotime( $date );
+	$badge = '<time class="mc-date-badge" datetime="' . mc_date( 'Y-m-d', $time ) . '"><span class="month">' . mc_date( 'M', $time ) . '</span><span class="day">' . mc_date( 'j', $time ) . '</span></time>';
+	/**
+	 * Filter the date badge HTML.
+	 *
+	 * @hook mc_date_badge
+	 *
+	 * @param {string} $badge HTML output of the badge.
+	 * @param {int}    $time Timestamp used.
+	 * @param {string} $date Date string passed into function.
+	 *
+	 * @return {string}
+	 */
+	$badge = apply_filters( 'mc_date_badge', $badge, $time, $date );
+
+	return $badge;
 }
 
 /**
@@ -1505,7 +1588,7 @@ function mc_auto_excerpt( $e, $event ) {
 	$e['search_excerpt'] = mc_search_highlight( $description, $shortdesc );
 	$e['auto_excerpt']   = $autoexcerpt;
 	$e['excerpt']        = $excerpt;
-	$e['ical_excerpt']   = mc_newline_replace( strip_tags( $excerpt ) );
+	$e['ical_excerpt']   = mc_newline_replace( wp_strip_all_tags( $excerpt ) );
 
 	return $e;
 }
@@ -1654,7 +1737,7 @@ function mc_image_data( $e, $event ) {
 			$e[ $size . '_url' ] = $src[0];
 		}
 		if ( isset( $e['large'] ) && '' !== $e['large'] ) {
-			$e['image_url'] = strip_tags( $e['large'] );
+			$e['image_url'] = wp_strip_all_tags( $e['large'] );
 			$e['image']     = $e['large'];
 		} else {
 			/**
@@ -1667,7 +1750,7 @@ function mc_image_data( $e, $event ) {
 			 * @return {string} Image size description key.
 			 */
 			$image_size     = apply_filters( 'mc_default_image_size', 'thumbnail' );
-			$e['image_url'] = strip_tags( $e[ $image_size ] );
+			$e['image_url'] = wp_strip_all_tags( $e[ $image_size ] );
 			$e['image']     = $e[ $image_size ];
 		}
 	} else {
@@ -1787,6 +1870,10 @@ function mc_event_schema( $e, $tags = array() ) {
 		'endDate'     => $event['dtend'] . $wp_time,
 		'duration'    => $event['duration'],
 	);
+	// If an event is cancelled, reflect that in the schema.
+	if ( 3 === (int) $e->event_approved ) {
+		$schema['eventStatus'] = 'https://schema.org/EventCancelled';
+	}
 	if ( property_exists( $e, 'location' ) && is_object( $e->location ) ) {
 		$location                      = $e->location;
 		$loc                           = mc_location_schema( $location );
@@ -1947,7 +2034,7 @@ function mc_get_template_tag( $event, $key ) {
  * @param string $key Array key in the tags array for data to fetch.
  */
 function mc_template_tag( $data, $key = 'calendar' ) {
-	echo mc_kses_post( mc_get_template_tag( $data, $key ) );
+	echo wp_kses( mc_get_template_tag( $data, $key ), 'mycalendar' );
 }
 
 /**
@@ -1958,7 +2045,7 @@ function mc_template_tag( $data, $key = 'calendar' ) {
  */
 function mc_template_time( $data, $type = 'calendar' ) {
 	$event = $data->event;
-	echo mc_kses_post( mc_time_html( $event, $type ) );
+	echo wp_kses( mc_time_html( $event, $type ), 'mycalendar' );
 }
 
 /**
@@ -2053,8 +2140,8 @@ function mc_template_share( $data, $type = 'calendar' ) {
 		$event_title   = mc_draw_event_title( $event, $data->tags, $type, '' );
 		$aria          = '';
 		// If the event title is already in the details label, omit ARIA.
-		if ( false === stripos( strip_tags( $details_label ), strip_tags( $event_title ) ) ) {
-			$aria = " aria-label='" . esc_attr( "$details_label: " . strip_tags( $event_title ) ) . "'";
+		if ( false === stripos( wp_strip_all_tags( $details_label ), wp_strip_all_tags( $event_title ) ) ) {
+			$aria = " aria-label='" . esc_attr( "$details_label: " . wp_strip_all_tags( $event_title ) ) . "'";
 		}
 		if ( _mc_is_url( $permalink ) ) {
 			$more = "	<p class='mc-details'><span class='mc-icon' aria-hidden='true'></span><a$aria href='" . esc_url( $permalink ) . "'>$details_label</a></p>\n";
@@ -2101,7 +2188,7 @@ function mc_template_description( $data, $type = 'calendar' ) {
 	$description = '';
 	if ( mc_output_is_visible( 'description', $type, $event ) ) {
 		if ( '' !== trim( $event->event_desc ) ) {
-			$description = wpautop( stripcslashes( mc_kses_post( $event->event_desc ) ), 1 );
+			$description = wpautop( wp_unslash( $event->event_desc ), 1 );
 			$description = "	<div class='longdesc description'>$description</div>";
 		}
 	}
@@ -2119,7 +2206,7 @@ function mc_template_registration( $data, $type = 'calendar' ) {
 	$event   = $data->event;
 	$tickets = '';
 	if ( mc_output_is_visible( 'tickets', $type, $event ) ) {
-		$info     = wpautop( stripcslashes( mc_kses_post( $event->event_registration ) ) );
+		$info     = wpautop( wp_unslash( $event->event_registration ) );
 		$url      = esc_url( $event->event_tickets );
 		$external = ( $url && mc_external_link( $url ) ) ? 'external' : '';
 		$text     = ( '' !== mc_get_option( 'buy_tickets', '' ) ) ? mc_get_option( 'buy_tickets' ) : __( 'Buy Tickets', 'my-calendar' );
@@ -2143,7 +2230,7 @@ function mc_template_excerpt( $data, $type = 'calendar' ) {
 	$short = '';
 	if ( mc_output_is_visible( 'excerpt', $type, $event ) ) {
 		if ( '' !== trim( $event->event_short ) ) {
-			$short = wpautop( stripcslashes( mc_kses_post( $event->event_short ) ), 1 );
+			$short = wpautop( wp_unslash( $event->event_short ), 1 );
 			$short = "<div class='shortdesc description'>$short</div>";
 		}
 	}

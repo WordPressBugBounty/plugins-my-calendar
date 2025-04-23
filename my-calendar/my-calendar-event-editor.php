@@ -420,6 +420,7 @@ function my_calendar_edit() {
 			$mc_output = mc_check_data( $action, $post, $i );
 			if ( 'add' === $action || 'copy' === $action ) {
 				$response = my_calendar_save( $action, $mc_output );
+				$action   = 'add'; // After saving, reset action to default.
 			} else {
 				$response = my_calendar_save( $action, $mc_output, (int) $post['event_id'] );
 			}
@@ -435,7 +436,7 @@ function my_calendar_edit() {
 	}
 	?>
 
-	<div class="wrap my-calendar-admin">
+	<div class="wrap my-calendar-admin my-calendar-editor">
 	<?php
 	my_calendar_check_db();
 	if ( '2' === get_site_option( 'mc_multisite' ) ) {
@@ -603,8 +604,9 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 				$message = mc_show_notice( __( 'Event draft saved.', 'my-calendar' ) . $edit_event, false, 'draft-saved', 'success' );
 			} else {
 				// jd_doTwitterAPIPost was changed to wpt_post_to_twitter on 1.19.2017.
-				if ( function_exists( 'wpt_post_to_twitter' ) && isset( $post['mc_twitter'] ) && '' !== trim( $post['mc_twitter'] ) ) {
-					wpt_post_to_twitter( stripslashes( $post['mc_twitter'] ) );
+				// wpt_post_to_twiter was changed to wpt_post_to_service on 12.29.2024.
+				if ( function_exists( 'wpt_post_to_service' ) && isset( $post['mc_twitter'] ) && '' !== trim( $post['mc_twitter'] ) ) {
+					wpt_post_to_service( stripslashes( $post['mc_twitter'] ) );
 				}
 				$event_ids = mc_get_occurrences( $event_id );
 				if ( ! empty( $event_ids ) ) {
@@ -617,7 +619,8 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 					$message = $event_error;
 				} else {
 					$type    = 'success';
-					$message = __( 'Event added. It will now show on the calendar.', 'my-calendar' );
+					$message = ( 'copy' === $action ) ? __( 'Event copied. It will now show on the calendar.', 'my-calendar' ) : __( 'Event added. It will now show on the calendar.', 'my-calendar' );
+
 					if ( $event_link ) {
 						// Translators: URL to view event in calendar.
 						$message .= sprintf( __( ' <a href="%s" class="button">View Event</a>', 'my-calendar' ), $event_link );
@@ -919,8 +922,12 @@ function mc_edit_event_form( $mode = 'add', $event_id = false ) {
 	if ( is_object( $data ) && 1 !== (int) $data->event_approved && 'edit' === $mode ) {
 		if ( 0 === (int) $data->event_approved ) {
 			mc_show_notice( __( '<strong>Draft</strong>: Publish this event to show it on the calendar.', 'my-calendar' ), true, false, 'info' );
-		} else {
+		} elseif ( 2 === (int) $data->event_approved ) {
 			mc_show_notice( __( '<strong>Trash</strong>: Remove from the trash to show this event on the calendar.', 'my-calendar' ), true, false, 'info' );
+		} elseif ( 3 === (int) $data->event_approved ) {
+			mc_show_notice( __( '<strong>Cancelled</strong>: This event has been cancelled, but is still shown on the calendar.', 'my-calendar' ), true, false, 'info' );
+		} elseif ( 4 === (int) $data->event_approved ) {
+			mc_show_notice( __( '<strong>Private</strong>: This event is private, and visible only to logged-in users.', 'my-calendar' ), true, false, 'info' );
 		}
 	}
 
@@ -1147,7 +1154,7 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 					} else {
 						echo '
 						<div class="event_description">
-						<label for="content">' . __( 'Event Description', 'my-calendar' ) . '</label>';
+						<label for="content">' . esc_html__( 'Event Description', 'my-calendar' ) . '</label>';
 						if ( user_can_richedit() ) {
 							wp_editor( $value, 'content', array( 'textarea_rows' => 20 ) );
 						} else {
@@ -1168,6 +1175,7 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 			}
 			break;
 		case 'event_image':
+			$has_image = '';
 			if ( $has_data && property_exists( $data, 'event_post' ) ) {
 				$image    = ( has_post_thumbnail( $data->event_post ) ) ? get_the_post_thumbnail_url( $data->event_post, 'post-thumbnail' ) : $data->event_image;
 				$image_id = ( has_post_thumbnail( $data->event_post ) ) ? get_post_thumbnail_id( $data->event_post ) : '';
@@ -1185,9 +1193,10 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 					$remove      = '<button type="button" data-context="event" class="button remove-image" aria-describedby="event_image">' . esc_html__( 'Remove Featured Image', 'my-calendar' ) . '</button>';
 					$alt         = ( '' === $alt ) ? get_post_meta( $data->event_post, '_mcs_submitted_alt', true ) : $alt;
 					$alt         = ( '' === $alt ) ? $data->event_image : $alt;
+					$has_image   = ' has-image';
 				}
 				$return = '
-				<div class="mc-image-upload field-holder">
+				<div class="mc-image-upload field-holder' . $has_image . '">
 					<div class="image_fields">
 						<input type="hidden" name="event_image_id" value="' . esc_attr( $image_id ) . '" class="textfield" id="e_image_id" /><input type="hidden" name="event_image" id="e_image" value="' . esc_attr( $image ) . '" /> <button type="button" data-context="event" class="button select-image" aria-describedby="event_image">' . $button_text . '</button> ' . $remove . '
 					</div>';
@@ -1211,7 +1220,7 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 					'<li class="event-new-category"> ' . $add_category . '</li>
 				</ul></fieldset>';
 				$return      .= '<div class="new-event-category">
-					<p><label for="event_category_name">' . __( 'Category Name', 'my-calendar' ) . '</label> <input type="text" value="" id="event_category_name" name="event_category_name" disabled /> <button type="button" class="button add-category">' . __( 'Add Category', 'my-calendar' ) . '</button></p>
+					<p><label for="event_category_name">' . __( 'Category Name', 'my-calendar' ) . '</label> <input type="text" value="" id="event_category_name" name="event_category_name" disabled /></p><p><button type="button" class="button add-category">' . __( 'Add Category', 'my-calendar' ) . '</button></p>
 				</div>';
 				$return      .= '
 					<p class="mc-primary-category">
@@ -1316,7 +1325,7 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 			</p>
 			<p>
 				<label for="e_recur">' . __( 'Period', 'my-calendar' ) . '</label>
-				<select name="event_recur" id="e_recur">
+				<select class="widefat" name="event_recur" id="e_recur">
 					' . mc_recur_options( $recur ) . '
 				</select>
 			</p>
@@ -1340,7 +1349,11 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 					$repeats = '0';
 				}
 				$return = '
-				<div>' . $prev . '<input type="hidden" name="event_repeats" value="' . esc_attr( $repeats ) . '" /><input type="hidden" name="event_every" value="' . esc_attr( $every ) . '" /><input type="hidden" name="event_recur" value="' . esc_attr( $recur ) . '" /></div>';
+				<div>
+				' . $prev . '<input type="hidden" name="event_repeats" value="' . esc_attr( $repeats ) . '" />
+				<input type="hidden" name="event_every" value="' . esc_attr( $every ) . '" />
+				<input type="hidden" name="event_recur" value="' . esc_attr( $recur ) . '" />
+				</div>';
 			}
 			break;
 		case 'event_access':
@@ -1406,7 +1419,7 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 	 */
 	$return = apply_filters( 'mc_show_block', $return, $data, $field, $has_data );
 	if ( true === $display ) {
-		echo $return;
+		echo wp_kses( $return, mc_kses_elements() );
 	}
 
 	return $return;
@@ -1502,14 +1515,14 @@ function mc_form_fields( $data, $mode, $event_id ) {
 		 *
 		 * @return {string}
 		 */
-		echo apply_filters( 'mc_before_event_form', '', $event_id );
+		echo wp_kses( apply_filters( 'mc_before_event_form', '', $event_id ), mc_kses_elements() );
 		$action       = add_query_arg( $query_args, admin_url( 'admin.php?page=my-calendar' ) );
 		$group_id     = ( ! empty( $data->event_group_id ) && 'copy' !== $mode ) ? $data->event_group_id : mc_group_id();
 		$event_author = ( 'edit' !== $mode ) ? $user_ID : $data->event_author;
 		?>
 <form id="my-calendar" method="post" action="<?php echo esc_url( $action ); ?>">
 <div>
-	<input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce( 'my-calendar-nonce' ); ?>" />
+	<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>" />
 	<?php
 	if ( isset( $_GET['ref'] ) ) {
 		echo '<input type="hidden" name="ref" value="' . esc_url( $_GET['ref'] ) . '" />';
@@ -1536,7 +1549,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 		$post_id = false;
 	}
 	?>
-	<input type="hidden" name="event_nonce_name" value="<?php echo wp_create_nonce( 'event_nonce' ); ?>" />
+	<input type="hidden" name="event_nonce_name" value="<?php echo esc_attr( wp_create_nonce( 'event_nonce' ) ); ?>" />
 </div>
 
 <div class="ui-sortable meta-box-sortables event-primary">
@@ -1564,7 +1577,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 					mc_show_notice( $notice, true, false, 'warning' );
 				}
 			}
-			echo mc_controls( $mode, $has_data, $data );
+			echo wp_kses( mc_controls( $mode, $has_data, $data ), mc_kses_elements() );
 			?>
 		</div>
 			<?php
@@ -1585,7 +1598,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 				<legend class="screen-reader-text"><?php esc_html_e( 'Event', 'my-calendar' ); ?></legend>
 				<p>
 					<label for="e_title"><?php esc_html_e( 'Event Title', 'my-calendar' ); ?></label><br/>
-					<input type="text" id="e_title" name="event_title" size="50" maxlength="255" value="<?php echo ( $has_data ) ? stripslashes( esc_attr( $data->event_title ) ) : ''; ?>" />
+					<input type="text" id="e_title" name="event_title" size="50" maxlength="255" value="<?php echo ( $has_data ) ? esc_attr( wp_unslash( $data->event_title ) ) : ''; ?>" />
 				</p>
 				<?php
 				if ( is_object( $data ) && 1 === (int) $data->event_flagged ) {
@@ -1611,13 +1624,12 @@ function mc_form_fields( $data, $mode, $event_id ) {
 				 * @return {string}
 				 */
 				apply_filters( 'mc_insert_custom_fields', '', $has_data, $data );
-				if ( function_exists( 'wpt_post_to_twitter' ) && current_user_can( 'wpt_can_tweet' ) ) {
+				if ( function_exists( 'wpt_post_to_service' ) && current_user_can( 'wpt_can_tweet' ) ) {
 					if ( ! ( 'edit' === $mode && 1 === (int) $data->event_approved ) ) {
-						$mc_allowed = absint( ( get_option( 'wpt_tweet_length' ) ) ? get_option( 'wpt_tweet_length' ) : 140 );
 						?>
 						<p class='mc-twitter'>
-							<label for='mc_twitter'><?php esc_html_e( 'Post a Status Update (via XPoster)', 'my-calendar' ); ?></label><br/>
-							<textarea cols='70' rows='2' id='mc_twitter' name='mc_twitter' data-allowed="<?php echo absint( $mc_allowed ); ?>"><?php echo esc_textarea( stripslashes( apply_filters( 'mc_twitter_text', '', $data ) ) ); ?></textarea>
+							<label for='mc_twitter'><span class="dashicons dashicons-share" aria-hidden="true"></span> <?php esc_html_e( 'Post a Status Update (via XPoster)', 'my-calendar' ); ?></label><br/>
+							<textarea cols='70' rows='2' id='mc_twitter' name='mc_twitter' data-allowed="280"><?php echo esc_textarea( stripslashes( apply_filters( 'mc_twitter_text', '', $data ) ) ); ?></textarea>
 						</p>
 						<?php
 					}
@@ -1665,13 +1677,13 @@ function mc_form_fields( $data, $mode, $event_id ) {
 					 *
 					 * @return {string}
 					 */
-					echo apply_filters( 'mc_datetime_inputs', '', $has_data, $data, 'admin' );
+					echo wp_kses( apply_filters( 'mc_datetime_inputs', '', $has_data, $data, 'admin' ), mc_kses_elements() );
 					if ( 'edit' !== $mode ) {
-						$span_checked = '';
+						$span_checked = false;
 						if ( $has_data && '1' === $data->event_span ) {
-							$span_checked = ' checked="checked"';
+							$span_checked = true;
 						} elseif ( $has_data && '0' === $data->event_span ) {
-							$span_checked = '';
+							$span_checked = false;
 						}
 						?>
 					<p class="event_span">
@@ -1683,7 +1695,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 							<legend>
 							<?php
 							// Translators: placeholder for number of occurrences added.
-							printf( __( 'Event Copy %1$s', 'my-calendar' ), '<span class="number_of">2</span>' );
+							printf( esc_html__( 'Event Copy %1$s', 'my-calendar' ), '<span class="number_of">2</span>' );
 							?>
 							</legend>
 							<?php
@@ -1696,7 +1708,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 						</li>
 					</ol>
 					<p class="event_span checkboxes">
-						<input type="checkbox" value="1" id="e_span" name="event_span"<?php echo $span_checked; ?> />
+						<input type="checkbox" value="1" id="e_span" name="event_span"<?php checked( $span_checked, true ); ?> />
 						<label for="e_span"><?php esc_html_e( 'These are one multi-day event.', 'my-calendar' ); ?></label>
 					</p>
 						<?php
@@ -1760,7 +1772,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 	<div class="postbox">
 		<h2><?php esc_html_e( 'Event Custom Fields', 'my-calendar' ); ?></h2>
 		<div class="inside">
-			<?php echo $custom_fields; ?>
+			<?php echo wp_kses( $custom_fields, mc_kses_elements() ); ?>
 		</div>
 	</div>
 </div>
@@ -1777,7 +1789,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 			<fieldset class="locations">
 				<legend class='screen-reader-text'><?php esc_html_e( 'Event Location', 'my-calendar' ); ?></legend>
 		<?php
-		echo mc_event_location_dropdown_block( $data );
+		echo wp_kses( mc_event_location_dropdown_block( $data ), mc_kses_elements() );
 		mc_show_block( 'event_location', $has_data, $data );
 		?>
 			</fieldset>
@@ -1793,7 +1805,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 		<div class="postbox">
 			<div class="inside">
 				<div class='mc-controls footer'>
-					<?php echo mc_controls( $mode, $has_data, $data, 'footer' ); ?>
+					<?php echo wp_kses( mc_controls( $mode, $has_data, $data, 'footer' ), mc_kses_elements() ); ?>
 				</div>
 			</div>
 		</div>
@@ -1828,7 +1840,12 @@ function mc_form_fields( $data, $mode, $event_id ) {
 					} else {
 						$view_url = mc_get_permalink( $first );
 						if ( ! mc_event_published( $data ) ) {
-							$view_url = add_query_arg( 'preview', 'true', mc_get_permalink( $first ) );
+							$nonce    = wp_create_nonce( 'mcpreviewnonce' );
+							$args     = array(
+								'preview'        => 'true',
+								'mcpreviewnonce' => $nonce,
+							);
+							$view_url = add_query_arg( $args, mc_get_permalink( $first ) );
 						}
 						$tag_preview = add_query_arg(
 							array(
@@ -1898,7 +1915,7 @@ function mc_event_location_dropdown_block( $data, $hide_extras = false ) {
 			$text             = ( $event_location ) ? __( 'No change', 'my-calendar' ) : __( 'No location', 'my-calendar' );
 			$aria_describedby = ( $event_location ) ? ' aria-describedby="mc-current-location"' : '';
 			$fields          .= '
-			 <select name="location_preset" id="l_preset"' . $aria_describedby . '>
+			 <select class="widefat" name="location_preset" id="l_preset"' . $aria_describedby . '>
 				<option value="none">' . $text . '</option>';
 			foreach ( $locs as $loc ) {
 				if ( is_object( $loc ) ) {
@@ -2463,7 +2480,7 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 		if ( $conflicts ) {
 			$conflict_id = $conflicts[0]->occur_id;
 			$conflict_ev = mc_get_event( $conflict_id );
-			if ( '1' === $conflict_ev->event_approved ) {
+			if ( 'public' === mc_event_states_type( $conflict_ev->event_approved ) ) {
 				$conflict = mc_get_permalink( $conflict_ev );
 				// Translators: URL to event details.
 				$errors .= mc_show_error( sprintf( __( 'That event conflicts with a <a href="%s">previously scheduled event</a>.', 'my-calendar' ), $conflict ), false, 'conflict' );
@@ -2887,7 +2904,7 @@ function mc_standard_datetime_input( $form, $has_data, $data, $instance, $contex
  * @param string  $context rendering context [not used].
  */
 function mc_repeatable_datetime_input( $form, $has_data, $data, $context = 'admin' ) {
-	echo mc_get_repeatable_datetime_input( $form, $has_data, $data, $context = 'admin' );
+	echo wp_kses( mc_get_repeatable_datetime_input( $form, $has_data, $data, $context = 'admin' ), mc_kses_elements() );
 }
 
 /**
@@ -2970,6 +2987,7 @@ function mc_recur_datetime_input( $data ) {
 
 	$form = '
 	<div class="columns">
+		<input type="hidden" name="r_instance" value="" />
 		<p>
 			<label for="r_time">' . __( 'Start Time', 'my-calendar' ) . '</label>
 			<input type="time" id="r_time" name="recur_time[]" size="8" value="' . esc_attr( $starttime ) . '" />
@@ -3103,7 +3121,7 @@ function mc_controls( $mode, $has_data, $event, $position = 'header' ) {
 			$controls['post'] = ( $post_link ) ? sprintf( "<span class='dashicons dashicons-admin-post' aria-hidden='true'></span><a href='%s'>" . __( 'Edit Event Post', 'my-calendar' ) . '</a>', $post_link ) : '';
 		}
 	} else {
-		$publish_text = __( 'Publish', 'my-calendar' );
+		$publish_text = ( 'copy' === $mode ) ? __( 'Publish Copy', 'my-calendar' ) : __( 'Publish', 'my-calendar' );
 	}
 
 	if ( $has_data && is_object( $event ) ) {
@@ -3112,7 +3130,12 @@ function mc_controls( $mode, $has_data, $event, $position = 'header' ) {
 		if ( mc_event_published( $event ) ) {
 			$controls['view'] = "<span class='dashicons dashicons-laptop' aria-hidden='true'></span><a href='" . esc_url( $view_url ) . "' class='view'>" . __( 'View', 'my-calendar' ) . '</a>';
 		} elseif ( current_user_can( 'mc_manage_events' ) ) {
-			$controls['view'] = "<span class='dashicons dashicons-laptop' aria-hidden='true'></span><a href='" . add_query_arg( 'preview', 'true', $view_url ) . "' class='view'>" . __( 'Preview', 'my-calendar' ) . '</a>';
+			$nonce            = wp_create_nonce( 'mcpreviewnonce' );
+			$args             = array(
+				'preview'        => 'true',
+				'mcpreviewnonce' => $nonce,
+			);
+			$controls['view'] = "<span class='dashicons dashicons-laptop' aria-hidden='true'></span><a href='" . add_query_arg( $args, $view_url ) . "' class='view'>" . __( 'Preview', 'my-calendar' ) . '</a>';
 		}
 		$manage_text        = __( 'Events', 'my-calendar' );
 		$controls['manage'] = "<span class='dashicons dashicons-calendar' aria-hidden='true'></span>" . '<a href="' . admin_url( 'admin.php?page=my-calendar-manage' ) . '">' . $manage_text . '</a>';
@@ -3129,19 +3152,23 @@ function mc_controls( $mode, $has_data, $event, $position = 'header' ) {
 		}
 	}
 	// Event Status settings: draft, published, trash, (custom).
-	$statuses = mc_event_statuses();
+	$statuses = mc_event_states();
 	if ( 'header' === $position ) {
 		$status_control = '';
 		if ( 'edit' === $mode ) {
 			$controls['publish']     = '<input type="submit" name="save" class="button-primary" value="' . esc_attr( $publish_text ) . '" />';
 			$controls['prev_status'] = "<input type='hidden' name='prev_event_status' value='" . absint( $event->event_approved ) . "' />";
 			if ( current_user_can( 'mc_approve_events' ) || current_user_can( 'mc_publish_events' ) ) { // Added by Roland P.
-				foreach ( $statuses as $code => $label ) {
+				foreach ( $statuses as $code => $args ) {
+					$label           = $args['label'];
 					$status_control .= '<option value="' . $code . '"' . selected( $event->event_approved, $code, false ) . '>' . $label . '</option>';
 				}
 			} else {
-				unset( $statuses['1'] );
-				foreach ( $statuses as $code => $label ) {
+				foreach ( $statuses as $code => $args ) {
+					if ( 'publish' === $args['type'] ) {
+						continue;
+					}
+					$label           = $args['label'];
 					$status_control .= '<option value="' . $code . '"' . selected( $event->event_approved, $code, false ) . '>' . $label . '</option>';
 				}
 			}
@@ -3183,32 +3210,6 @@ function mc_controls( $mode, $has_data, $event, $position = 'header' ) {
 	}
 
 	return '<ul>' . $controls_output . '</ul>';
-}
-
-/**
- * Get the array of available event status codes.
- *
- * @return array
- */
-function mc_event_statuses() {
-	// Switch to select status.
-	$statuses = array(
-		'1' => __( 'Publish', 'my-calendar' ),
-		'0' => __( 'Draft', 'my-calendar' ),
-		'2' => __( 'Trash', 'my-calendar' ),
-	);
-	/**
-	 * Filter available event status types.
-	 *
-	 * @hook mc_event_statuses
-	 *
-	 * @param {array} Array of statuses where key is the integer value of the status and the value is the status label.
-	 *
-	 * @return {array}
-	 */
-	$statuses = apply_filters( 'mc_event_statuses', $statuses );
-
-	return $statuses;
 }
 
 /**

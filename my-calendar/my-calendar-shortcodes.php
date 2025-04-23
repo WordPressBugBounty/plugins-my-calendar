@@ -47,6 +47,7 @@ function my_calendar_insert( $atts, $content = null ) {
 			'weekends'       => mc_get_option( 'show_weekends' ),
 			'hide_groups'    => '', // Hide grouped events after first.
 			'hide_recurring' => 'card', // Hide recurring events after first. Comma-separated list of formats.
+			'class'          => '',
 		),
 		$atts,
 		'my_calendar'
@@ -109,13 +110,14 @@ function my_calendar_insert( $atts, $content = null ) {
  * @return string Calendar.
  */
 function my_calendar_insert_upcoming( $atts ) {
-	$args = shortcode_atts(
+	$default = mc_get_option( 'list_template', 'default' );
+	$args    = shortcode_atts(
 		array(
 			'before'         => 'default',
 			'after'          => 'default',
 			'type'           => 'default',
 			'category'       => 'default',
-			'template'       => 'default',
+			'template'       => $default,
 			'fallback'       => '',
 			'order'          => 'asc',
 			'skip'           => '0',
@@ -128,6 +130,7 @@ function my_calendar_insert_upcoming( $atts ) {
 			'to'             => false,
 			'site'           => false,
 			'language'       => '',
+			'navigation'     => mc_get_option( 'upcoming_events_navigation' ),
 		),
 		$atts,
 		'my_calendar_upcoming'
@@ -172,12 +175,13 @@ function my_calendar_insert_upcoming( $atts ) {
  * @return string Calendar.
  */
 function my_calendar_insert_today( $atts ) {
-	$args = shortcode_atts(
+	$default = mc_get_option( 'list_template', 'default' );
+	$args    = shortcode_atts(
 		array(
 			'category' => 'default',
 			'author'   => 'default',
 			'host'     => 'default',
-			'template' => 'default',
+			'template' => $default,
 			'fallback' => '',
 			'date'     => false,
 			'site'     => false,
@@ -478,6 +482,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 	$below      = ( isset( $params['below'] ) ) ? $params['below'] : '';
 	$shortcode  = ( isset( $params['shortcode'] ) ) ? $params['shortcode'] : "[$base]";
 	$append     = ( isset( $params['append'] ) ) ? $params['append'] : '';
+	$navigation = ( isset( $params['navigation'] ) ) ? $params['navigation'] : '';
 
 	$last_shortcode = mc_get_option( 'last_shortcode_' . $type );
 	$shortcode      = ( ! isset( $params['shortcode'] ) && $last_shortcode ) ? "[$last_shortcode]" : $shortcode;
@@ -485,7 +490,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 	<div id="mc-generator" class="generator">
 		<div class="mc-generator-data">
 			<?php echo wp_kses_post( wpautop( $message ) ); ?>
-			<div><input type="hidden" name="_mc_wpnonce" value="<?php echo wp_create_nonce( 'my-calendar-generator' ); ?>"/></div>
+			<div><input type="hidden" name="_mc_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-generator' ) ); ?>"/></div>
 			<input type='hidden' name='shortcode' value='<?php echo esc_attr( $type ); ?>'/>
 			<?php
 			// Common Elements to all Shortcodes.
@@ -500,15 +505,22 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 		</div>
 		<?php
 		if ( isset( $_GET['post'] ) ) {
-			echo '<div class="editor-save-notice"><p>' . __( 'Save this post to update your My Calendar settings.', 'my-calendar' ) . '</p></div>';
+			echo '<div class="editor-save-notice"><p>' . esc_html__( 'Save this post to update your My Calendar settings.', 'my-calendar' ) . '</p></div>';
 		}
 		?>
 		<div class="mc-generator-inputs">
 			<fieldset>
 				<legend><?php esc_html_e( 'Content Filters', 'my-calendar' ); ?></legend>
+				<?php
+				if ( 'upcoming' === $type ) {
+					?>
+					<p class="checkboxes"><input type="checkbox" value="true" name="navigation" id="upcoming_navigation"> <label for="upcoming_navigation"><?php esc_html_e( 'Include navigation', 'my-calendar' ); ?></p>
+					<?php
+				}
+				?>
 				<fieldset class="categories">
 					<legend><?php esc_html_e( 'Categories', 'my-calendar' ); ?></legend>
-					<ul style="padding:0;margin:0;list-style-type:none;columns:3;">
+					<ul style="padding:0;margin:0;list-style-type:none;display:flex;flex-wrap:wrap;gap:12px;">
 						<li>
 							<input type="checkbox" value="all" <?php checked( empty( $category ), true ); ?> name="category[]" id="category_<?php echo esc_attr( $type ); ?>"> <label for="category_<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'All', 'my-calendar' ); ?></label>
 						</li>
@@ -537,14 +549,14 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 				</p>
 
 				<p id='location-info'>
-					<?php _e( 'If you filter events by location, it must be an exact match for that information as saved with your events. (e.g. "Saint Paul" is not equivalent to "saint paul" or "St. Paul")', 'my-calendar' ); ?>
+					<?php esc_html_e( 'If you filter events by location, it must be an exact match for that information as saved with your events. (e.g. "Saint Paul" is not equivalent to "saint paul" or "St. Paul")', 'my-calendar' ); ?>
 				</p>
 				<p>
 					<label for="search<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'Search keyword', 'my-calendar' ); ?></label>
 					<input type="text" name="search" id="search<?php echo esc_attr( $type ); ?>" aria-describedby="search-info" value="<?php echo esc_attr( $search ); ?>" /><br/>
 				</p>
 				<span id='search-info'>
-					<?php _e( 'Show events containing a specific search keyword.', 'my-calendar' ); ?>
+					<?php esc_html_e( 'Show events containing a specific search keyword.', 'my-calendar' ); ?>
 				</span>
 			</fieldset>
 			<?php
@@ -556,7 +568,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 				<p id='navigation-info'>
 					<?php
 					// Translators: Settings page URL.
-					printf( __( "Navigation above and below the calendar: your <a href='%s'>settings</a> if this is left blank. Use <code>none</code> to hide all navigation.", 'my-calendar' ), admin_url( 'admin.php?page=my-calendar-config#mc-output' ) );
+					echo wp_kses_post( sprintf( __( "Navigation above and below the calendar: your <a href='%s'>settings</a> if this is left blank. Use <code>none</code> to hide all navigation.", 'my-calendar' ), esc_url( admin_url( 'admin.php?page=my-calendar-config#mc-output' ) ) ) );
 					mc_help_link( __( 'Help', 'my-calendar' ), __( 'Navigation Keywords', 'my-calendar' ), 'navigation keywords', 3 );
 					?>
 				</p>
@@ -582,11 +594,14 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 							'card'     => __( 'Card', 'my-calendar' ),
 							'mini'     => __( 'Mini', 'my-calendar' ),
 						);
-						$options         = '<option value="">' . esc_html__( 'Default', 'my-calendar' ) . '</option>';
+						?>
+						<option value=""><?php esc_html_e( 'Default', 'my-calendar' ); ?></option>
+						<?php
 						foreach ( $enabled_formats as $f ) {
-							$options .= '<option value="' . $f . '"' . selected( $f, $format ) . '>' . $format_labels[ $f ] . '</option>';
+							?>
+							<option value="<?php echo esc_attr( $f ); ?>"<?php selected( $f, $format ); ?>><?php echo esc_html( $format_labels[ $f ] ); ?></option>
+							<?php
 						}
-						echo $options;
 						?>
 					</select>
 				</p>
@@ -666,7 +681,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 						<option value=''><?php esc_html_e( 'Default', 'my-calendar' ); ?></option>
 						<?php
 						$mcdb  = mc_is_remote_db();
-						$query = 'SELECT event_begin FROM ' . my_calendar_table() . ' WHERE event_approved = 1 AND event_flagged <> 1 ORDER BY event_begin ASC LIMIT 0 , 1';
+						$query = 'SELECT event_begin FROM ' . my_calendar_table() . ' WHERE event_approved IN (1,3,4) AND event_flagged <> 1 ORDER BY event_begin ASC LIMIT 0 , 1';
 						$year1 = mc_date( 'Y', strtotime( $mcdb->get_var( $query ) ) );
 						$diff1 = mc_date( 'Y' ) - $year1;
 						$past  = $diff1;
@@ -801,12 +816,25 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 					<label for="fallback<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'Fallback Text', 'my-calendar' ); ?></label>
 					<input type="text" name="fallback" id="fallback<?php echo esc_attr( $type ); ?>" value="" />
 				</p>
-				<p>
+				<?php
+				$template_options         = mc_select_preset_templates();
+				$template_options['list'] = __( 'Custom', 'my-calendar' );
+				mc_settings_field(
+					array(
+						'name'    => 'preset_template',
+						'id'      => 'preset_template' . $type,
+						'label'   => __( 'Preset Template', 'my-calendar' ),
+						'default' => $template_options,
+						'type'    => 'select',
+					)
+				);
+				?>
+				<p class="mc-custom-template">
 					<label for="template<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'Template', 'my-calendar' ); ?></label>
 					<textarea cols="40" rows="4" name="template" id="template<?php echo esc_attr( $type ); ?>" aria-describedby="mc_template-note"><?php echo esc_textarea( '<strong>{date}</strong>, {time}: {link_title}' ); ?></textarea><span id="mc_template-note"><i class="dashicons dashicons-editor-help" aria-hidden="true"></i>
 					<?php
 					// Translators: Link to custom template UI.
-					printf( __( 'Creates a new <a href="%s">custom template</a>.', 'my-calendar' ), admin_url( 'admin.php?page=my-calendar-design#my-calendar-templates' ) );
+					echo wp_kses_post( sprintf( __( 'Creates a new <a href="%s">custom template</a>.', 'my-calendar' ), esc_url( admin_url( 'admin.php?page=my-calendar-design#my-calendar-templates' ) ) ) );
 					?>
 					</span>
 				</p>

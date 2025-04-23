@@ -144,7 +144,7 @@ function mc_update_location_custom_fields( $post_id, $post, $data, $location_id 
 		if ( isset( $post[ $name ] ) ) {
 			if ( ! isset( $field['sanitize_callback'] ) || ( isset( $field['sanitize_callback'] ) && ! function_exists( $field['sanitize_callback'] ) ) ) {
 				// if no sanitization is provided, we'll prep it for SQL and strip tags.
-				$sanitized = sanitize_text_field( strip_tags( urldecode( $post[ $name ] ) ) );
+				$sanitized = sanitize_text_field( wp_strip_all_tags( urldecode( $post[ $name ] ) ) );
 			} else {
 				$sanitized = call_user_func( $field['sanitize_callback'], urldecode( $post[ $name ] ) );
 			}
@@ -406,7 +406,7 @@ function mc_delete_location( $location, $type = 'string' ) {
  */
 function my_calendar_add_locations() {
 	?>
-	<div class="wrap my-calendar-admin">
+	<div class="wrap my-calendar-admin my-calendar-location">
 	<?php
 	my_calendar_check_db();
 	// We do some checking to see what we're doing.
@@ -470,7 +470,7 @@ function my_calendar_add_locations() {
 		}
 	} elseif ( isset( $_GET['location_id'] ) && 'delete' === $_GET['mode'] ) {
 		$loc = absint( $_GET['location_id'] );
-		echo mc_delete_location( $loc );
+		echo wp_kses_post( mc_delete_location( $loc ) );
 	} elseif ( isset( $_GET['mode'] ) && isset( $_GET['location_id'] ) && 'edit' === $_GET['mode'] && ! isset( $post['mode'] ) ) {
 		$cur_loc = (int) $_GET['location_id'];
 		mc_show_location_form( 'edit', $cur_loc );
@@ -572,7 +572,7 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
 	} else {
 		?>
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Edit Location', 'my-calendar' ); ?></h1>
-		<a href="<?php echo admin_url( 'admin.php?page=my-calendar-locations' ); ?>" class="page-title-action"><?php esc_html_e( 'Add New', 'my-calendar' ); ?></a>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-locations' ) ); ?>" class="page-title-action"><?php esc_html_e( 'Add New', 'my-calendar' ); ?></a>
 		<hr class="wp-header-end">
 		<?php
 	}
@@ -621,7 +621,7 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
 								<li><input type="submit" name="save" class="button-primary" value="<?php echo esc_attr( ( 'edit' === $view ) ? __( 'Save Changes', 'my-calendar' ) : __( 'Add Location', 'my-calendar' ) ); ?> "/></li>
 							</ul>
 						</div>
-						<div><input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce( 'my-calendar-nonce' ); ?>"/></div>
+						<div><input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/></div>
 							<?php
 							if ( 'add' === $view ) {
 								?>
@@ -634,11 +634,11 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
 								?>
 								<div>
 									<input type="hidden" name="mode" value="edit"/>
-									<input type="hidden" name="location_id" value="<?php echo $cur_loc->location_id; ?>"/>
+									<input type="hidden" name="location_id" value="<?php echo esc_attr( $cur_loc->location_id ); ?>"/>
 								</div>
 								<?php
 							}
-							echo mc_locations_fields( $has_data, $cur_loc, 'location' );
+							echo wp_kses( mc_locations_fields( $has_data, $cur_loc, 'location' ), mc_kses_elements() );
 							?>
 							<div class="mc-controls footer">
 								<ul>
@@ -667,7 +667,7 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
 			if ( 'edit' === $view ) {
 				?>
 				<p>
-					<a href="<?php echo admin_url( 'admin.php?page=my-calendar-locations' ); ?>"><?php esc_html_e( 'Add a New Location', 'my-calendar' ); ?></a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-locations' ) ); ?>"><?php esc_html_e( 'Add a New Location', 'my-calendar' ); ?></a>
 				</p>
 				<?php
 			}
@@ -974,10 +974,10 @@ function mc_locations_fields( $has_data, $data, $context = 'location', $group_id
 	</p>
 	<div class="columns-flex">
 	<p>
-		<label for="e_latitude">' . __( 'Latitude', 'my-calendar' ) . $compare_lat . '</label> <input type="text" id="e_latitude" name="' . $context . '_latitude" size="10" value="' . esc_attr( $event_lat ) . '" />
+		<label for="e_latitude">' . __( 'Latitude', 'my-calendar' ) . $compare_lat . '</label> <input type="text" id="e_latitude" name="' . $context . '_latitude" size="14" placeholder="51.477928" value="' . esc_attr( $event_lat ) . '" />
 	</p>
 	<p>
-		<label for="e_longitude">' . __( 'Longitude', 'my-calendar' ) . $compare_lon . '</label> <input type="text" id="e_longitude" name="' . $context . '_longitude" size="10" value="' . esc_attr( $event_lon ) . '" />
+		<label for="e_longitude">' . __( 'Longitude', 'my-calendar' ) . $compare_lon . '</label> <input type="text" id="e_longitude" name="' . $context . '_longitude" size="14" placeholder="-0.001545" value="' . esc_attr( $event_lon ) . '" />
 	</p>' . $update_gps . '
 	</div>
 	</fieldset>';
@@ -1398,7 +1398,7 @@ function mc_location_select( $location = false ) {
 				$l .= ' selected="selected"';
 			}
 		}
-		$l    .= '>' . mc_kses_post( stripslashes( $label ) ) . '</option>';
+		$l    .= '>' . esc_html( wp_strip_all_tags( wp_unslash( $label ) ) ) . '</option>';
 		$list .= $l;
 	}
 

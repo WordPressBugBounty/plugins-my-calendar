@@ -283,7 +283,6 @@ jQuery(document).ready(function ($) {
 		});
 	});
 
-
 	$( '.row-actions' ).on( 'focus', 'a', function() {
 		$( this ).parent( '.row-actions' ).css( { 'left' : 'auto' } );
 	});
@@ -391,7 +390,7 @@ jQuery(document).ready(function ($) {
 		$( '.event_time_label' ).hide();
 	}
 
-	$( 'input[id="e_allday"]' ).change( function() {
+	$( 'input[id="e_allday"]' ).on( 'change', function() {
 		let checked = $(this).prop( "checked" );
 		if ( checked ) {
 			$( '.event_time_label' ).show();
@@ -405,7 +404,7 @@ jQuery(document).ready(function ($) {
 		$( '.mc_remote_info' ).hide();
 	}
 
-	$( 'input[id="mc_remote"]' ).change( function() {
+	$( 'input[id="mc_remote"]' ).on( 'change', function() {
 		let checked = $(this).prop( "checked" );
 		if ( checked ) {
 			$( '.mc_remote_info' ).show();
@@ -419,7 +418,7 @@ jQuery(document).ready(function ($) {
 		$( '#mc_gmap_api_key' ).attr( 'required', 'true' );
 	}
 
-	$( 'input[id="mc_display_single-gmap"]' ).change( function() {
+	$( 'input[id="mc_display_single-gmap"]' ).on( 'change', function() {
 		let checked = $(this).prop( "checked" );
 		if ( checked ) {
 			$( '#mc_gmap_api_key' ).attr( 'required', 'true' );
@@ -433,7 +432,7 @@ jQuery(document).ready(function ($) {
 		$( 'label[for=mc_event_endtime] span' ).show();
 	}
 
-	$( 'input[id="e_hide_end"]' ).change( function() {
+	$( 'input[id="e_hide_end"]' ).on( 'change', function() {
 		let checked = $(this).prop( "checked" );
 		if ( checked ) {
 			$( 'label[for=mc_event_endtime] span' ).show();
@@ -627,6 +626,34 @@ jQuery(document).ready(function ($) {
 		$( this ).trigger( 'focus' );
 		wp.a11y.speak( 'Item moved down' );
 	});
+
+	const list_selector = $( '#mc_list_template' );
+	if ( list_selector ) {
+		let current = list_selector.val();
+		$( '.mc-list-preview:not(.' + current ).hide();
+		list_selector.on( 'change', function(e) {
+			current = $( this ).val();
+			$( '.mc-list-preview' ).hide();
+			$( '.mc-list-preview.' + current ).show();
+		});
+	}
+
+	const shortcode_list_selector = $( 'select[name="preset_template"]' );
+	if ( shortcode_list_selector ) {
+		shortcode_list_selector.each( function() {
+			let el = $( this );
+			let custom  = el.parent( 'fieldset' ).find( '.mc-custom-template' );
+			el.on( 'change', function(e) {
+				let current = el.val();
+				if ( current === 'list' ) {
+					custom.show();
+				} else {
+					custom.hide();
+				}
+			});
+		})
+	}
+
 });
 
 var mediaPopup = '';
@@ -664,6 +691,7 @@ var mediaPopup = '';
 				const inpField     = document.querySelector('#' + short + '_image');
 				const idField      = document.querySelector('#' + short + '_image_id');
 				const displayField = document.querySelector('.event_image');
+				const container    = document.querySelector( '.mc-image-upload' );
 				clear_existing();
 				mediaPopup = wp.media({
 					multiple: false, // add, reset, false.
@@ -689,6 +717,7 @@ var mediaPopup = '';
 						inpField.value         = selection.first().attributes.url;
 						idField.value          = id;
 						displayField.innerHTML = img;
+						container.classList.add( 'has-image' );
 					}
 				});
 				mediaPopup.open();
@@ -721,4 +750,35 @@ var mediaPopup = '';
 		});
 	}
 
+	const mcs_inputs = $( '.mcs-submit-post-event input, .mcs-submit-post-event select, .mcs-submt-post-event textarea' );
+	mcs_inputs.attr( 'disabled', 'disabled' );
+	$('.mcs-submit-post-event').hide();
+	$('#mcs_enable_events').on('click', function () {
+		let checked_status = $(this).prop('checked');
+		if (checked_status == true) {
+			mcs_inputs.removeAttr( 'disabled' );
+			$('.mcs-submit-post-event' ).show(300);
+		} else {
+			mcs_inputs.attr( 'disabled', 'disabled' );
+			$('.mcs-submit-post-event').hide(200);
+		}
+	});
+
+	$('#mcs_use_post_title').on('click', function () {
+		let checked_status = $(this).prop('checked');
+		if (checked_status == true) {
+			$('#e_title' ).attr( 'disabled', 'disabled' );
+		} else {
+			$('#e_title' ).removeAttr( 'disabled' );
+		}
+	});
+
+	$('#mc_use_permalink').on('click', function () {
+		let checked_status = $(this).prop('checked');
+		if (checked_status == true) {
+			$('#e_link' ).attr( 'disabled', 'disabled' );
+		} else {
+			$('#e_link' ).removeAttr( 'disabled' );
+		}
+	});
 })(jQuery);

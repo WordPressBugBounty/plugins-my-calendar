@@ -386,6 +386,16 @@ function mc_category_key( $category, $id = '' ) {
 
 	$sql        = 'SELECT * FROM ' . my_calendar_categories_table() . " $select_category ORDER BY category_name ASC";
 	$categories = $mcdb->get_results( $sql );
+	/**
+	 * Filter the array of categories used to generate the category legend in My Calendar.
+	 *
+	 * @hook mc_category_key_array
+	 *
+	 * @param {array}  $categories Array of category objects.
+	 * @param {string} $category The active categories in the view. Comma-separated string of IDs or category name.
+	 * @param {string} $id The calendar view ID.
+	 */
+	$categories = apply_filters( 'mc_category_key_array', $categories, $category, $id );
 	$key       .= '<div class="category-key ' . $class . '"><h3 class="maybe-hide">' . __( 'Categories', 'my-calendar' ) . "</h3>\n<ul>\n";
 
 	foreach ( $categories as $cat ) {
@@ -397,7 +407,7 @@ function mc_category_key( $category, $id = '' ) {
 		$hex   = ( 0 !== strpos( $cat->category_color, '#' ) ) ? '#' : '';
 		$class = mc_category_class( $cat, '' );
 
-		$selected_categories = ( empty( $_GET['mcat'] ) ) ? array() : map_deep( explode( ',', $_GET['mcat'] ), 'absint' );
+		$selected_categories = ( empty( $_GET['mcat'] ) ) ? array() : map_deep( explode( ',', wp_unslash( $_GET['mcat'] ) ), 'absint' );
 		$category_id         = (int) $cat->category_id;
 
 		if ( in_array( $category_id, $selected_categories, true ) || $category === $category_id ) {
@@ -474,15 +484,15 @@ function mc_category_key( $category, $id = '' ) {
  * @return string HTML output for subscription links
  */
 function mc_sub_links() {
-	$replace = 'webcal:';
+	$replace = 'webcals:';
 	$search  = array( 'http:', 'https:' );
 
 	$google = str_replace( $search, $replace, get_feed_link( 'my-calendar-google' ) );
 	$google = add_query_arg( 'cid', $google, 'https://www.google.com/calendar/render' );
-	$ical   = str_replace( $search, $replace, get_feed_link( 'my-calendar-ics' ) );
+	$ical   = get_feed_link( 'my-calendar-ics' );
 
 	$sub_google = "<li class='ics google'><a href='" . esc_url( $google ) . "' rel='nofollow'><span class='mc-icon' aria-hidden='true'></span>" . __( '<span class="maybe-hide">Subscribe in </span>Google', 'my-calendar' ) . '</a></li>';
-	$sub_ical   = "<li class='ics ical'><a href='" . esc_url( $ical ) . "' rel='nofollow'><span class='mc-icon' aria-hidden='true'></span>" . __( '<span class="maybe-hide">Subscribe in </span>iCal', 'my-calendar' ) . '</a></li>';
+	$sub_ical   = "<li class='ics ical'><a href='" . esc_attr( str_replace( $search, $replace, esc_url( $ical ) ) ) . "' rel='nofollow'><span class='mc-icon' aria-hidden='true'></span>" . __( '<span class="maybe-hide">Subscribe in </span>iCal', 'my-calendar' ) . '</a></li>';
 
 	$output = "<div class='mc-export mc-subscribe'>
 	<ul>$sub_google$sub_ical</ul>
@@ -782,17 +792,17 @@ function mc_filters( $args, $target_url, $ltype = 'id', $options = array() ) {
 		<form action='" . esc_url( $current_url ) . "' method='get' class='$class'>\n";
 	$qsa         = array();
 	if ( isset( $_SERVER['QUERY_STRING'] ) ) {
-		parse_str( $_SERVER['QUERY_STRING'], $qsa );
+		parse_str( map_deep( wp_unslash( $_SERVER['QUERY_STRING'] ), 'sanitize_text_field' ), $qsa );
 	}
 	if ( ! isset( $_GET['cid'] ) ) {
 		$form .= '<input type="hidden" name="cid" value="all" />';
 	}
 	foreach ( $qsa as $name => $argument ) {
-		$name = esc_attr( strip_tags( $name ) );
+		$name = wp_strip_all_tags( $name );
 		if ( ! ( 'access' === $name || 'mcat' === $name || 'loc' === $name || 'ltype' === $name || 'mc_id' === $name || 'legacy-widget-preview' === $name ) ) {
 			$argument = ( ! is_string( $argument ) ) ? (string) $argument : $argument;
-			$argument = esc_attr( strip_tags( $argument ) );
-			$form    .= '<input type="hidden" name="' . $name . '" value="' . $argument . '" />' . "\n";
+			$argument = wp_strip_all_tags( $argument );
+			$form    .= '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( $argument ) . '" />' . "\n";
 		}
 	}
 	$multiple = __( 'Events', 'my-calendar' );
@@ -857,14 +867,14 @@ function my_calendar_categories_list( $show = 'list', $context = 'public', $grou
 	if ( 'single' === $group ) {
 		$qsa = array();
 		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
-			parse_str( $_SERVER['QUERY_STRING'], $qsa );
+			parse_str( map_deep( wp_unslash( $_SERVER['QUERY_STRING'] ), 'sanitize_text_field' ), $qsa );
 		}
 		if ( ! isset( $_GET['cid'] ) ) {
 			$form .= '<input type="hidden" name="cid" value="all" />';
 		}
 		foreach ( $qsa as $name => $argument ) {
 			if ( ! ( 'mcat' === $name || 'mc_id' === $name ) ) {
-				$form .= '<input type="hidden" name="' . esc_attr( strip_tags( $name ) ) . '" value="' . esc_attr( strip_tags( $argument ) ) . '" />' . "\n";
+				$form .= '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />' . "\n";
 			}
 		}
 	}
@@ -952,7 +962,7 @@ function mc_access_list( $show = 'list', $group = 'single', $target_url = '' ) {
 		}
 		foreach ( $qsa as $name => $argument ) {
 			if ( ! ( 'access' === $name || 'mc_id' === $name ) ) {
-				$form .= '<input type="hidden" name="' . esc_attr( strip_tags( $name ) ) . '" value="' . esc_attr( strip_tags( $argument ) ) . '" />' . "\n";
+				$form .= '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />' . "\n";
 			}
 		}
 	}
@@ -1032,11 +1042,11 @@ function mc_date_switcher( $type = 'calendar', $cid = 'all', $time = 'month', $d
 	}
 	$data_href = $current_url;
 	foreach ( $qsa as $name => $argument ) {
-		$name = esc_attr( strip_tags( $name ) );
+		$name = esc_attr( wp_strip_all_tags( $name ) );
 		if ( is_array( $argument ) ) {
 			$argument = '';
 		} else {
-			$argument = esc_attr( strip_tags( $argument ) );
+			$argument = esc_attr( wp_strip_all_tags( $argument ) );
 		}
 		if ( 'month' !== $name && 'yr' !== $name && 'dy' !== $name ) {
 			$date_switcher .= '<input type="hidden" name="' . $name . '" value="' . $argument . '" />';

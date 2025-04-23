@@ -4,6 +4,7 @@
 
 .mc-main {
 	position: relative;
+	container: mcmain / inline-size;
 }
 
 .mc-main div, .mc-main span, .mc-main h1, .mc-main h2, .mc-main h3, .mc-main h4, .mc-main h5, .mc-main h6, .mc-main p, .mc-main blockquote, .mc-main pre, .mc-main a, .mc-main img, .mc-main dl, .mc-main dt, .mc-main dd, .mc-main ol, .mc-main ul, .mc-main li, .mc-main fieldset, .mc-main form, .mc-main label, .mc-main legend, .mc-main table, .mc-main caption, .mc-main tbody, .mc-main tfoot, .mc-main thead, .mc-main tr, .mc-main th, .mc-main td, .mc-main article, .mc-main aside, .mc-main details, .mc-main footer, .mc-main header, .mc-main menu, .mc-main meter, .mc-main nav, .mc-main output, .mc-main progress, .mc-main section, .mc-main summary {
@@ -44,6 +45,11 @@
 	background: var(--grid-header-bg);
 }
 
+.mc-main th.weekend-heading {
+	color: var(--grid-weekend-color);
+	background: var(--grid-weekend-bg);	
+}
+
 .mc-main th abbr, .mc-main .event-time abbr {
 	border-bottom: none;
 	text-decoration: none;
@@ -64,6 +70,7 @@
 .mc-main td .event-title {
 	font-size: clamp( .75rem, 14px, 1.125rem );
 	font-weight: 600;
+	text-wrap: balance;
 }
 
 .mc-main td .event-title img {
@@ -84,9 +91,10 @@
 	letter-spacing: normal;
 }
 
+.mc-main .event-title:not(.event-title:has(a),.event-title:has(button)),
 .mc-main .event-title a {
 	display: flex;
-	align-items: middle;
+	align-items: center;
 	column-gap: 4px;
 	padding: 4px;
 	position: relative;
@@ -142,41 +150,6 @@
 	padding: 16px;
 }
 
-.mc-main .list-event .event-title {
-	display: flex;
-	column-gap: 16px;
-	align-items: center;
-}
-
-.mc-main .list-event .event-title {
-	padding: 8px;
-	margin-bottom: 4px 0 !important;
-}
-
-.mc-main .list-event > .event-title {
-	display: block;
-	font-size: var(--list-event-title);
-}
-
-.mc-main .mc-list .event-date button.mc-text-button {
-	width: auto;
-	padding: 0;
-	border: none;
-	text-align: left;
-	background: transparent;
-	background-color: transparent ! important;
-	color: var(--primary-dark) ! important;
-	outline-offset: 2px;
-	font-size: var(--list-event-date);
-}
-
-.mc-main .mc-list .event-date button.mc-text-button:hover,
-.mc-main .mc-list .event-date button.mc-text-button:focus {
-	background: transparent;
-	background-color: transparent !important;
-	outline: 1px solid var(--nav-button-border);
-}
-
 .mc-main .event-title a.list {
 	text-decoration: none;
 }
@@ -187,23 +160,6 @@
 	display: flex;
 	align-items: top;
 	column-gap: 4px;
-}
-
-.mc-main .mc-list .mc-text-button > span {
-	text-decoration: underline;
-}
-
-.mc-main .mc-list .event-date button:hover,
-.mc-main .mc-list .event-date button:focus {
-	background: transparent;
-}
-
-.mc-main .mc-list .details .address {
-	padding-right: 0;
-}
-
-.mc-main .mc-list .details > p {
-	padding: 8px;
 }
 
 .mc-main button.close {
@@ -334,16 +290,11 @@
 	margin: 0 0 8px;
 }
 
-.mc-main .current-day:not(.day .current-day) {
+.mc-main .current-day:not(.day .current-day, .list .current-day) {
 	outline: 2px solid var(--current-day-border);
 	background: var(--current-day-bg);
 	color: var(--current-day-color);
 	outline-offset: -2px;
-}
-
-.mc-main .mc-list li.current-day {
-	border-left: 4px solid var(--current-day-border);
-	background: var(--current-day-bg);
 }
 
 .my-calendar-nav ul, .mc-main .category-key ul, .mc-main .mc-export ul, .mc-main .mc-list {
@@ -358,6 +309,7 @@
 	row-gap: 4px;
 }
 
+.mc-loader .mc-icon::before,
 .my-calendar-today a .mc-icon::before,
 .my-calendar-prev a .mc-icon::before,
 .my-calendar-next a .mc-icon::before,
@@ -377,6 +329,22 @@
 	font-family: 'dashicons';
 	display: inline;
 	margin-right: 2px;
+}
+
+.mc-loader {
+	display: inline-flex;
+	padding: 6px 12px;
+}
+
+.mc-loader:active {
+	padding: inherit;
+}
+
+.mc-load-events-controls {
+	display: flex;
+	gap: .5rem;
+	justify-content: space-between;
+	margin-bottom: .5rem;
 }
 
 .mc-main .mc-print a .mc-icon::before {
@@ -416,10 +384,25 @@
 	margin-right: 0;
 }
 
+.mc-loader.mc-previous .mc-icon::before,
 .my-calendar-prev a .mc-icon::before {
 	content: '\f341';
 }
 
+.mc-loader.mc-today .mc-icon::before {
+	content: '\f531';
+	font-weight: 400;
+}
+
+.mc-loader.mc-today.mc-load-next-upcoming-events .mc-icon::before {
+	margin-left: 2px;
+}
+
+.mc-loader.mc-today.mc-load-prev-upcoming-events .mc-icon::before {
+	margin-right: 2px;
+}
+
+.mc-loader.mc-next .mc-icon::before,
 .my-calendar-next a .mc-icon::before {
 	content: '\f345';
 	margin-left: 2px;
@@ -553,23 +536,7 @@
 }
 
 .mc-main .my-calendar-date-switcher input[type=submit] {
-	min-width: 2em;
 	width: auto;
-}
-
-/* List View */
-.mc-main .mc-list li, .mc-day {
-	position: relative;
-}
-
-.mc-main .mc-list li.mc-events {
-	list-style-type: none !important;
-	margin: 0;
-	padding: 4px 0;
-}
-
-.mc-main .mc-list .mc-events:nth-of-type(even) {
-	background: none;
 }
 
 .mc-main .details .sharing {
@@ -595,13 +562,81 @@
 	margin-bottom: 24px;
 }
 
+
+/* List View */
+.mc-main .mc-list li, .mc-day {
+	position: relative;
+}
+
+.mc-main .mc-list li.mc-events {
+	list-style-type: none !important;
+	margin: 0 0 8px;
+	padding: 8px 0;
+}
+
+.mc-main .list-event .event-title {
+	display: flex;
+	column-gap: 16px;
+	align-items: center;
+}
+
+.mc-main .mc-list .event-title a {
+	padding: 8px;
+}
+
+.mc-main .list-event .event-title {
+	margin-bottom: 4px 0 !important;
+}
+
+.mc-main .list-event > .event-title {
+	display: block;
+	font-size: var(--list-event-title);
+}
+
+.mc-main .mc-list .event-date button.mc-text-button {
+	width: auto;
+	padding: 0;
+	border: none;
+	text-align: left;
+	background: transparent;
+	background-color: transparent ! important;
+	color: var(--primary-dark) ! important;
+	outline-offset: 2px;
+	font-size: var(--list-event-date);
+}
+
+.mc-main .mc-list .event-date button.mc-text-button:hover,
+.mc-main .mc-list .event-date button.mc-text-button:focus {
+	background: transparent;
+	background-color: transparent !important;
+	outline: 1px solid var(--nav-button-border);
+}
+
+.mc-main .mc-list .mc-text-button > span {
+	text-decoration: underline;
+}
+
+.mc-main .mc-list .event-date button:hover,
+.mc-main .mc-list .event-date button:focus {
+	background: transparent;
+}
+
+.mc-main .mc-list .details .address {
+	padding-right: 0;
+}
+
+.mc-main .mc-list .details > p {
+	padding: 8px;
+}
+
+.mc-main .mc-list li.current-day {
+	border-left: 4px solid var(--current-day-border);
+	background: var(--current-day-bg);
+}
+
 .mc-main .mc-list .event-date {
 	font-size: var(--list-date);
 	font-weight: 600;
-}
-
-.mc-main .list-event {
-	margin: 0 0 0 32px;
 }
 
 .mc-main .day .list-event, .mc-main .day .details {
@@ -612,6 +647,16 @@
 .mc-main .mc-list-extended {
 	font-size: 14px;
 	font-style: italic;
+}
+
+.mc-list-details.all-events {
+	text-align: left;
+	display: inline-block;
+	text-transform: none;
+}
+
+.mc-main.list.has-modal .mc-list .mc-events .list-event {
+	padding: 0;
 }
 
 .mc-main .details .mc-image {
@@ -652,12 +697,6 @@
 
 .view-full {
 	text-align: right;
-}
-
-.mc-list-details.all-events {
-	text-align: left;
-	display: inline-block;
-	text-transform: none;
 }
 
 .mc-main .calendar-event .details {
@@ -731,7 +770,7 @@ main,div.entry-content,div.site-content, table, .mc-main nav {
 .mc-main {
 	line-height: 1;
 	width: 100%;
-	max-width: 1260px !important;
+	max-width: var(--grid-max-width) !important;
 	margin: 0 auto;
 }
 
@@ -951,6 +990,11 @@ svg.category-icon,
 	border-radius: 3px; 
 }
 
+svg.category-icon,
+img.category-icon {
+	width: 20px;
+}
+
 .mc-main .category-color-sample {
 	border-radius: 3px;
 	padding: 3px;
@@ -1067,9 +1111,17 @@ button.mc-toggle:hover, button.mc-toggle:focus {
 
 .mc-main.mini .event-icon {
 	display: block;
-	font-size: .6rem;
+	font-size: 12px;
 	padding-bottom: 6px;
 	line-height: 1;
+}
+
+.mc-main.mini .mc-date.trigger {
+	text-decoration: none;
+}
+
+.mc-main.mini .mc-date.trigger .mc-day-number {
+	text-decoration: underline;
 }
 
 .mc-main.my-calendar ul button.mc-text-button {
@@ -1118,6 +1170,12 @@ button.mc-toggle:hover, button.mc-toggle:focus {
 	background-color: #00000006;
 	border-radius: 50px;
 	animation: animation-rotate 1250ms linear infinite;
+}
+
+@media (prefers-reduced-motion) {
+	.mc-main .mc-loading {
+		animation: animation-rotate 5000ms linear infinite;
+	}
 }
 
 .mc-author-card, .mc-host-card {
@@ -1211,10 +1269,6 @@ ol.mc-search-results li.no-results {
 
 .mc-main .uses-modal {
 	display: none !important;
-}
-
-.mc-main.list.has-modal .mc-list .mc-events .list-event {
-	padding: 0;
 }
 
 .mcjs.mc-main.listjs .details, .mcjs.mc-main.gridjs .calendar-events { display: none; }
@@ -1371,6 +1425,10 @@ dialog.my-calendar-modal .modal-content {
 	display: none;
 }
 
+#js-modal-content p {
+	margin: 0 0 1rem 0;
+}
+
 /* removes scroll when modal is opened */
 body.mc-no-scroll {
 	overflow: hidden;
@@ -1511,55 +1569,55 @@ body.mc-no-scroll {
 }
 
 /* Base responsive styles. Migrated to main plugin 12/10/2023 */
-@media screen and ( max-width: 720px ) {
-	.mc-main:not(.mini) thead {
+@container mcmain ( width <= 600px ) {
+	.mc-main:not(.mini,.disable-responsive) thead {
 		border-bottom: none;
 	}
 
-	.mc-main:not(.mini) table.my-calendar-table,
-	.mc-main:not(.mini) .my-calendar-table thead,
-	.mc-main:not(.mini) .my-calendar-table tbody,
-	.mc-main:not(.mini) .my-calendar-table tr,
-	.mc-main:not(.mini) .my-calendar-table td,
-	.mc-main:not(.mini) .my-calendar-table caption {
+	.mc-main:not(.mini,.disable-responsive) table.my-calendar-table,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table thead,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table tbody,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table tr,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table td,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table caption {
 		display: block;
 		height: auto;
 		min-height: 0;
 	}
 
-	.mc-main:not(.mini) .my-calendar-navigation,
-	.mc-main:not(.mini) table.my-calendar-table,
-	.mc-main:not(.mini) .my-calendar-table thead,
-	.mc-main:not(.mini) .my-calendar-table tbody,
-	.mc-main:not(.mini) .my-calendar-table caption  {
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-navigation,
+	.mc-main:not(.mini,.disable-responsive) table.my-calendar-table,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table thead,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table tbody,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table caption  {
 		margin: .5rem auto;
 		padding: 0;
 	}
 
-	.mc-main:not(.mini) .my-calendar-table td {
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table td {
 		margin-bottom: .5em;
 		width: auto;
 	}
-	.mc-main:not(.mini) .my-calendar-table td.no-events,
-	.mc-main:not(.mini) .my-calendar-table td.nextmonth {
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table td.no-events,
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table td.nextmonth {
 		display: none;
 	}
 
-	.mc-main:not(.mini) .my-calendar-table td .mc-date span[aria-hidden=true] {
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table td .mc-date span[aria-hidden=true] {
 		display: none;
 	}
 
-	.mc-main:not(.mini) .my-calendar-table td .mc-date {
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table td .mc-date {
 		font-size: var(--grid-date);
 		padding: .5em 1em;
 	}
 
-	.mc-main:not(.mini) .my-calendar-table td .button {
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table td .button {
 		font-size: 1rem;
 		padding: .5rem;
 	}
 
-	.mc-main:not(.mini) .my-calendar-table td .mc-date .screen-reader-text {
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table td .mc-date .screen-reader-text {
 		display: block;
 		clip: auto;
 		clip-path: none;
@@ -1571,11 +1629,11 @@ body.mc-no-scroll {
 		text-align: left;
 	}
 	
-	html[dir=rtl] .mc-main:not(.mini) .my-calendar-table td .mc-date .screen-reader-text {
+	html[dir=rtl] .mc-main:not(.mini,.disable-responsive) .my-calendar-table td .mc-date .screen-reader-text {
 		text-align: right;
 	}
 
-	.mc-main:not(.mini) .my-calendar-table th {
+	.mc-main:not(.mini,.disable-responsive) .my-calendar-table th {
 		display: none;
 	}
 }

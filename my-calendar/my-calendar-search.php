@@ -101,7 +101,8 @@ function mc_search_results( $query ) {
 	$count       = mc_count_events( $event_array );
 
 	if ( ! empty( $event_array ) ) {
-		$template = '<h3><strong>{timerange after=", "}{daterange}</strong> &#8211; {linking_title}</h3><div class="mcs-search-excerpt">{search_excerpt}</div>';
+		$type                = mc_get_option( 'list_template', 'list' );
+		$template_pre_filter = '<h3><strong>{timerange after=", "}{daterange}</strong> &#8211; {linking_title}</h3><div class="mcs-search-excerpt">{search_excerpt}</div>';
 		/**
 		 * Template for outputting search results. Default `<strong>{date}</strong> {title} {details}`.
 		 *
@@ -112,10 +113,20 @@ function mc_search_results( $query ) {
 		 *
 		 * @return {string}
 		 */
-		$template = apply_filters( 'mc_search_template', $template, $term );
+		$template = apply_filters( 'mc_search_template', $template_pre_filter, $term );
+		if ( $template === $template_pre_filter && 'list' !== $type ) {
+			$template = $type;
+		}
 		// No filters parameter prevents infinite looping on the_content filters.
 		if ( is_string( $query ) ) {
-			$output = mc_produce_upcoming_events( $event_array, $template, 'list', 'ASC', $skip, $before, $after, 'yes', 'nofilters', $term );
+			$args   = array(
+				'order'          => 'ASC',
+				'skip'           => $skip,
+				'before'         => $before,
+				'after'          => $after,
+				'show_recurring' => 'yes',
+			);
+			$output = mc_produce_upcoming_events( $event_array, $args, 'list', 'nofilters' );
 		} else {
 			// Use this function for advanced search queries.
 			$output = mc_produce_search_results( $event_array, $template );
@@ -146,7 +157,7 @@ function mc_search_results( $query ) {
 	}
 
 	/**
-	 * HTML template before the search results. Default `<ol class="mc-search-results">`.
+	 * HTML template before the search results. Default `<ol class="mc-event-list mc-search-results">`.
 	 *
 	 * @hook mc_search_before
 	 *
@@ -155,7 +166,7 @@ function mc_search_results( $query ) {
 	 *
 	 * @return {string}
 	 */
-	$header = apply_filters( 'mc_search_before', '<h2>%s</h2><ol class="mc-search-results" role="list">', $term, $count );
+	$header = apply_filters( 'mc_search_before', '<h2>%s</h2><ol class="mc-event-list mc-search-results" role="list">', $term, $count );
 	// Translators: search term.
 	$header = sprintf( $header, sprintf( __( 'Search Results for "%s"', 'my-calendar' ), esc_html( $term ) ) );
 	/**
@@ -170,7 +181,7 @@ function mc_search_results( $query ) {
 	 */
 	$footer = apply_filters( 'mc_search_after', '</ol>', $term );
 
-	return $header . $output . $footer . $exports;
+	return '<div class="mc-event-list-container">' . $header . $output . $footer . $exports . '</div>';
 }
 
 add_filter( 'the_title', 'mc_search_results_title', 10, 2 );
@@ -184,7 +195,7 @@ add_filter( 'the_title', 'mc_search_results_title', 10, 2 );
  */
 function mc_search_results_title( $title, $id = null ) {
 	if ( ( isset( $_GET['mcs'] ) || isset( $_POST['mcs'] ) ) && ( is_page( $id ) || is_single( $id ) ) && in_the_loop() ) {
-		$query = ( isset( $_GET['mcs'] ) ) ? $_GET['mcs'] : $_POST['mcs'];
+		$query = ( isset( $_GET['mcs'] ) ) ? sanitize_text_field( wp_unslash( $_GET['mcs'] ) ) : sanitize_text_field( wp_unslash( $_POST['mcs'] ) );
 		// Translators: entered search query.
 		$title = sprintf( __( 'Events Search for &ldquo;%s&rdquo;', 'my-calendar' ), esc_html( $query ) );
 	}
@@ -202,16 +213,16 @@ add_filter( 'the_content', 'mc_show_search_results' );
  */
 function mc_show_search_results( $content ) {
 	global $post;
-	if ( is_object( $post ) && in_the_loop() && ! is_page( mc_get_option( 'uri_id' ) ) ) {
+	if ( is_object( $post ) && in_the_loop() && ! is_page( mc_get_option( 'uri_id' ) && ! has_shortcode( $post->post_content, 'my_calendar' ) ) ) {
 		// if this is the result of a search, show search output.
 		$ret   = false;
 		$query = false;
 		if ( isset( $_GET['mcs'] ) && ! isset( $_GET['mcp'] ) ) { // Simple search.
 			$ret   = true;
-			$query = sanitize_text_field( $_GET['mcs'] );
+			$query = sanitize_text_field( wp_unslash( $_GET['mcs'] ) );
 		} elseif ( isset( $_GET['mcp'] ) && isset( $_GET['mcs'] ) ) { // Advanced search.
 			$ret   = true;
-			$query = map_deep( $_GET, 'sanitize_text_field' );
+			$query = map_deep( wp_unslash( $_GET ), 'sanitize_text_field' );
 		}
 		if ( $ret && $query ) {
 			return mc_search_results( $query );
@@ -279,7 +290,7 @@ add_filter( 'mc_searched_events', 'mc_searched_events', 10, 1 );
  */
 function mc_searched_events( $event_array ) {
 	if ( session_id() ) {
-		$_SESSION['MC_SEARCH_RESULT'] = json_encode( $event_array );
+		$_SESSION['MC_SEARCH_RESULT'] = wp_json_encode( $event_array );
 	}
 
 	return $event_array;
@@ -295,7 +306,7 @@ function mc_get_searched_events() {
 		return array();
 	}
 	$event_array    = array();
-	$event_searched = json_decode( $_SESSION['MC_SEARCH_RESULT'], true );
+	$event_searched = json_decode( map_deep( wp_unslash( $_SESSION['MC_SEARCH_RESULT'] ), 'wp_kses_post' ), true );
 	foreach ( $event_searched as $key => $value ) {
 		$daily_events = array();
 		foreach ( $value as $k => $v ) {
@@ -397,6 +408,7 @@ function mc_produce_search_results( $events, $template ) {
 			'tags'     => $out['tags'],
 			'template' => $template,
 			'type'     => 'list',
+			'class'    => ( str_contains( $template, 'list_preset_' ) ) ? "list-preset $template" : '',
 		);
 		$details = mc_load_template( 'event/search', $data );
 		$html   .= $details;

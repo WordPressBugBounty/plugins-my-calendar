@@ -14,12 +14,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Get the original default list template. Any other template is considered customized.
+ */
+function mc_widget_default_list_template() {
+	return '<strong>{timerange after=", "}{daterange}</strong> &#8211; {linking_title}';
+}
+
+/**
  * Default settings for widgets.
  *
  * @return array
  */
 function mc_widget_defaults() {
-	$default_template = '<strong>{timerange after=", "}{daterange}</strong> &#8211; {linking_title}';
+	$default_template = mc_widget_default_list_template();
 
 	$defaults = array(
 		'upcoming' => array(
@@ -325,7 +332,7 @@ function mc_template_settings() {
 	$globals   = mc_globals( 'templates' );
 	$templates = array(
 		'title'      => '{time}: {title}',
-		'title_list' => '{title}',
+		'title_list' => '{time}: {title}',
 		'title_card' => '{title}',
 		'title_solo' => '{title}',
 		'link'       => '', // Empty because usage has a fallback value.
@@ -359,6 +366,7 @@ function mc_default_options() {
 		'ajax_javascript'              => '0',
 		'show_js'                      => '',
 		'notime_text'                  => '',
+		'cancel_text'                  => '',
 		'hide_icons'                   => 'true',
 		'event_link_expires'           => 'false',
 		'apply_color'                  => 'background',
@@ -394,12 +402,14 @@ function mc_default_options() {
 		'default_sort'                 => '',
 		'current_table'                => '',
 		'open_day_uri'                 => '',
+		'upcoming_events_navigation'   => 'false',
 		'mini_uri'                     => '',
 		'show_list_info'               => '',
 		'show_list_events'             => '',
 		'event_title_template'         => '',
 		'heading_text'                 => '',
 		'notime_text'                  => '',
+		'cancel_text'                  => '',
 		'hosted_by'                    => '',
 		'posted_by'                    => '',
 		'buy_tickets'                  => '',
@@ -434,6 +444,7 @@ function mc_default_options() {
 		'disable_legacy_templates'     => 'false',
 		'maptype'                      => 'roadmap',
 		'views'                        => array( 'calendar', 'list', 'mini' ),
+		'list_template'                => '',
 	);
 
 	/**
@@ -514,49 +525,24 @@ function mc_generate_calendar_page( $slug ) {
  * See whether there are importable calendars present.
  */
 function mc_check_imports() {
-	$output = '';
 	if ( 'true' !== get_option( 'ko_calendar_imported' ) ) {
 		if ( function_exists( 'check_calendar' ) ) {
-			$output .= "
+			?>
 			<div id='message' class='updated'>
-				<p>" . __( 'My Calendar has identified that you have the Calendar plugin by Kieran O\'Shea installed. You can import those events and categories into the My Calendar database. Would you like to import these events?', 'my-calendar' ) . '</p>
-				<form method="post" action="' . admin_url( 'admin.php?page=my-calendar-config' ) . '">
+				<p><?php esc_html_e( 'My Calendar has identified that you have the Calendar plugin by Kieran O\'Shea installed. You can import those events and categories into the My Calendar database. Would you like to import these events?', 'my-calendar' ); ?></p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-config' ) ); ?>">
 					<div>
-						<input type="hidden" name="_wpnonce" value="' . wp_create_nonce( 'my-calendar-nonce' ) . '" />
+						<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>" />
 					</div>
 					<div>
 						<input type="hidden" name="import" value="true"/>
-						<input type="submit" value="' . __( 'Import from Calendar', 'my-calendar' ) . '" name="import-calendar" class="button-primary"/>
+						<input type="submit" value="<?php esc_attr_e( 'Import from Calendar', 'my-calendar' ); ?>" name="import-calendar" class="button-primary"/>
 					</div>
 				</form>
-				<p>' . __( 'Although it is possible that this import could fail to import your events correctly, it should not have any impact on your existing Calendar database.', 'my-calendar' ) . '</p>
-			</div>';
+				<p><?php esc_html_e( 'Although it is possible that this import could fail to import your events correctly, it should not have any impact on your existing Calendar database.', 'my-calendar' ); ?></p>
+			</div>
+			<?php
 		}
-	}
-
-	echo $output;
-}
-
-/**
- * Transition event categories to category relationships. Used in upgrade from lower than 3.0.0.
- *
- * @since 3.0.0
- */
-function mc_transition_categories() {
-	global $wpdb;
-	$results = $wpdb->get_results( 'SELECT event_id, event_category FROM ' . my_calendar_table() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-	foreach ( $results as $result ) {
-		$event_id = $result->event_id;
-		$category = $result->event_category;
-
-		$wpdb->insert(
-			my_calendar_category_relationships_table(),
-			array(
-				'event_id'    => $event_id,
-				'category_id' => $category,
-			),
-			array( '%d', '%d' )
-		);
 	}
 }
 

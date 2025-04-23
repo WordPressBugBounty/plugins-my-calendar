@@ -43,9 +43,9 @@ function mc_switch_sites() {
  * @return void
  */
 function mc_tweet_approval( $previous_status, $new_status ) {
-	if ( function_exists( 'wpt_post_to_twitter' ) && isset( $_POST['mc_twitter'] ) && trim( $_POST['mc_twitter'] ) !== '' ) {
+	if ( function_exists( 'wpt_post_to_service' ) && isset( $_POST['mc_twitter'] ) ) {
 		if ( ( 0 === (int) $previous_status || 2 === (int) $previous_status ) && 1 === (int) $new_status ) {
-			wpt_post_to_twitter( stripslashes( $_POST['mc_twitter'] ) );
+			wpt_post_to_service( sanitize_textarea_field( wp_unslash( $_POST['mc_twitter'] ) ) );
 		}
 	}
 }
@@ -78,7 +78,7 @@ add_action( 'admin_menu', 'mc_add_outer_box' );
  * @return void
  */
 function mc_add_outer_box() {
-	add_meta_box( 'mcs_add_event', __( 'My Calendar Event', 'my-calendar' ), 'mc_add_inner_box', 'mc-events', 'side', 'high' );
+	add_meta_box( 'mc_add_event', __( 'My Calendar Event', 'my-calendar' ), 'mc_add_inner_box', 'mc-events', 'side', 'high' );
 }
 
 /**
@@ -90,25 +90,34 @@ function mc_add_inner_box() {
 	global $post;
 	$event_id = get_post_meta( $post->ID, '_mc_event_id', true );
 	if ( $event_id ) {
-		$url     = admin_url( 'admin.php?page=my-calendar&mode=edit&event_id=' . $event_id );
-		$event   = mc_get_first_event( $event_id );
-		$content = '<p><strong>' . strip_tags( $event->event_title, mc_strip_tags() ) . '</strong><br />' . $event->event_begin . ' @ ' . $event->event_time . '</p>';
+		$url   = admin_url( 'admin.php?page=my-calendar&mode=edit&event_id=' . $event_id );
+		$event = mc_get_first_event( $event_id );
+		?>
+		<p>
+			<strong><?php echo esc_html( strip_tags( $event->event_title, mc_strip_tags() ) ); ?></strong><br />
+			<?php echo esc_html( $event->event_begin ); ?> @ <?php echo esc_html( $event->event_time ); ?>
+		</p>
+		<?php
 		if ( ! mc_is_recurring( $event ) ) {
-			$recur    = mc_event_recur_string( $event, $event->event_begin );
-			$content .= wpautop( $recur );
+			$recur = mc_event_recur_string( $event, $event->event_begin );
+			?>
+			<p><?php echo esc_html( $recur ); ?></p>
+			<?php
 		}
 		$elabel = '';
 		if ( property_exists( $event, 'location' ) && is_object( $event->location ) ) {
 			$elabel = $event->location->location_label;
 		}
 		if ( '' !== $elabel ) {
-			// Translators: Name of event location.
-			$content .= '<p>' . sprintf( __( '<strong>Location:</strong> %s', 'my-calendar' ), strip_tags( $elabel, mc_strip_tags() ) ) . '</p>';
+			?>
+			<p>
+				<strong><?php esc_html_e( 'Location:', 'my-calendar' ); ?></strong><?php echo esc_html( strip_tags( $elabel, mc_strip_tags() ) ); ?>
+			</p>
+			<?php
 		}
-		// Translators: Event URL.
-		$content .= '<p>' . sprintf( __( '<a href="%s">Edit event</a>.', 'my-calendar' ), $url ) . '</p>';
-
-		echo $content;
+		?>
+		<p><a href="<?php echo esc_url( $url ); ?>"><?php esc_html_e( 'Edit event', 'my-calendar' ); ?></a></p>
+		<?php
 	}
 }
 
@@ -308,9 +317,9 @@ function mc_external_link( $link ) {
 		return true; // If this is not a valid URL, consider it to be external.
 	}
 
-	$url   = parse_url( $link );
+	$url   = wp_parse_url( $link );
 	$host  = $url['host'];
-	$site  = parse_url( get_option( 'siteurl' ) );
+	$site  = wp_parse_url( get_option( 'siteurl' ) );
 	$known = $site['host'];
 
 	if ( false === strpos( $host, $known ) ) {
@@ -361,7 +370,7 @@ function mc_debug( $subject, $body, $email = '' ) {
 			$email = get_option( 'admin_email' );
 		}
 		if ( defined( 'MC_DEBUG_METHOD' ) && 'email' === MC_DEBUG_METHOD ) {
-			wp_mail( get_option( 'admin_email' ), $subject, print_r( $body ) );
+			wp_mail( get_option( 'admin_email' ), $subject, print_r( $body, 1 ) );
 		} else {
 			/**
 			 * Execute a custom debug action during an mc_debug call. Runs if MC_DEBUG_METHOD is not 'email'.

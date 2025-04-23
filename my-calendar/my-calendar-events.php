@@ -332,8 +332,12 @@ function mc_get_all_events( $args ) {
 	$lvalue   = isset( $args['lvalue'] ) ? $args['lvalue'] : '';
 	$site     = isset( $args['site'] ) ? $args['site'] : false;
 	$search   = isset( $args['search'] ) ? $args['search'] : '';
+	$offset   = intval( get_option( 'gmt_offset', 0 ) ) * 60 * 60;
+	$time     = isset( $args['time'] ) && '' !== $args['time'] ? strtotime( $args['time'] ) + $offset : 'now';
 	$mcdb     = mc_is_remote_db();
 
+	$now                = ( 'now' === $time ) ? 'NOW()' : $time;
+	$now_limit          = ( 'now' === $time ) ? 'NOW()' : "from_unixtime($time)";
 	$exclude_categories = mc_private_categories();
 	$cat_limit          = ( 'default' !== $category ) ? mc_select_category( $category ) : array();
 	$join               = ( isset( $cat_limit[0] ) ) ? $cat_limit[0] : '';
@@ -346,14 +350,14 @@ function mc_get_all_events( $args ) {
 	$select_author    = ( 'default' !== $author ) ? mc_select_author( $author ) : '';
 	$select_host      = ( 'default' !== $host ) ? mc_select_host( $host ) : '';
 	$ts_string        = mc_ts();
-	$select_window    = ( ! $before ) ? 'AND occur_begin > NOW()' : '';
-	$select_window    = ( ! $after ) ? 'AND occur_end < NOW()' : $select_window;
+	$select_window    = ( ! $before ) ? 'AND occur_begin > ' . $now_limit : '';
+	$select_window    = ( ! $after ) ? 'AND occur_end < ' . $now_limit : $select_window;
 	$limit            = "$select_published $select_category $select_author $select_host $select_access $search $select_window";
 
 	// New Query style.
 	$total     = absint( $before ) + absint( $after ) + 30;
 	$db_engine = mc_get_db_type();
-	$ordering  = ( 'sqlite' === $db_engine ) ? 'ABS( ( SELECT unixepoch() ) - ( SELECT unixepoch(occur_begin) ))' : 'ABS(TIMESTAMPDIFF(SECOND, NOW(), occur_begin))';
+	$ordering  = ( 'sqlite' === $db_engine ) ? 'ABS( ( SELECT unixepoch() ) - ( SELECT unixepoch(occur_begin) ))' : 'ABS(TIMESTAMPDIFF(SECOND, ' . $now . ', occur_begin))';
 	$events    = $mcdb->get_results(
 		'SELECT *, ' . $ts_string . '
 		FROM ' . my_calendar_event_table( $site ) . '
@@ -403,12 +407,13 @@ function mc_get_all_events( $args ) {
 /**
  * Fetch only the defined holiday category
  *
- * @param int $before Number of events before.
- * @param int $after Number of events after.
+ * @param int    $before Number of events before.
+ * @param int    $after Number of events after.
+ * @param string $time Time/date to center collection on.
  *
  * @return array events
  */
-function mc_get_all_holidays( $before, $after ) {
+function mc_get_all_holidays( $before, $after, $time = '' ) {
 	if ( ! mc_get_option( 'skip_holidays_category' ) ) {
 		return array();
 	} else {
@@ -417,6 +422,7 @@ function mc_get_all_holidays( $before, $after ) {
 			'category' => $category,
 			'before'   => $before,
 			'after'    => $after,
+			'time'     => $time,
 		);
 
 		return mc_get_all_events( $args );
@@ -433,10 +439,11 @@ function mc_get_all_holidays( $before, $after ) {
 function mc_get_new_events( $cat_id = false ) {
 	$mcdb      = mc_is_remote_db();
 	$ts_string = mc_ts();
+	$public    = implode( ',', mc_event_states_by_type( 'public' ) );
 	if ( $cat_id ) {
-		$cat = "WHERE event_category = $cat_id AND event_approved = 1 AND event_flagged <> 1";
+		$cat = "WHERE event_category = $cat_id AND event_approved IN (' . $public . ') AND event_flagged <> 1";
 	} else {
-		$cat = 'WHERE event_approved = 1 AND event_flagged <> 1';
+		$cat = 'WHERE event_approved IN (' . $public . ') AND event_flagged <> 1';
 	}
 	$exclude_categories = mc_private_categories();
 	/**
@@ -498,7 +505,7 @@ function mc_get_instances( $id ) {
 	$return  = array();
 
 	foreach ( $results as $result ) {
-		$key            = sanitize_key( mc_date( 'Y-m-d', strtotime( $result->occur_begin ), false ) );
+		$key            = sanitize_key( mc_date( 'Y-m-d H:i:s', strtotime( $result->occur_begin ), false ) );
 		$return[ $key ] = $result->occur_id;
 	}
 
@@ -509,10 +516,11 @@ function mc_get_instances( $id ) {
  * Fetch results of an event search.
  *
  * @param array|string $search array (PRO) or string (Simple).
+ * @param string       $time A date/time string used as the baseline for relative date results. Optional.
  *
  * @return array of event objects
  */
-function mc_get_search_results( $search ) {
+function mc_get_search_results( $search, $time = '' ) {
 	/**
 	 * Filter number of past search results to return. Default 0.
 	 *
@@ -532,7 +540,7 @@ function mc_get_search_results( $search ) {
 	 *
 	 * @return {int}
 	 */
-	$after = apply_filters( 'mc_future_search_results', 15 ); // return only future events, nearest 10.
+	$after = apply_filters( 'mc_future_search_results', 15 );
 	if ( is_array( $search ) ) {
 		// If from & to are set, we need to use a date-based event query.
 		$from     = mc_checkdate( $search['from'] );
@@ -574,6 +582,9 @@ function mc_get_search_results( $search ) {
 			'after'  => $after,
 			'search' => $search,
 		);
+		if ( $time ) {
+			$args['time'] = $time;
+		}
 
 		$arr_events    = mc_get_all_events( $args );
 		$holidays      = mc_get_all_holidays( $before, $after );
@@ -850,6 +861,7 @@ function my_calendar_events_now( $category = 'default', $template = '<strong>{li
 			'event'    => $arr_events[0],
 			'tags'     => $event,
 			'template' => $template,
+			'class'    => ( str_contains( $template, 'list_preset_' ) ) ? "list-preset $template" : '',
 		);
 		$details = mc_load_template( 'event/now', $args );
 		if ( $details ) {
@@ -868,6 +880,7 @@ function my_calendar_events_now( $category = 'default', $template = '<strong>{li
 			$output = mc_draw_template( $event, apply_filters( 'mc_happening_now_template', $template, $event ) );
 			$return = mc_run_shortcodes( $output );
 		}
+		$return = '<div class="mc-event-list">' . $return . '</div>';
 	} else {
 		$return = '';
 	}
@@ -937,6 +950,7 @@ function my_calendar_events_next( $category = 'default', $template = '<strong>{l
 			'event'    => $arr_events[0],
 			'tags'     => $event,
 			'template' => $template,
+			'class'    => ( str_contains( $template, 'list_preset_' ) ) ? "list-preset $template" : '',
 		);
 		$details = mc_load_template( 'event/next', $args );
 		if ( $details ) {
@@ -955,6 +969,7 @@ function my_calendar_events_next( $category = 'default', $template = '<strong>{l
 			$output = mc_draw_template( $event, apply_filters( 'mc_happening_next_template', $template, $event ) );
 			$return = mc_run_shortcodes( $output );
 		}
+		$return = '<div class="mc-event-list">' . $return . '</div>';
 	} else {
 		$return = '';
 	}
@@ -1075,14 +1090,19 @@ function mc_admin_instances( $id, $occur = 0 ) {
 			$date  = "<span id='occur_date_$result->occur_id'><strong>" . $date . '</strong><br />' . $time . '</span>';
 			$class = ( my_calendar_date_xcomp( mc_date( 'Y-m-d H:i:00', $start ), mc_date( 'Y-m-d H:i:00', time() ) ) ) ? 'past-event' : 'future-event';
 			if ( (int) $result->occur_id === (int) $occur || 1 === $count ) {
-				$control = '';
-				$edit    = "<p>$date</p><p><em>" . __( 'Editing Now', 'my-calendar' ) . '</em></p>';
-				$class   = 'current-event';
+				$control  = '';
+				$control .= "<p>$date</p><p><em>" . __( 'Editing Now', 'my-calendar' ) . '</em></p>';
+				$class    = 'current-event';
 			} else {
-				$control = "<p>$date</p><p class='instance-buttons'><button class='button delete_occurrence' type='button' data-event='$result->occur_event_id' data-begin='$result->occur_begin' data-end='$result->occur_end' data-value='$result->occur_id' aria-describedby='occur_date_$result->occur_id' />" . __( 'Delete', 'my-calendar' ) . '</button> ';
-				$edit    = "<a href='" . admin_url( 'admin.php?page=my-calendar' ) . "&amp;mode=edit&amp;event_id=$id&amp;date=$result->occur_id' class='button' aria-describedby='occur_date_$result->occur_id'>" . __( 'Edit', 'my-calendar' ) . '</a></p>';
+				$control  = "<p>$date</p>";
+				$control .= "<p class='instance-buttons'>";
+				$control .= "<button class='button delete_occurrence' type='button' data-event='$result->occur_event_id' data-begin='$result->occur_begin' data-end='$result->occur_end' data-value='$result->occur_id' aria-describedby='occur_date_$result->occur_id' />" . __( 'Delete', 'my-calendar' ) . '</button> ';
+				$control .= "<button class='button edit_occurrence' type='button' data-event='$result->occur_event_id' data-begin='$result->occur_begin' data-end='$result->occur_end' data-value='$result->occur_id' aria-describedby='occur_date_$result->occur_id' />" . __( 'Edit Date', 'my-calendar' ) . '</button>';
+				$control .= '</p><p>';
+				$control .= "<a href='" . admin_url( 'admin.php?page=my-calendar' ) . "&amp;mode=edit&amp;event_id=$id&amp;date=$result->occur_id' aria-describedby='occur_date_$result->occur_id'>" . __( 'Edit Details', 'my-calendar' ) . '</a>';
+				$control .= '</p>';
 			}
-			$output .= "<li class='$class'>$control$edit</li>";
+			$output .= "<li class='$class'>$control</li>";
 		}
 	}
 
@@ -1113,10 +1133,11 @@ function mc_get_grouped_events( $id ) {
  *
  * @param integer $mc_id ID of current event.
  * @param string  $adjacent Next/Previous.
+ * @param array   $args Additional arguments to pass to query and return.
  *
- * @return array Event template array.
+ * @return array|object Event template array or object.
  */
-function mc_adjacent_event( $mc_id, $adjacent = 'previous' ) {
+function mc_adjacent_event( $mc_id, $adjacent = 'previous', $args = array() ) {
 	$mcdb               = mc_is_remote_db();
 	$adjacence          = ( 'next' === $adjacent ) ? '>' : '<';
 	$order              = ( 'next' === $adjacent ) ? 'ASC' : 'DESC';
@@ -1124,9 +1145,23 @@ function mc_adjacent_event( $mc_id, $adjacent = 'previous' ) {
 	$arr_events         = array();
 	$select_published   = mc_select_published();
 	$exclude_categories = mc_private_categories();
+	$category           = ( isset( $args['category'] ) ) ? $args['category'] : 'default';
+	$ltype              = ( isset( $args['ltype'] ) ) ? $args['ltype'] : '';
+	$lvalue             = ( isset( $args['lvalue'] ) ) ? $args['lvalue'] : '';
+	$author             = ( isset( $args['author'] ) ) ? $args['author'] : '';
+	$host               = ( isset( $args['host'] ) ) ? $args['host'] : '';
+	$cat_limit          = ( 'default' !== $category ) ? mc_select_category( $category ) : array();
+	$join               = ( isset( $cat_limit[0] ) ) ? $cat_limit[0] : '';
+	$select_category    = ( isset( $cat_limit[1] ) ) ? $cat_limit[1] : '';
+	$select_location    = mc_select_location( $ltype, $lvalue );
+	$location_join      = ( $select_location ) ? 'JOIN (SELECT location_id FROM ' . my_calendar_locations_table() . " WHERE $select_location) l on e.event_location = l.location_id" : '';
+	$select_author      = ( 'default' !== $author ) ? mc_select_author( $author ) : '';
+	$select_host        = ( 'default' !== $host ) ? mc_select_host( $host ) : '';
 	$ts_string          = mc_ts();
 	$source             = mc_get_event( $mc_id );
 	$return             = array();
+
+	$offset = ( isset( $args['offset'] ) ) ? absint( $args['offset'] ) : 0;
 	if ( is_object( $source ) ) {
 		$date        = mc_date( 'Y-m-d H:i:s', strtotime( $source->occur_begin ), false );
 		$event_query = 'SELECT *, ' . $ts_string . '
@@ -1135,8 +1170,10 @@ function mc_adjacent_event( $mc_id, $adjacent = 'previous' ) {
 				ON (event_id=occur_event_id)
 				JOIN ' . my_calendar_categories_table( $site ) . " as c
 				ON (e.event_category=c.category_id)
-				WHERE $select_published $exclude_categories
-				AND occur_begin $adjacence CAST('$date' as DATETIME) ORDER BY occur_begin $order LIMIT 0,1";
+				$join
+				$location_join
+				WHERE $select_published $select_category $select_author $select_host $exclude_categories
+				AND occur_begin $adjacence CAST('$date' as DATETIME) ORDER BY occur_begin $order LIMIT $offset,1";
 
 		$events = $mcdb->get_results( $event_query );
 		if ( ! empty( $events ) ) {
@@ -1146,7 +1183,7 @@ function mc_adjacent_event( $mc_id, $adjacent = 'previous' ) {
 			}
 		}
 		if ( ! empty( $arr_events ) ) {
-			$return = mc_create_tags( $arr_events[0] );
+			$return = ( isset( $args['return'] ) && 'object' === $args['return'] ) ? $arr_events[0] : mc_create_tags( $arr_events[0] );
 		} else {
 			$return = array();
 		}
@@ -1286,7 +1323,7 @@ function mc_status_links( $allow_filters ) {
 		$counts = mc_update_count_cache();
 	}
 	$all            = isset( $counts['all'] ) ? $counts['all'] : $counts['published'] + $counts['draft'] + $counts['trash'];
-	$all_attributes = ( ( isset( $_GET['limit'] ) && 'all' === $_GET['limit'] ) || ! isset( $_GET['limit'] ) ) ? ' aria-current="true"' : '';
+	$all_attributes = ( isset( $_GET['limit'] ) && 'all' === $_GET['limit'] ) ? ' aria-current="true"' : '';
 	// Translators: Number of total events.
 	$all_text = sprintf( __( 'All (%d)', 'my-calendar' ), $all );
 
@@ -1305,6 +1342,19 @@ function mc_status_links( $allow_filters ) {
 	$arc_attributes = ( isset( $_GET['restrict'] ) && 'archived' === $_GET['restrict'] ) ? ' aria-current="true"' : '';
 	// Translators: Number of total events.
 	$arc_text = sprintf( __( 'Archived (%d)', 'my-calendar' ), $counts['archive'] );
+
+	$can_text = '';
+	if ( isset( $counts['cancel'] ) && 0 < (int) $counts['cancel'] ) {
+		$can_attributes = ( isset( $_GET['limit'] ) && 'cancelled' === $_GET['limit'] ) ? ' aria-current="true"' : '';
+		// Translators: Number of total events.
+		$can_text = sprintf( __( 'Cancelled (%d)', 'my-calendar' ), $counts['cancel'] );
+	}
+	$pri_text = '';
+	if ( isset( $counts['private'] ) && 0 < (int) $counts['private'] ) {
+		$pri_attributes = ( isset( $_GET['limit'] ) && 'private' === $_GET['limit'] ) ? ' aria-current="true"' : '';
+		// Translators: Number of total events.
+		$pri_text = sprintf( __( 'Private (%d)', 'my-calendar' ), $counts['private'] );
+	}
 
 	$spa_attributes = ( isset( $_GET['restrict'] ) && 'flagged' === $_GET['restrict'] ) ? ' aria-current="true"' : '';
 	// Translators: Number of total events.
@@ -1327,6 +1377,18 @@ function mc_status_links( $allow_filters ) {
 		<li>
 			<a ' . $arc_attributes . ' href="' . mc_admin_url( 'admin.php?page=my-calendar-manage&amp;restrict=archived' ) . '">' . $arc_text . '</a>
 		</li>';
+	if ( $can_text ) {
+		$output .= '
+		<li>
+			<a ' . $can_attributes . ' href="' . admin_url( 'admin.php?page=my-calendar-manage&amp;limit=cancelled' ) . '">' . $can_text . '</a>
+		</li>';
+	}
+	if ( $pri_text ) {
+		$output .= '
+		<li>
+			<a ' . $pri_attributes . ' href="' . admin_url( 'admin.php?page=my-calendar-manage&amp;limit=private' ) . '">' . $pri_text . '</a>
+		</li>';
+	}
 	if ( ( function_exists( 'akismet_http_post' ) || ( 0 < (int) $counts['spam'] ) ) && $allow_filters ) {
 		$output .= '
 		<li>
