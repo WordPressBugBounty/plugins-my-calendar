@@ -6,7 +6,7 @@ Requires at least: 6.4
 Tested up to: 6.8
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.6.1
+Stable tag: 3.6.2
 License: GPLv2 or later
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -107,6 +107,16 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.6.2 =
+
+* Bug fix: 'weekend-heading' class applied on rightmost two cells instead of Saturday/Sunday.
+* Bug fix: Upcoming Events navigation layout broken in card preset.
+* Bug fix: Add autorefresh parameter to CodeMirror to fix layout in template editor.
+* Bug fix: Restore default z-index on close button in legacy disclosure.
+* Bug fix: Set max-width on close button.
+* Bug fix: Remove position:relative from twentyfifteen.css to prevent overriding position:absolute.
+* Change: Set 'is-main-view' class on initial load, removed on navigation.
 
 = 3.6.1 =
 
