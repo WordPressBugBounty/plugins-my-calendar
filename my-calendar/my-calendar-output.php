@@ -109,7 +109,8 @@ function my_calendar_draw_events( $events, $params, $process_date, $template = '
 	$shown_groups   = array(); // Displayed groups.
 	$shown_events   = array(); // Displayed events.
 	$open_option    = mc_get_option( 'open_day_uri' );
-	if ( 'mini' === $type && ( 'true' === $open_option || 'listanchor' === $open_option || 'calendaranchor' === $open_option ) ) {
+	if ( 'mini' === $type && ( 'false' !== $open_option ) ) {
+		// This should never occur, as this function is not called in this case.
 		return true;
 	}
 
@@ -1805,6 +1806,11 @@ function my_calendar( $args ) {
 		$custom,
 		$is_main_view,
 	);
+	foreach ( $body_classes as $key => $classes ) {
+		if ( empty( $classes ) ) {
+			unset( $body_classes[ $key ] );
+		}
+	}
 	/**
 	 * Filter classes used on the main My Calendar wrapper element.
 	 *
@@ -1820,7 +1826,7 @@ function my_calendar( $args ) {
 	$mc_wrapper   = "
 <div id='" . esc_attr( $id ) . "' class='$classes' $lang>";
 	$mc_closer    = '
-</div>';
+</div><!-- Close Main My Calendar Wrapper -->';
 
 	/**
 	 * Filter date format in main calendar view.
@@ -1942,7 +1948,8 @@ function my_calendar( $args ) {
 			 *
 			 * @return {string}
 			 */
-			$heading      = "<$hl id='mc_head_$id' class='mc-single heading my-calendar-$params[time]'><span>" . apply_filters( 'mc_heading', date_i18n( $date_format, $current ), $params['format'], $params['time'] ) . "</span></$hl>";
+			$heading_text = apply_filters( 'mc_heading', date_i18n( $date_format, $current ), $params['format'], $params['time'] );
+			$heading      = "<$hl id='mc_head_$id' class='mc-single heading my-calendar-$params[time]'><span>" . trim( $heading_text ) . "</span></$hl>";
 			$dateclass    = mc_dateclass( $current );
 			$mc_events    = '';
 			$events       = my_calendar_events( $query );
@@ -1964,7 +1971,7 @@ function my_calendar( $args ) {
 			<div class="mc-content">
 				<div id="mc-day-' . $id . '" class="mc-day ' . $dateclass . ' ' . $events_class . '">
 					' . "$mc_events
-				</div>
+				</div><!-- .mc-day -->
 			</div><!-- .mc-content -->";
 		} else {
 			// If showing multiple months, figure out how far we're going.
@@ -2017,7 +2024,7 @@ function my_calendar( $args ) {
 			 * @return {string}
 			 */
 			$heading = apply_filters( 'mc_heading', $heading, $params['format'], $params['time'], $template );
-			$body   .= "<$h2 id=\"mc_head_$id\" class=\"heading my-calendar-$params[time]\"><span>$heading</span></$h2>\n";
+			$body   .= "<$h2 id=\"mc_head_$id\" class=\"heading my-calendar-$params[time]\"><span>" . trim( $heading ) . "</span></$h2>\n";
 			$body   .= $top;
 
 			/**
@@ -2259,7 +2266,7 @@ function my_calendar( $args ) {
 						if ( mc_date( 'N', $start, false ) === (string) $end_of_week || ( mc_date( 'N', $start, false ) === '5' && ! $show_weekends ) ) {
 							if ( 'card' === $params['format'] ) {
 								$body .= '';
-							} elseif ( 'list' !== $params['format'] ) {
+							} elseif ( 'list' !== $params['format'] && 'card' !== $params['format'] ) {
 								$body .= "</$tr>\n<!-- End Event Row -->\n"; // End of 'is beginning of week'.
 							}
 							$week_number_shown = false;
@@ -2271,16 +2278,16 @@ function my_calendar( $args ) {
 			}
 			$end = '';
 			if ( 'card' !== $params['format'] ) {
-				$end = ( 'table' === $table ) ? "\n</tbody>\n</table>" : "</div></$table>";
+				$end = ( 'table' === $table ) ? "\n</tbody>\n</table>" : "</div></$table><!-- Date list container -->";
 			}
 			$body .= ( 'list' === $params['format'] ) ? "\n</ul>" : $end;
 		}
 		// Day view closer is appended above.
-		$body .= ( 'day' === $params['time'] && 'card' !== $params['format'] ) ? '' : '</div><!-- .mc-content -->';
-		$body .= $bottom;
+		$body .= ( 'day' === $params['time'] || 'card' === $params['format'] ) ? '' : '</div><!-- .mc-content -->';
 		if ( 'card' === $params['format'] ) {
-			$body .= '</div>';
+			$body .= '</div><!-- .my-calendar-cards -->';
 		}
+		$body .= $bottom;
 	}
 	/**
 	 * Append content after the calendar.
