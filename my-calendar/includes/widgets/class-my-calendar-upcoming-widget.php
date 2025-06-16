@@ -5,7 +5,7 @@
  * @category Widgets
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv2 or later
+ * @license  GPLv3
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @package   My Calendar
  * @author    Joe Dolson
  * @copyright 2009
- * @license   GPLv2 or later
+ * @license   GPLv3
  * @version   1.0
  */
 class My_Calendar_Upcoming_Widget extends WP_Widget {
@@ -170,6 +170,7 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 		}
 		$template_options         = mc_select_preset_templates();
 		$template_options['list'] = __( 'Custom', 'my-calendar' );
+		$preset                   = '';
 		if ( in_array( $template, array_keys( $template_options ), true ) ) {
 			$preset = $template;
 		}

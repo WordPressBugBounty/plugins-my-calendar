@@ -5,7 +5,7 @@
  * @category Widgets
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv2 or later
+ * @license  GPLv3
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @package   My Calendar
  * @author    Joe Dolson
  * @copyright 2009
- * @license   GPLv2 or later
+ * @license   GPLv3
  * @version   1.0
  */
 class My_Calendar_Mini_Widget extends WP_Widget {
@@ -179,7 +179,7 @@ class My_Calendar_Mini_Widget extends WP_Widget {
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>"><?php esc_html_e( 'Navigation below calendar', 'my-calendar' ); ?></label>
 			<input type="text" class="widefat" name="<?php echo esc_attr( $this->get_field_name( 'below' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>" value="<?php echo ( '' === $below ) ? 'key' : esc_attr( $below ); ?>" aria-describedby='<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>-navigation-fields' /> <span id='<?php echo esc_attr( $this->get_field_id( 'below' ) ); ?>-navigation-fields' class="field-description" style="font-size: 13px;color:#555">
-			<?php esc_html_e( 'Navigation options:', 'my-calendar' ); ?> <code>nav,jump,print,key,feeds,exports,none</code><?php mc_help_link( __( 'Help', 'my-calendar' ), __( 'Navigation Keywords', 'my-calendar' ), 'navigation keywords', 3 ); ?>
+			<?php esc_html_e( 'Navigation options:', 'my-calendar' ); ?> <code>nav,jump,timeframe,print,key,feeds,exports,none</code><?php mc_help_link( __( 'Help', 'my-calendar' ), __( 'Navigation Keywords', 'my-calendar' ), 'navigation keywords', 3 ); ?>
 		</span>
 		</p>
 
@@ -250,10 +250,10 @@ class My_Calendar_Mini_Widget extends WP_Widget {
 		$instance['below']                     = ( isset( $new_data['below'] ) && '' !== $new_data['below'] ) ? $new_data['below'] : 'none';
 		$author                                = '';
 		$host                                  = '';
-		if ( isset( $new_data['author'] ) ) {
+		if ( isset( $new_data['author'] ) && is_array( $new_data['author'] ) ) {
 			$author = implode( ',', $new_data['author'] );
 		}
-		if ( isset( $new_data['host'] ) ) {
+		if ( isset( $new_data['host'] ) && is_array( $new_data['author'] ) ) {
 			$host = implode( ',', $new_data['host'] );
 		}
 		$instance['author'] = $author;
