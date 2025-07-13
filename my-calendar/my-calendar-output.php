@@ -454,7 +454,7 @@ function mc_draw_event_header( $data, $type, $template ) {
 			$event_title_single = mc_draw_template( $tags, $single_template );
 			if ( ( 'modal' === $gridtype && 'calendar' === $type ) || ( 'modal' === $listtype && 'list' === $type ) ) {
 				$params  = "id='modal-button-$container_id' data-modal-content-id='$container_id' data-modal-prefix-class='my-calendar' data-modal-close-text='" . esc_attr( __( 'Close', 'my-calendar' ) ) . "' data-modal-title='" . esc_attr( $event_title_single ) . "'";
-				$classes = 'js-modal button button-link';
+				$classes = 'mc-modal button button-link';
 			} else {
 				$params  = " aria-expanded='false'";
 				$classes = 'open';
@@ -996,7 +996,9 @@ function mc_edit_panel( $html, $event, $type, $time ) {
 			$del_group  = false;
 		}
 		if ( 'S' === $recur || ( ! $edit_group && ! $del_group ) ) {
-			$edit .= "<li><a href='" . esc_url( $edit_url ) . "' class='edit'>" . __( 'Edit', 'my-calendar' ) . "</a></li><li><a href='" . esc_url( $delete_url ) . "' class='delete'>" . __( 'Delete', 'my-calendar' ) . "</a></li>$groupedit";
+			$edit .= ( $edit_url ) ? "<li><a href='" . esc_url( $edit_url ) . "' class='edit'>" . __( 'Edit', 'my-calendar' ) . '</a></li>' : '';
+			$edit .= ( $delete_url ) ? "<li><a href='" . esc_url( $delete_url ) . "' class='delete'>" . __( 'Delete', 'my-calendar' ) . '</a></li>' : '';
+			$edit .= $groupedit;
 		} else {
 			$edit .= "<li><a href='" . esc_url( $edit_group ) . "' class='edit'>" . __( 'Edit Date', 'my-calendar' ) . "</a></li><li><a href='" . esc_url( $edit_url ) . "' class='edit'>" . __( 'Edit Series', 'my-calendar' ) . "</a></li><li><a href='" . esc_url( $del_group ) . "' class='delete'>" . __( 'Delete Date', 'my-calendar' ) . "</a></li><li><a href='" . esc_url( $delete_url ) . "' class='delete'>" . __( 'Delete Series', 'my-calendar' ) . "</a></li>
 			$groupedit";
@@ -2181,7 +2183,7 @@ function my_calendar( $args ) {
 								$minitype = mc_get_option( 'mini_javascript' );
 								if ( 'modal' === $minitype && 'false' === mc_get_option( 'open_day_uri' ) ) {
 									$attrs   = str_replace( array( '{format}', '{target_id}' ), array( 'mini-', 'date-' . $date_is ), $modal_attrs );
-									$trigger = ' js-modal button button-link';
+									$trigger = ' mc-modal button button-link';
 								} else {
 									$attrs   = " aria-expanded='false'";
 									$trigger = ' trigger';
@@ -2543,7 +2545,7 @@ function mc_wrap_title( $title, $params = '' ) {
 	if ( '1' !== mc_get_option( 'list_javascript' ) ) {
 		$uses_modal = '';
 		if ( 'modal' === mc_get_option( 'list_javascript' ) ) {
-			$uses_modal = ' js-modal';
+			$uses_modal = ' mc-modal';
 		}
 		$is_anchor       = '<button type="button" ' . $params . ' class="mc-text-button' . $uses_modal . '"><span class="mc-icon" aria-hidden="true"></span>';
 		$is_close_anchor = '</button>';

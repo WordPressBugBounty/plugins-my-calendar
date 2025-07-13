@@ -157,6 +157,10 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 			<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_title' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_title' ) ); ?>" value="<?php echo esc_attr( $title ); ?>"/>
 		</p>
 		<p>
+			<label for="<?php echo esc_attr( $this->get_field_id( 'mc_link' ) ); ?>"><?php esc_html_e( 'Widget title links to:', 'my-calendar' ); ?></label><br/>
+			<input class="widefat" type="url" id="<?php echo esc_attr( $this->get_field_id( 'mc_link' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_link' ) ); ?>" value="<?php echo esc_url( $link ); ?>"/>
+		</p>
+		<p>
 			<input class="widefat" type="checkbox" value="true" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_navigation' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_navigation' ) ); ?>" <?php checked( $navigation, 'true' ); ?> /> <label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_navigation' ) ); ?>"><?php esc_html_e( 'Include Navigation', 'my-calendar' ); ?></label>
 		</p>
 		<?php
@@ -189,17 +193,14 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 		</p>
 		<p class="mc-custom-template">
 			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_template' ) ); ?>"><?php esc_html_e( 'Template', 'my-calendar' ); ?></label><br/>
-			<textarea class="widefat" rows="6" cols="20" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_template' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_template' ) ); ?>"><?php echo esc_textarea( $template ); ?></textarea>
-		</p>
-		<p>
-			<label for="<?php echo esc_attr( $this->get_field_id( 'mc_link' ) ); ?>"><?php esc_html_e( 'Widget title links to:', 'my-calendar' ); ?></label><br/>
-			<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'mc_link' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_link' ) ); ?>" value="<?php echo esc_url( $link ); ?>"/>
+			<textarea class="widefat" rows="4" cols="20" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_template' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_template' ) ); ?>"><?php echo esc_textarea( $template ); ?></textarea>
 		</p>
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_type' ) ); ?>"><?php esc_html_e( 'Display upcoming events by:', 'my-calendar' ); ?></label>
 			<select id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_type' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_type' ) ); ?>">
 				<option value="events" <?php selected( 'events', $type ); ?>><?php esc_html_e( 'Events (e.g. 2 past, 3 future)', 'my-calendar' ); ?></option>
 				<option value="days" <?php selected( 'days', $type ); ?>><?php esc_html_e( 'Dates (e.g. 4 days past, 5 forward)', 'my-calendar' ); ?></option>
+				<option value="custom" <?php selected( 'custom', $type ); ?>><?php esc_html_e( 'Custom Dates', 'my-calendar' ); ?></option>
 				<option value="month" <?php selected( 'month', $type ); ?>><?php esc_html_e( 'Show current month', 'my-calendar' ); ?></option>
 				<option value="month+1" <?php selected( 'month+1', $type ); ?>><?php esc_html_e( 'Show next month', 'my-calendar' ); ?></option>
 				<option value="month+2" <?php selected( 'month+2', $type ); ?>><?php esc_html_e( 'Show 2nd month out', 'my-calendar' ); ?></option>
@@ -214,37 +215,41 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 				<option value="month+11" <?php selected( 'month+11', $type ); ?>><?php esc_html_e( 'Show 11th month out', 'my-calendar' ); ?></option>
 				<option value="month+12" <?php selected( 'month+12', $type ); ?>><?php esc_html_e( 'Show 12th month out', 'my-calendar' ); ?></option>
 				<option value="year" <?php selected( 'year', $type ); ?>><?php esc_html_e( 'Show current year', 'my-calendar' ); ?></option>
-				<option value="custom" <?php selected( 'custom', $type ); ?>><?php esc_html_e( 'Custom Dates', 'my-calendar' ); ?></option>
 			</select>
 		</p>
 		<?php
 		if ( 'custom' === $type ) {
 			?>
+		<div class="mc-flex" style="display: flex; flex-wrap: wrap; gap: 20px;">
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'mc_from' ) ); ?>"><?php esc_html_e( 'Start date', 'my-calendar' ); ?>:</label>
-			<input type="text" id="<?php echo esc_attr( $this->get_field_id( 'mc_from' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_from' ) ); ?>" value="<?php echo esc_attr( $from ); ?>"/>
+			<input type="date" id="<?php echo esc_attr( $this->get_field_id( 'mc_from' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_from' ) ); ?>" value="<?php echo esc_attr( $from ); ?>"/>
 		</p>
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'mc_to' ) ); ?>"><?php esc_html_e( 'End date', 'my-calendar' ); ?>:</label>
-			<input type="text" id="<?php echo esc_attr( $this->get_field_id( 'mc_to' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_to' ) ); ?>" value="<?php echo esc_attr( $to ); ?>"/>
+			<input type="date" id="<?php echo esc_attr( $this->get_field_id( 'mc_to' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_to' ) ); ?>" value="<?php echo esc_attr( $to ); ?>"/>
 		</p>
+		</div>
 			<?php
 		}
 		?>
-		<p>
-			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_skip' ) ); ?>"><?php esc_html_e( 'Skip the first <em>n</em> events', 'my-calendar' ); ?></label>
-			<input type="text" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_skip' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_skip' ) ); ?>" value="<?php echo esc_attr( $skip ); ?>"/>
-		</p>
-		<p>
-			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_order' ) ); ?>"><?php esc_html_e( 'Events sort order:', 'my-calendar' ); ?></label>
-			<select id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_order' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_order' ) ); ?>">
-				<option value="asc" <?php selected( 'asc', $order ); ?>><?php esc_html_e( 'Ascending (near to far)', 'my-calendar' ); ?></option>
-				<option value="desc" <?php selected( 'desc', $order ); ?>><?php esc_html_e( 'Descending (far to near)', 'my-calendar' ); ?></option>
-			</select>
-		</p>
+		<div class="mc-flex" style="display: flex; flex-wrap: wrap; gap: 20px;">
+			<p>
+				<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_skip' ) ); ?>"><?php esc_html_e( 'Skip the first "n" events', 'my-calendar' ); ?></label>
+				<input type="text" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_skip' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_skip' ) ); ?>" value="<?php echo esc_attr( $skip ); ?>"/>
+			</p>
+			<p>
+				<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_order' ) ); ?>"><?php esc_html_e( 'Events sort order:', 'my-calendar' ); ?></label>
+				<select id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_order' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_order' ) ); ?>">
+					<option value="asc" <?php selected( 'asc', $order ); ?>><?php esc_html_e( 'Ascending (near to far)', 'my-calendar' ); ?></option>
+					<option value="desc" <?php selected( 'desc', $order ); ?>><?php esc_html_e( 'Descending (far to near)', 'my-calendar' ); ?></option>
+				</select>
+			</p>
+		</div>
 		<?php
-		if ( ! ( 'month' === $type || 'month+1' === $type || 'year' === $type ) ) {
+		if ( 'days' === $type || 'events' === $type ) {
 			?>
+		<div class="mc-flex" style="display: flex; flex-wrap: wrap; gap: 20px;">
 			<p>
 				<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_after' ) ); ?>">
 				<?php
@@ -263,6 +268,7 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 				</label>
 				<input type="text" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_before' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_before' ) ); ?>" value="<?php echo esc_attr( $before ); ?>" size="1" maxlength="3" /> 
 			</p>
+		</div>
 			<?php
 		}
 		?>
@@ -288,30 +294,34 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 			?>
 			</ul>
 		</fieldset>
-		<p>
-			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_author' ) ); ?>"><?php esc_html_e( 'Author or authors to show:', 'my-calendar' ); ?></label><br/>
-			<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_author' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_author' ) ); ?>" value="<?php echo esc_attr( $author ); ?>"/>
-		</p>
-		<p>
-			<label for="<?php echo esc_attr( $this->get_field_id( 'mc_host' ) ); ?>"><?php esc_html_e( 'Host or hosts to show:', 'my-calendar' ); ?></label><br/>
-			<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'mc_host' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_host' ) ); ?>" value="<?php echo esc_attr( $host ); ?>"/>
-		</p>
-		<p>
-			<label for="<?php echo esc_attr( $this->get_field_id( 'ltype' ) ); ?>"><?php esc_html_e( 'Location (Type)', 'my-calendar' ); ?></label><br/>
-			<select name="<?php echo esc_attr( $this->get_field_name( 'ltype' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'ltype' ) ); ?>" class="widefat">
-				<option value=''><?php esc_html_e( 'All locations', 'my-calendar' ); ?></option>
-				<option value='event_label' <?php selected( $ltype, 'event_label' ); ?>><?php esc_html_e( 'Location Name', 'my-calendar' ); ?></option>
-				<option value='event_city' <?php selected( $ltype, 'event_city' ); ?>><?php esc_html_e( 'City', 'my-calendar' ); ?></option>
-				<option value='event_state' <?php selected( $ltype, 'event_state' ); ?>><?php esc_html_e( 'State', 'my-calendar' ); ?></option>
-				<option value='event_postcode' <?php selected( $ltype, 'event_postcode' ); ?>><?php esc_html_e( 'Postal Code', 'my-calendar' ); ?></option>
-				<option value='event_country' <?php selected( $ltype, 'event_country' ); ?>><?php esc_html_e( 'Country', 'my-calendar' ); ?></option>
-				<option value='event_region' <?php selected( $ltype, 'event_region' ); ?>><?php esc_html_e( 'Region', 'my-calendar' ); ?></option>
-			</select>
-		</p>
-		<p>
-			<label for="<?php echo esc_attr( $this->get_field_id( 'lvalue' ) ); ?>"><?php esc_html_e( 'Location (Value)', 'my-calendar' ); ?></label><br/>
-			<input type="text" class="widefat" name="<?php echo esc_attr( $this->get_field_name( 'lvalue' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'lvalue' ) ); ?>" value="<?php echo esc_attr( $lvalue ); ?>" />
-		</p>
+		<div class="mc-flex" style="display: flex; flex-wrap: wrap; gap: 20px;">
+			<p>
+				<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_author' ) ); ?>"><?php esc_html_e( 'Author or authors to show:', 'my-calendar' ); ?></label><br/>
+				<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_author' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_author' ) ); ?>" value="<?php echo esc_attr( $author ); ?>"/>
+			</p>
+			<p>
+				<label for="<?php echo esc_attr( $this->get_field_id( 'mc_host' ) ); ?>"><?php esc_html_e( 'Host or hosts to show:', 'my-calendar' ); ?></label><br/>
+				<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'mc_host' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'mc_host' ) ); ?>" value="<?php echo esc_attr( $host ); ?>"/>
+			</p>
+		</div>
+		<div class="mc-flex" style="display: flex; flex-wrap: wrap; gap: 20px;">
+			<p>
+				<label for="<?php echo esc_attr( $this->get_field_id( 'ltype' ) ); ?>"><?php esc_html_e( 'Location (Type)', 'my-calendar' ); ?></label><br/>
+				<select name="<?php echo esc_attr( $this->get_field_name( 'ltype' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'ltype' ) ); ?>" class="widefat">
+					<option value=''><?php esc_html_e( 'All locations', 'my-calendar' ); ?></option>
+					<option value='event_label' <?php selected( $ltype, 'event_label' ); ?>><?php esc_html_e( 'Location Name', 'my-calendar' ); ?></option>
+					<option value='event_city' <?php selected( $ltype, 'event_city' ); ?>><?php esc_html_e( 'City', 'my-calendar' ); ?></option>
+					<option value='event_state' <?php selected( $ltype, 'event_state' ); ?>><?php esc_html_e( 'State', 'my-calendar' ); ?></option>
+					<option value='event_postcode' <?php selected( $ltype, 'event_postcode' ); ?>><?php esc_html_e( 'Postal Code', 'my-calendar' ); ?></option>
+					<option value='event_country' <?php selected( $ltype, 'event_country' ); ?>><?php esc_html_e( 'Country', 'my-calendar' ); ?></option>
+					<option value='event_region' <?php selected( $ltype, 'event_region' ); ?>><?php esc_html_e( 'Region', 'my-calendar' ); ?></option>
+				</select>
+			</p>
+			<p>
+				<label for="<?php echo esc_attr( $this->get_field_id( 'lvalue' ) ); ?>"><?php esc_html_e( 'Location (Value)', 'my-calendar' ); ?></label><br/>
+				<input type="text" class="widefat" name="<?php echo esc_attr( $this->get_field_name( 'lvalue' ) ); ?>" id="<?php echo esc_attr( $this->get_field_id( 'lvalue' ) ); ?>" value="<?php echo esc_attr( $lvalue ); ?>" />
+			</p>
+		</div>
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_no_events_text' ) ); ?>"><?php esc_html_e( 'No events text', 'my-calendar' ); ?></label><br/>
 			<input class="widefat" type="text" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_no_events_text' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_no_events_text' ) ); ?>" value="<?php echo esc_attr( $text ); ?>"/>
