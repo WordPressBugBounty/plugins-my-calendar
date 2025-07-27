@@ -16,7 +16,7 @@
  * Text Domain: my-calendar
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/license/gpl-2.0.txt
- * Version:     3.6.7
+ * Version:     3.6.8
  */
 
 /*
@@ -53,7 +53,7 @@ function mc_get_version( $version = true ) {
 	if ( ! $version ) {
 		return get_option( 'mc_version', '' );
 	}
-	return '3.6.7';
+	return '3.6.8';
 }
 
 define( 'MC_DEBUG', false );
@@ -196,7 +196,7 @@ add_action( 'init', 'mc_export_vcal', 200 );
 // Add filters.
 add_filter( 'widget_text', 'do_shortcode', 9 );
 add_filter( 'plugin_action_links', 'mc_plugin_action', 10, 2 );
-add_filter( 'pre_get_document_title', 'mc_event_filter', 10, 1 );
+add_filter( 'pre_get_document_title', 'mc_event_filter', 100, 1 );
 
 /**
  * Register all My Calendar widgets

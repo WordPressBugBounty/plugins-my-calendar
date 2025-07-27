@@ -6,7 +6,7 @@ Requires at least: 6.4
 Tested up to: 6.8
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.6.7
+Stable tag: 3.6.8
 License: GPLv3 or later
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -107,6 +107,18 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.6.8 =
+
+* Feature: Add new conditional function `mc_has_category( $event )`.
+* Change: Add text arguments to core template functions that return template text. Allows template logic to override settings.
+* Bug fix: Stringify array data before sending to Akismet.
+* Bug fix: Allow `svg` in print view.
+* Bug fix: Move `pre_get_document_title` filter to later priority to apply after SEO plugins.
+* Bug fix: Add site name to page title.
+* Bug fix: Section headers were not selectable.
+* Bug fix: Single-day view returned all dates of long-running single events.
+* Bug fix: In legacy templates, data passed to get event images was the full data object instead of the tags array.
 
 = 3.6.7 =
 
