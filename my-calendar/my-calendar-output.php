@@ -604,8 +604,9 @@ function mc_draw_event_title( $event, $tags, $type, $image ) {
 
 	$event_title = mc_draw_template( $tags, $title_template );
 	if ( 0 === strpos( $event_title, ': ' ) ) {
-		// If the first two characters of the title are ": ", this is the default templates but no time.
-		$event_title = str_replace( ': ', '', $event_title );
+		// If the first two characters of the title are ": ", this is the default template with no time.
+		$title_template = str_replace( ': ', '', $title_template );
+		$event_title    = mc_draw_template( $tags, $title_template );
 	}
 	$event_title = ( '' === $event_title ) ? $tags['title'] : strip_tags( $event_title, mc_strip_tags() );
 	if ( 'single' === $type ) {
@@ -1963,13 +1964,16 @@ function my_calendar( $args ) {
 			$json         = '';
 			// The $events array explodes multi-day events to contain each individual day.
 			// Only display the versions relevant to the current day.
-			$events           = $dates[ $from ];
+			$events           = isset( $dates[ $from ] ) ? $dates[ $from ] : array();
 			$events_class     = mc_events_class( $events, $from );
 			$params['groups'] = $shown_groups;
 			$params['events'] = $shown_events;
 			$event_output     = my_calendar_draw_events( $events, $params, $from, $template, $id );
-			$shown_groups     = array_merge( $shown_groups, $event_output['groups'] );
-			$shown_events     = array_merge( $shown_events, $event_output['events'] );
+			// Merge arrays if there are results from drawing events.
+			if ( is_array( $event_output ) && isset( $event_output['groups'] ) ) {
+				$shown_groups = array_merge( $shown_groups, $event_output['groups'] );
+				$shown_events = array_merge( $shown_events, $event_output['events'] );
+			}
 			if ( ! empty( $event_output ) ) {
 				$mc_events .= $event_output['html'];
 				$json       = array( $event_output['json'] );
