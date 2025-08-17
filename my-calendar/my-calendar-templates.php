@@ -165,7 +165,7 @@ function mc_get_preset_template( $type ) {
 			$template = '<div class="mc-group-1">{daterange before="<strong>" after="</strong>"}{timerange before="<br>"}</div><div><a href="{permalink}">{title}</a></div><div class="mc-group-3">{hcard}</div>';
 			break;
 		case 'list_preset_4':
-			$template = '<div class="mc-group-1">{image}</div><div class="list-card-contents mc-group-2">{linking_title}<div class="mc-date-group">{daterange before="<strong>" after="</strong>"}{timerange before="<br>"}</div><div class="location mc-group-3">{city after=", "} {state}</div></div>';
+			$template = '<div class="mc-group-1">{image}</div><div class="list-card-contents"><div class="mc-group-2">{linking_title}<div class="mc-date-group">{daterange before="<strong>" after="</strong>"}{timerange before="<br>"}</div></div><div class="location mc-group-3">{city after=", "} {state}</div></div>';
 			break;
 		default:
 			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2"><a href="{permalink}">{title}</a><br />{timerange}<br />{hcard}</div><div class="mc-group-3">{image}</div>';
@@ -429,7 +429,7 @@ function mc_hcard( $event, $address = 'true', $map = 'true', $source = 'event' )
 		$link = ( '' !== $url ) ? "<a href='$url' class='location-link external p-name p-org u-url'><span class='mc-icon' aria-hidden='true'></span>$label</a>" : $label;
 		$link = $link . $distance;
 	}
-	$post   = ( absint( $event->location_post ) ) ? $event->location_post : mc_get_location_post( $loc_id );
+	$post   = ( property_exists( $event, 'location_post' ) && absint( $event->location_post ) ) ? $event->location_post : mc_get_location_post( $loc_id );
 	$events = ( $post && ! is_single( $post ) && ! is_admin() && 'mc-locations' === get_post_type( $post ) ) ? '<a class="location-link" href="' . esc_url( get_the_permalink( $post ) ) . '">' . __( 'View Location', 'my-calendar' ) . '</a>' : '';
 	/**
 	 * Filter link to location-specific events in hcard.
