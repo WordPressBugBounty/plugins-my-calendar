@@ -4,7 +4,7 @@
  *
  * @package     MyCalendar
  * @author      Joe Dolson
- * @copyright   2009-2025 Joe Dolson
+ * @copyright   2009-2026 Joe Dolson
  * @license     GPL-2.0+
  *
  * @wordpress-plugin
@@ -16,11 +16,11 @@
  * Text Domain: my-calendar
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/license/gpl-2.0.txt
- * Version:     3.6.15
+ * Version:     3.7.3
  */
 
 /*
-	Copyright 2009-2025  Joe Dolson (email : joe@joedolson.com)
+	Copyright 2009-2026  Joe Dolson (email : joe@joedolson.com)
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ function mc_get_version( $version = true ) {
 	if ( ! $version ) {
 		return get_option( 'mc_version', '' );
 	}
-	return '3.6.15';
+	return '3.7.3';
 }
 
 define( 'MC_DEBUG', false );
@@ -96,6 +96,19 @@ register_uninstall_hook( __FILE__, 'mc_uninstall' );
 function mc_plugin_deactivated() {
 	flush_rewrite_rules();
 }
+
+/**
+ * If network activated on multisite, execute action to activate on each site when the admin is initialized.
+ * This does not bulk activate the sites, because of the processing burden on large networks.
+ */
+function mc_multisite_activation() {
+	$is_activated = get_option( 'mc_site_activated', 'false' );
+	if ( 'false' === $is_activated ) {
+		mc_plugin_activated();
+		update_option( 'mc_site_activated', 'true', false );
+	}
+}
+add_action( 'admin_init', 'mc_multisite_activation' );
 
 /**
  * Bulk delete posts.
@@ -157,6 +170,7 @@ require __DIR__ . '/my-calendar-install.php';
 require __DIR__ . '/my-calendar-settings.php';
 require __DIR__ . '/my-calendar-migrate.php';
 require __DIR__ . '/my-calendar-categories.php';
+require __DIR__ . '/my-calendar-access-terms.php';
 require __DIR__ . '/my-calendar-locations.php';
 require __DIR__ . '/my-calendar-location-manager.php';
 require __DIR__ . '/my-calendar-event-editor.php';
@@ -209,7 +223,44 @@ function mc_register_widgets() {
 	register_widget( 'My_Calendar_Filters' );
 }
 
-add_action( 'template_redirect', 'mc_custom_canonical' );
+/**
+ * If an invalid query is made, throw a 404. When requests are made
+ * more than a year outside of the saved date bounds, invalidate the query.
+ *
+ * One year beyond bounds is what a user can potentially request using the UI.
+ */
+function mc_invalid_query() {
+	$date_bounds = mc_get_date_bounds();
+	$year_query  = isset( $_GET['yr'] ) && ! empty( $_GET['yr'] ) ? absint( $_GET['yr'] ) : mc_date( 'Y' );
+	$month_query = isset( $_GET['month'] ) && ! empty( $_GET['month'] ) ? absint( $_GET['month'] ) : mc_date( 'm' );
+	$day_query   = isset( $_GET['dy'] ) && ! empty( $_GET['dy'] ) ? absint( $_GET['dy'] ) : mc_date( 'd' );
+
+	/**
+	 * Ignore the 404 handler that prevents access to dates outside of the calendar bounds.
+	 *
+	 * @param {bool} $ignore_bounds Default false.
+	 */
+	$ignore_bounds = apply_filters( 'mc_ignore_404_handler', false );
+	// If the date requested is today, don't throw a 404 even if outside of bounds.
+	if ( mc_date( 'Y-m-d' ) === $year_query . '-' . $month_query . '-' . $day_query || $ignore_bounds ) {
+		// This protects against throwing a 404 on calendars that haven't been updated recently
+		// when there are no arguments passed.
+		return;
+	}
+	$date  = strtotime( $year_query . '-' . $month_query . '-' . $day_query );
+	$last  = strtotime( $date_bounds['last'] );
+	$first = strtotime( $date_bounds['first'] );
+	if ( $date < ( $first - YEAR_IN_SECONDS ) || $date > ( $last + YEAR_IN_SECONDS ) ) {
+		global $wp_query;
+		$wp_query->set_404();
+		status_header( 404 );
+		nocache_headers();
+		include get_query_template( '404' );
+		exit();
+	}
+}
+add_action( 'template_redirect', 'mc_invalid_query' );
+
 /**
  * Customize canonical URL for My Calendar custom links
  */
@@ -220,6 +271,7 @@ function mc_custom_canonical() {
 		add_filter( 'wpseo_canonical', 'mc_disable_yoast_canonical' );
 	}
 }
+add_action( 'template_redirect', 'mc_custom_canonical' );
 
 /**
  * When Yoast is enabled with canonical URLs, it returns an invalid URL for single events. Disable on single events.
@@ -408,7 +460,7 @@ function mc_show_sidebar( $show = '', $add = false, $remove = false ) {
  * @return bool
  */
 function mc_has_migration_path() {
-	if ( function_exists( 'check_calendar' ) && 'true' !== get_option( 'ko_calendar_imported' ) ) {
+	if ( function_exists( 'calendar_check' ) && 'true' !== get_option( 'ko_calendar_imported' ) ) {
 		return true;
 	}
 	if ( function_exists( 'tribe_get_event' ) && 'true' !== get_option( 'mc_tribe_imported' ) ) {
@@ -437,7 +489,8 @@ function my_calendar_menu() {
 			if ( isset( $_GET['event_id'] ) ) {
 				$event_id = absint( $_GET['event_id'] );
 				// Translators: Title of event.
-				$page_title = sprintf( __( 'Editing Event: %s', 'my-calendar' ), esc_html( wp_strip_all_tags( wp_unslash( mc_get_data( 'event_title', $event_id ) ) ) ) );
+				$string     = ( mc_is_recurring( $event_id ) ) ? __( 'Editing Recurring Event: "%s"', 'my-calendar' ) : __( 'Editing Event: "%s"', 'my-calendar' );
+				$page_title = sprintf( $string, esc_html( wp_strip_all_tags( wp_unslash( mc_get_data( 'event_title', $event_id ) ) ) ) );
 			} else {
 				$page_title = __( 'Add New Event', 'my-calendar' );
 			}
@@ -456,6 +509,7 @@ function my_calendar_menu() {
 			$locations = add_submenu_page( 'my-calendar', __( 'Locations', 'my-calendar' ), __( 'Locations', 'my-calendar' ), 'mc_edit_locations', 'my-calendar-location-manager', 'my_calendar_manage_locations' );
 			add_action( "load-$locations", 'mc_location_help_tab' );
 			add_submenu_page( 'my-calendar', __( 'Categories', 'my-calendar' ), __( 'Categories', 'my-calendar' ), 'mc_edit_cats', 'my-calendar-categories', 'my_calendar_manage_categories' );
+			add_submenu_page( 'my-calendar', __( 'Access Terms', 'my-calendar' ), __( 'Access Terms', 'my-calendar' ), 'mc_edit_cats', 'my-calendar-access-terms', 'my_calendar_manage_access_terms' );
 		}
 		// The Design screen is available with any of these permissions.
 		$permission = 'manage_options';

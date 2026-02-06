@@ -16,11 +16,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Determine whether an event is recurring.
  *
- * @param object $event Event object.
+ * @param object|int $event Event object or ID.
  *
  * @return bool
  */
 function mc_is_recurring( $event ) {
+	if ( ! is_object( $event ) ) {
+		$event = mc_get_first_event( $event );
+	}
 	$is_recurring = ( ! ( 'S' === $event->event_recur || 'S1' === $event->event_recur ) ) ? true : false;
 
 	return $is_recurring;
@@ -271,6 +274,22 @@ function mc_event_is_hidden( $event ) {
 	// Also hide events that are unpublished if the current user does not have permission to edit.
 	if ( ! mc_event_published( $event ) && ! mc_can_edit_event( $event->event_id ) ) {
 		return true;
+	}
+	if ( 5 === (int) $event->event_approved && is_user_logged_in() ) {
+		$can_see = ( wp_get_current_user()->ID === (int) $event->event_author ) ? false : true;
+		/**
+		 * Filter whether a personal event is visible.
+		 *
+		 * @hook mc_user_can_see_this_event
+		 *
+		 * @param {bool}  $can_see true if the event should be shown.
+		 * @param {object} $event Event object.
+		 *
+		 * @return {bool}
+		 */
+		$can_see = apply_filters( 'mc_user_can_see_this_event', $can_see, $event );
+
+		return $can_see;
 	}
 	$category = $event->event_category;
 	$private  = mc_get_private_categories();

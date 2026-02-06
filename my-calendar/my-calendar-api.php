@@ -19,6 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 function my_calendar_api() {
 	if ( isset( $_REQUEST['my-calendar-api'] ) || isset( $_REQUEST['mc-api'] ) ) {
 		if ( 'true' === mc_get_option( 'api_enabled' ) ) {
+			$data_auth = mc_get_option( 'api_key' ) ? mc_get_option( 'api_key' ) : false;
+			$data_key  = isset( $_REQUEST['api_key'] ) ? sanitize_text_field( $_REQUEST['api_key'] ) : false;
 			/**
 			 * Filter to test access to the event API. Default 'true'.
 			 *
@@ -30,6 +32,10 @@ function my_calendar_api() {
 			 */
 			$api_key = apply_filters( 'mc_api_key', true );
 			if ( $api_key ) {
+				$authenticated_access = false;
+				if ( $data_auth && password_verify( $data_key, $data_auth ) ) {
+					$authenticated_access = true;
+				}
 				$request = map_deep( wp_unslash( $_REQUEST ), 'sanitize_text_field' );
 				$format  = ( isset( $request['my-calendar-api'] ) ) ? $request['my-calendar-api'] : 'json';
 				$format  = ( isset( $request['mc-api'] ) ) ? $request['mc-api'] : $format;
@@ -62,6 +68,7 @@ function my_calendar_api() {
 					'host'     => $host,
 					'search'   => $search,
 					'source'   => 'api',
+					'auth'     => $authenticated_access,
 				);
 				/**
 				 * Filter arguments submitted to the API.
@@ -153,7 +160,10 @@ function mc_api_format_csv( $data ) {
 			}
 
 			foreach ( $values as $key => $text ) {
-				$values[ $key ] = str_replace( array( "\r\n", "\r", "\n" ), '<br class="mc-export" />', trim( wp_kses_stripslashes( $text ) ) );
+				if ( is_array( $text ) ) {
+					$text = implode( '|', $text );
+				}
+				$values[ $key ] = mc_clean_data( $text );
 			}
 			if ( ! $keyed ) {
 				$keys = array_keys( $values );
@@ -171,12 +181,30 @@ function mc_api_format_csv( $data ) {
 	}
 	header( 'Pragma: no-cache' );
 	header( 'Expires: 0' );
+	$string = stream_get_contents( $stream );
+	// Close the stream. Not a filesystem write.
+	fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 
-	echo stream_get_contents( $stream );
-	// Close the stream.
-	fclose( $stream );
+	echo map_deep( $string, 'wp_kses_post' );
 	ob_end_flush();
 	die;
+}
+
+/**
+ * Replace line breaks with detectable breaks.
+ *
+ * @param string $text Text to replace breaks in.
+ *
+ * @return string
+ */
+function mc_clean_data( $text ) {
+	return str_replace(
+		array( "\r\n", "\r", "\n" ),
+		'<br class="mc-export" />',
+		trim(
+			wp_kses_stripslashes( $text )
+		)
+	);
 }
 
 /**

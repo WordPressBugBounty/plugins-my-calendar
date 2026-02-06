@@ -57,7 +57,6 @@
   var ATTR_OPEN = 'open';
   var ATTR_LABELLEDBY = 'aria-labelledby';
   var ATTR_DESCRIBEDBY = 'aria-describedby';
-  var ATTR_HIDDEN = 'aria-hidden';
   //const ATTR_MODAL = 'aria-modal="true"';
   var ATTR_HASPOPUP = 'aria-haspopup';
   var ATTR_HASPOPUP_VALUE = 'dialog';
@@ -150,7 +149,9 @@
 	var outerContent = document.createElement( 'div' );
 	var innerContent = document.createElement( 'div' );
 	var contentContainer = document.createElement( 'div' );
+	var titleContainer = document.createElement( 'div' );
 	contentContainer.setAttribute( 'id', MODAL_CONTENT_JS_ID );
+	titleContainer.classList.add( 'mc-modal-title-container' );
 
 	var id = MODAL_JS_ID;
     var modalClassName = config.modalPrefixClass + MODAL_CLASS_SUFFIX;
@@ -159,7 +160,7 @@
     var buttonCloseInner = '<span class="' + config.modalPrefixClass + MODAL_CLOSE_TEXT_CLASS_SUFFIX + '">\n                                          ' + config.modalCloseText + '\n                                         </span>';
     var contentClassName = config.modalPrefixClass + MODAL_CONTENT_CLASS_SUFFIX;
     var titleClassName = config.modalPrefixClass + MODAL_TITLE_CLASS_SUFFIX;
-    var title = config.modalTitle !== '' ? '<div class="mc-modal-title-container"><h1 id="' + MODAL_TITLE_ID + '" class="' + titleClassName + '">\n                                          ' + config.modalTitle + '\n                                         </h1></div>' : '';
+    var title = config.modalTitle !== '' ? '<h1 id="' + MODAL_TITLE_ID + '" class="' + titleClassName + '">\n                                          ' + config.modalTitle + '\n                                         </h1>' : '';
     var button_close = '<button type="button" class="' + MODAL_BUTTON_JS_CLASS + ' ' + buttonCloseClassName + '" id="' + MODAL_BUTTON_JS_ID + '" ' + MODAL_BUTTON_CONTENT_BACK_ID + '="' + config.modalContentId + '" ' + MODAL_BUTTON_FOCUS_BACK_ID + '="' + config.modalFocusBackId + '"><span class="dashicons dashicons-no" aria-hidden="true"></span>\n                               ' + buttonCloseInner + '\n                              </button>';
     var content = config.modalText;
 
@@ -179,9 +180,10 @@
 	dialog.setAttribute( ATTR_LABELLEDBY, MODAL_TITLE_ID );
 	outerContent.setAttribute( 'role', 'document' );
 	outerContent.classList.add( modalClassWrapper );
-	outerContent.insertAdjacentHTML( 'afterBegin', button_close );
+	titleContainer.insertAdjacentHTML( 'afterBegin', title );
+	titleContainer.insertAdjacentHTML( 'afterBegin', button_close );
 	innerContent.classList.add( contentClassName );
-	innerContent.insertAdjacentHTML( 'afterBegin', title );
+	innerContent.insertAdjacentElement( 'afterbegin', titleContainer );
 	innerContent.insertAdjacentElement( 'beforeEnd', contentContainer );
 	outerContent.insertAdjacentElement( 'afterBegin', innerContent );
 	dialog.insertAdjacentElement( 'afterBegin', outerContent );
@@ -287,7 +289,7 @@
             }));
 
             // hide page
-            wrapperBody.setAttribute(ATTR_HIDDEN, 'true');
+            wrapperBody.setAttribute('inert', '');
 
             // add class noscroll to body
             addClass(body, NO_SCROLL_CLASS);
@@ -334,7 +336,7 @@
               });
 
               // show back page
-              wrapperBody.removeAttribute(ATTR_HIDDEN);
+              wrapperBody.removeAttribute('inert');
 
               // remove class noscroll to body
               removeClass(body, NO_SCROLL_CLASS);
@@ -352,6 +354,10 @@
             var modalFocusBackId = modalButtonClose.getAttribute(MODAL_BUTTON_FOCUS_BACK_ID);
             var contentBackId = modalButtonClose.getAttribute(MODAL_BUTTON_CONTENT_BACK_ID);
             var listFocusables = [].slice.call(modal.querySelectorAll(FOCUSABLE_ELEMENTS_STRING));
+			listFocusables = listFocusables.filter( checkElementVisibility );
+			function checkElementVisibility(el) {
+				return el.checkVisibility();
+			}
 
             // esc
             if (e.keyCode === 27) {
@@ -365,24 +371,23 @@
               });
 
               // show back page
-              wrapperBody.removeAttribute(ATTR_HIDDEN);
+              wrapperBody.removeAttribute('inert');
 
               // remove class noscroll to body
               removeClass(body, NO_SCROLL_CLASS);
             }
 
-            // tab or Maj Tab in modal => capture focus
-            if (e.keyCode === 9 && listFocusables.indexOf(e.target) >= 0) {
-
-              // maj-tab on first element focusable => focus on last
+            // tab or shift tab in modal => capture focus
+            if (e.key === 'Tab' && listFocusables.indexOf(e.target) >= 0) {
+              // shift-tab on first element focusable => focus on last
               if (e.shiftKey) {
                 if (e.target === listFocusables[0]) {
-                  listFocusables[listFocusables.length - 1].focus();
+                  listFocusables.at(-1).focus();
                   e.preventDefault();
                 }
               } else {
                 // tab on last element focusable => focus on first
-                if (e.target === listFocusables[listFocusables.length - 1]) {
+                if (e.target === listFocusables.at(-1)) {
                   listFocusables[0].focus();
                   e.preventDefault();
                 }
