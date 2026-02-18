@@ -237,7 +237,7 @@ function my_calendar_upcoming_events( $args ) {
 		}
 	}
 	/**
-	 * Replace the list header for upcoming events lists. Default value `<ul id='upcoming-events-$hash' class='mc-event-list upcoming-events'$lang>`.
+	 * Replace the list header for upcoming events lists. Default value `<div class='mc-event-list-container'><ul id='upcoming-events-$hash' class='mc-event-list upcoming-events'$lang>`.
 	 *
 	 * @hook mc_upcoming_events_header
 	 *
@@ -247,7 +247,7 @@ function my_calendar_upcoming_events( $args ) {
 	 */
 	$header = apply_filters( 'mc_upcoming_events_header', $header );
 	/**
-	 * Replace the list footer for upcoming events lists. Default value `</ul>`.
+	 * Replace the list footer for upcoming events lists. Default value `</ul></div>`.
 	 *
 	 * @hook mc_upcoming_events_footer
 	 *
@@ -849,10 +849,10 @@ function my_calendar_todays_events( $args ) {
 			 */
 			$return .= apply_filters( 'mc_todays_events_footer', $footer );
 		} else {
-			$return = '<div class="no-events-fallback todays-events">' . stripcslashes( $args['substitute'] ) . '</div>';
+			$return = '<div class="no-events-fallback todays-events">' . wp_unslash( $args['substitute'] ) . '</div>';
 		}
 	} else {
-		$return = '<div class="no-events-fallback todays-events">' . stripcslashes( $args['substitute'] ) . '</div>';
+		$return = '<div class="no-events-fallback todays-events">' . wp_unslash( $args['substitute'] ) . '</div>';
 	}
 
 	if ( $args['site'] ) {
