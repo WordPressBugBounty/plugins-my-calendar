@@ -1127,8 +1127,8 @@ function mc_category_select( $data = false, $option = true, $multiple = false, $
 			$category_name = ( '' === $category_name ) ? '(' . __( 'Untitled category', 'my-calendar' ) . ')' : $category_name;
 			if ( $multiple ) {
 				$icon = mc_category_icon( $cat );
-				$icon = ( $icon ) ? '<div class="mc-category-icon-wrapper">' . $icon . '</div>' : '';
-				$c    = '<li class="mc_cat_' . $cat->category_id . '"><input type="checkbox"' . $selected . ' name="' . esc_attr( $name ) . '" id="' . $id . $cat->category_id . '" value="' . $cat->category_id . '" ' . $selected . ' /> <label for="' . $id . $cat->category_id . '">' . $icon . $category_name . '</label></li>';
+				$icon = ( $icon ) ? mc_wrap_category_icon( $icon, $cat ) : '';
+				$c    = '<li class="mc_cat_' . $cat->category_id . '"><input type="checkbox"' . $selected . ' name="' . esc_attr( $name ) . '" id="' . $id . $cat->category_id . '" value="' . $cat->category_id . '" ' . $selected . ' /> <label for="' . $id . $cat->category_id . '">' . $icon . '</label></li>';
 			} else {
 				$c = '<option value="' . $cat->category_id . '" ' . $selected . '>' . $category_name . '</option>';
 			}
@@ -1312,6 +1312,25 @@ function mc_get_categories( $event, $ids = true ) {
 }
 
 /**
+ * Wrap category icons in HTML with appropriate style classes.
+ *
+ * @param string $icon Icon HTML.
+ * @param object $category Category object.
+ *
+ * @return string
+ */
+function mc_wrap_category_icon( $icon, $category ) {
+	if ( $icon && $category ) {
+		$hex  = ( 0 !== strpos( $category->category_color, '#' ) ) ? '#' : '';
+		$type = ( stripos( $icon, 'svg' ) ) ? 'svg' : 'img';
+		$back = ( 'background' === mc_get_option( 'apply_color' ) ) ? ' style="background:' . $hex . $category->category_color . ';"' : '';
+		$icon = '<span class="mc-category"><span class="mc-category-color ' . $type . '"' . $back . '>' . $icon . '</span><span>' . $category->category_name . '</span></span>';
+	}
+
+	return $icon;
+}
+
+/**
  * Return HTML representing categories.
  *
  * @param array  $results array of categories.
@@ -1322,7 +1341,13 @@ function mc_get_categories( $event, $ids = true ) {
  */
 function mc_categories_html( $results, $primary, $output = 'html' ) {
 	$primary_category = mc_get_category( (int) $primary );
-	$return[]         = ( 'html' === $output ) ? mc_category_icon( $primary_category ) . $primary_category->category_name : $primary_category->category_name;
+	$primary_icon     = ( 'html' === $output ) ? mc_category_icon( $primary_category ) : '';
+	if ( $primary_icon ) {
+		$primary_icon = mc_wrap_category_icon( $primary_icon, $primary_category );
+	} else {
+		$primary_icon = $primary_category->category_name;
+	}
+	$return[] = $primary_icon;
 	if ( $results ) {
 		foreach ( $results as $result ) {
 			$results[ sanitize_key( $result->category_name ) ] = $result;
@@ -1335,8 +1360,14 @@ function mc_categories_html( $results, $primary, $output = 'html' ) {
 			if ( $result->category_id === $primary_category->category_id ) {
 				continue;
 			}
-			$icon     = ( 'html' === $output ) ? mc_category_icon( $result ) : '';
-			$return[] = $icon . $result->category_name;
+			$icon = ( 'html' === $output ) ? mc_category_icon( $result ) : '';
+			if ( $icon ) {
+				$icon = mc_wrap_category_icon( $icon, $result );
+			} else {
+				$icon = $result->category_name;
+			}
+
+			$return[] = $icon;
 		}
 	}
 
