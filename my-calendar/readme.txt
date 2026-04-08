@@ -6,7 +6,7 @@ Requires at least: 6.5
 Tested up to: 6.9
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.7.6
+Stable tag: 3.7.7
 License: GPL-2.0+
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -111,6 +111,19 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.7.7 =
+
+* Update: Adapt admin CSS for WordPress 7.0 design refresh.
+* Bug fix: Verify that `mc_get_first_event()` returns an object before checking event recurrence.
+* Bug fix: Handle change in `wp_kses_hair` for WordPress 7.0 that normalizes attribute quoting.
+* Bug fix: Pass modal title correctly for Help modals.
+* Bug fix: Change submenu page to non-existent string parent instead of `null`, to prevent PHP warning.
+* Bug fix: Remove duplicate styles from admin CSS.
+* Change: Remove legacy template tag previews.
+* Change: Show template tags with PHP function formatting when PHP templates enabled.
+* Change: Combine Admin disclosures into a single JS function.
+* Change: Switch `event_desc` column from TEXT to MEDIUMTEXT.
 
 = 3.7.6 =
 
