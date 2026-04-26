@@ -319,6 +319,14 @@
 	padding: 0 !important;
 }
 
+.mc-main .mc-list {
+	border: 1px solid var(--grid-cell-border);
+}
+
+.mc-main .mc-list li:nth-of-type(even) {
+	background: var(--list-preset-stripe-background);
+}
+
 .my-calendar-navigation .category-key ul {
 	display: flex;
 	flex-wrap: wrap;
@@ -459,7 +467,7 @@
 	content: '\f504';
 }
 
-.my-calendar-navigation div > * {
+.my-calendar-navigation div > *:not(select) {
 	display: flex;
 }
 
@@ -576,8 +584,6 @@
 
 .mc-main .mc-list li.mc-events {
 	list-style-type: none !important;
-	margin: 0 0 8px;
-	padding: 8px 0;
 }
 
 .mc-main .list-event .event-title {
@@ -590,18 +596,14 @@
 	padding: 8px;
 }
 
-.mc-main .list-event .event-title {
-	margin-bottom: 4px 0 !important;
-}
-
 .mc-main .list-event > .event-title {
 	display: block;
 	font-size: var(--list-event-title);
 }
 
 .mc-main .mc-list .event-date button.mc-text-button {
-	width: auto;
-	padding: 0;
+	width: 100%;
+	padding: 8px;
 	border: none;
 	text-align: left;
 	background: transparent;
@@ -609,16 +611,21 @@
 	color: var(--primary-dark) ! important;
 	outline-offset: 2px;
 	font-size: var(--list-event-date);
+	display: flex;
 }
 
-.mc-main .mc-list .event-date button.mc-text-button:hover,
-.mc-main .mc-list .event-date button.mc-text-button:focus {
+.mc-main .mc-list .event-date:not(:has(button)) {
+	padding: 8px;
+}
+
+.mc-main .mc-list button.mc-text-button:hover,
+.mc-main .mc-list button.mc-text-button:focus {
 	background: transparent;
 	background-color: transparent !important;
 	outline: 1px solid var(--nav-button-border);
 }
 
-.mc-main .mc-list .mc-text-button > span {
+.mc-main .mc-list .mc-text-button > span:not(.mc-icon) {
 	text-decoration: underline;
 }
 
@@ -636,13 +643,29 @@
 }
 
 .mc-main .mc-list li.current-day {
-	border-left: 4px solid var(--current-day-border);
 	background: var(--current-day-bg);
+}
+
+.mc-main .mc-list li.current-day .event-date span:not(.mc-icon) {
+	font-weight: 700;
 }
 
 .mc-main .mc-list .event-date {
 	font-size: var(--list-date);
 	font-weight: 600;
+}
+
+.mc-main .mc-list .event-date:has(.mc-list-details-separator) {
+	display: flex;
+}
+
+.mc-main .mc-list .event-date > span {
+	padding: 8px;
+}
+
+.mc-main .mc-list .event-date:has(.mc-list-details-separator) button {
+	width: auto;
+	flex-shrink: 0;
 }
 
 .mc-main .day .list-event, .mc-main .day .details {
@@ -665,9 +688,10 @@
 	padding: 0;
 }
 
+.single-mc-event .mc-image,
 .mc-main .details .mc-image {
 	width: 100%;
-	max-width: 100% !important;
+	max-width: 100%;
 	height: auto;
 }
 
@@ -1325,6 +1349,14 @@ ol.mc-search-results li.no-results {
 	display: none !important;
 }
 
+#mc-modal-content .uses-modal.list-details .mc-title {
+	display: none;
+}
+
+#mc-modal-content .mc-list-date-wrapper .uses-modal.list-details .mc-title {
+	display: block;
+}
+
 .mcjs.mc-main.listjs .details, .mcjs.mc-main.gridjs .calendar-events { display: none; }
 .mcjs.mc-main .single-event .details, .mcjs.mc-main.list.day .details { display: block; }
 
@@ -1542,6 +1574,7 @@ dialog.my-calendar-modal #modal-title {
 	margin: 0;
 	padding: 0;
 	box-sizing: border-box;
+	line-height: 1.33;
 }
 
 dialog.my-calendar-modal .modal-content {
@@ -1596,6 +1629,14 @@ body.mc-no-scroll {
 .my-calendar-modal img {
 	max-width: 100%;
 	height: auto;
+}
+
+.my-calendar-modal .mc-image.square,
+.my-calendar-modal .mc-image.portrait {
+	max-width: 50%;
+	float: left;
+	margin-bottom: 1rem;
+	margin-right: 1rem;
 }
 
 .my-calendar-modal #mc-modal-content {

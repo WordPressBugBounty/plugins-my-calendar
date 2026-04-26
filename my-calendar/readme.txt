@@ -6,7 +6,7 @@ Requires at least: 6.5
 Tested up to: 6.9
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.7.8
+Stable tag: 3.7.9
 License: GPL-2.0+
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -103,6 +103,7 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
    My Calendar -> Add New Location
    My Calendar -> Locations
    My Calendar -> Categories
+   My Calendar -> Access Terms
    My Calendar -> Design
    My Calendar -> Settings
    My Calendar -> Shortcodes
@@ -111,6 +112,24 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.7.9 =
+
+* Performance: Category icons always created new instead of fetched from cache.
+* Bug fix: Restore 'initial-hidden' class to fix flash of unstyled content in admin.
+* Bug fix: List events options did not accurately reflect behavior.
+* Bug fix: Date badge template format double-calculated timezone offsets.
+* Bug fix: Missing '.button' classes caused misaligned icons.
+* Bug fix: Default set primary category to a selected category.
+* Bug fix: Reduce h2 opacity as well as content opacity when editing scheduled dates.
+* Bug fix: Fix focus management while editing scheduled dates.
+* Bug fix: Outlook/O365 event links should use ISO 8601 date formats.
+* Bug fix: Duplicate h2 event title should be hidden on singular list view modals.
+* Bug fix: org class indicator missing in location hcard when location title unlinked.
+* Design: Improvements to oft-neglected list view.
+* Change: Add `mc_get_heading_level()` to simplify heading hierarchy management.
+* Change: Shift category key heading to primary.
+* Change: Add image shape classes: 'square', 'landscape', or 'portrait'. Adjust layout if not landscape.
 
 = 3.7.8 =
 
@@ -226,7 +245,6 @@ Accessibility-first breaking change: The default navigation has changed from usi
 = 3.6.17 =
 
 * Security: Broken Access Control in unused mc_dismiss_notice() function. Props @patchstack and Doan Dinh Van.
-
 
 = 3.6.16 =
 

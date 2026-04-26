@@ -171,7 +171,7 @@ function mc_select_author( $author, $type = 'event', $context = 'author' ) {
  * @return array author IDs
  */
 function mc_author_select_ids( $author ) {
-	$authors = array();
+	$return = array();
 	if ( strpos( $author, '|' ) || strpos( $author, ',' ) ) {
 		if ( strpos( $author, '|' ) ) {
 			$authors = explode( '|', $author );
@@ -184,34 +184,33 @@ function mc_author_select_ids( $author ) {
 				$add = absint( $key );
 			} elseif ( 'current' === $key ) {
 				$author = wp_get_current_user();
-				$add    = $author->ID;
-				unset( $authors[ $index ] );
+				$add    = ( $author ) ? $author->ID : false;
 			} else {
 				$author = get_user_by( 'login', $key ); // Get author by username.
-				$add    = $author->ID;
+				$add    = ( $author ) ? $author->ID : false;
 			}
 
-			$authors[] = $add;
+			$return[] = ( $add ) ?? $add;
 		}
 	} else {
 		if ( is_numeric( $author ) ) {
-			$authors[] = absint( $author );
+			$return[] = absint( $author );
 		} else {
 			$author = trim( $author );
 			if ( 'current' === $author ) {
 				$author    = wp_get_current_user();
-				$authors[] = $author->ID;
+				$return[] = $author->ID;
 			} else {
 				$author = get_user_by( 'login', $author ); // Get author by username.
 
 				if ( is_object( $author ) ) {
-					$authors[] = $author->ID;
+					$return[] = $author->ID;
 				}
 			}
 		}
 	}
 
-	return $authors;
+	return $return;
 }
 
 /**

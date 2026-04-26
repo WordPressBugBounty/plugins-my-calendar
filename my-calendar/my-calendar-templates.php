@@ -378,8 +378,8 @@ function mc_google_cal( $dtstart, $dtend, $url, $title, $location, $description 
  * @return string
  */
 function mc_outlook_cal( $dtstart, $dtend, $url, $title, $location, $description, $allday ) {
-	$start  = gmdate( 'Ymd\THi00\Z', strtotime( $dtstart ) );
-	$end    = gmdate( 'Ymd\THi00\Z', strtotime( $dtend ) );
+	$start  = gmdate( 'Y-m-d\THi00\Z', strtotime( $dtstart ) );
+	$end    = gmdate( 'Y-m-d\THi00\Z', strtotime( $dtend ) );
 	$source = 'https://outlook.live.com/calendar/0/action/compose';
 
 	$args = array(
@@ -476,9 +476,9 @@ function mc_hcard( $event, $address = 'true', $map = 'true', $source = 'event' )
 		$distance = ' (' . $dist . ')';
 	}
 	if ( is_admin() && isset( $_GET['page'] ) && 'my-calendar-location-manager' === $_GET['page'] ) {
-		$link = "<a href='" . add_query_arg( 'location_id', $loc_id, admin_url( 'admin.php?page=my-calendar-locations&mode=edit' ) ) . "' class='location-link edit p-name p-org u-url'><span class='dashicons dashicons-edit' aria-hidden='true'></span> <span id='location$event->location_id'>$label</span></a>";
+		$link = "<a href='" . add_query_arg( 'location_id', $loc_id, admin_url( 'admin.php?page=my-calendar-locations&mode=edit' ) ) . "' class='location-link org edit p-name p-org u-url'><span class='dashicons dashicons-edit' aria-hidden='true'></span> <span id='location$event->location_id'>$label</span></a>";
 	} else {
-		$link = ( '' !== $url ) ? "<a href='$url' class='location-link external p-name p-org u-url'><span class='mc-icon' aria-hidden='true'></span>$label</a>" : $label;
+		$link = ( '' !== $url ) ? "<a href='$url' class='location-link external org p-name p-org u-url'><span class='mc-icon' aria-hidden='true'></span>$label</a>" : '<span class="location-link org edit p-name p-org">' . $label . '</span>';
 		$link = $link . $distance;
 	}
 	$post   = ( property_exists( $event, 'location_post' ) && absint( $event->location_post ) ) ? $event->location_post : mc_get_location_post( $loc_id );
@@ -498,7 +498,7 @@ function mc_hcard( $event, $address = 'true', $map = 'true', $source = 'event' )
 	$hcard  = '<div class="address location vcard">';
 	if ( 'true' === $address ) {
 		$hcard .= '<div class="adr h-card">';
-		$hcard .= ( '' !== $label ) ? '<div><strong class="location-link">' . $link . '</strong></div>' : '';
+		$hcard .= ( '' !== $label ) ? '<div><strong class="location-label">' . $link . '</strong></div>' : '';
 		$hcard .= ( '' === $street . $street2 . $city . $state . $zip . $country . $phone . $events ) ? '' : "<div class='sub-address'>";
 		$hcard .= ( '' !== $street ) ? '<div class="street-address p-street-address">' . $street . '</div>' : '';
 		$hcard .= ( '' !== $street2 ) ? '<div class="street-address p-extended-address">' . $street2 . '</div>' : '';
@@ -1163,7 +1163,10 @@ function mc_get_details_label( $event, $e ) {
  */
 function mc_date_badge( $date ) {
 	$time  = strtotime( $date );
-	$badge = '<time class="mc-date-badge" datetime="' . mc_date( 'Y-m-d', $time ) . '"><span class="month">' . date_i18n( 'M', mc_date( '', $time ) ) . '</span><span class="day">' . mc_date( 'j', $time ) . '</span></time>';
+	$badge = '<time class="mc-date-badge" datetime="' . mc_date( 'Y-m-d', $time, false ) . '">
+		<span class="month">' . date_i18n( 'M', mc_date( '', $time, false ) ) . '</span>
+		<span class="day">' . mc_date( 'j', $time, false ) . '</span>
+	</time>';
 	/**
 	 * Filter the date badge HTML.
 	 *
@@ -2158,10 +2161,31 @@ function mc_template_access( $data, $type = 'calendar', $text = '', $return_type
 		$access_heading = ( $text ) ? $text : $access_heading;
 		$access_data    = get_post_meta( $event->event_post, '_mc_event_access', true );
 		$notes          = ( is_array( $access_data ) ) ? $access_data['notes'] : $access_data;
-		$sublevel       = 'h2';
+		$sublevel       = mc_get_heading_level(
+			array(
+				'format' => $type,
+			),
+			''
+		);
 		if ( 'mini' === $type || 'list' === $type || 'list' === $time ) {
 			// In some views, levels are reduced one because there are multiple events.
-			$sublevel = ( 'list' === $time ) ? 'h4' : 'h3';
+			if ( 'list' === $time ) {
+				$sublevel = mc_get_heading_level(
+					array(
+						'format' => $type,
+					),
+					'',
+					'tertiary'
+				);
+			} else {
+				$sublevel = mc_get_heading_level(
+					array(
+						'format' => $type,
+					),
+					'',
+					'secondary'
+				);
+			}
 		}
 		$terms  = wp_get_object_terms( $event->event_post, 'mc-event-access' );
 		$access = array();
@@ -2211,7 +2235,7 @@ function mc_template_location_access( $data, $text = false ) {
 
 	$access_heading = __( 'Location Accessibility', 'my-calendar' );
 	$access_heading = ( $text ) ? $text : $access_heading;
-	$sublevel       = 'h2';
+	$sublevel       = mc_get_heading_level();
 
 	$terms  = wp_get_object_terms( $location->location_post, 'mc-location-access' );
 	$access = array();
