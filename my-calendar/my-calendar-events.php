@@ -365,6 +365,7 @@ function mc_get_all_events( $args ) {
 	$ts_string        = mc_ts();
 	$select_window    = ( ! $before ) ? 'AND occur_begin > ' . $now_limit : '';
 	$select_window    = ( ! $after ) ? 'AND occur_end < ' . $now_limit : $select_window;
+	$now_limit        = "$select_published $select_category $select_author $select_host $select_access $search";
 	$limit            = "$select_published $select_category $select_author $select_host $select_access $search $select_window";
 
 	// New Query style.
@@ -384,6 +385,25 @@ function mc_get_all_events( $args ) {
 		$exclude_categories
 		ORDER BY $ordering ASC LIMIT 0,$total"
 	);
+
+	if ( 'now' === $time ) {
+		$now_events_time = current_time( 'Y-m-d H:i:s' );
+		$event_query     = 'SELECT *, ' . $ts_string . '
+			FROM ' . my_calendar_event_table( $site ) . ' AS o
+			JOIN ' . my_calendar_table( $site ) . " AS e
+			ON (event_id=occur_event_id)
+			$join
+			$location_join
+			JOIN " . my_calendar_categories_table( $site ) . " AS c
+			ON (event_category=category_id)
+			WHERE $now_limit
+			$exclude_categories
+			AND ( CAST('$now_events_time' AS DATETIME) BETWEEN occur_begin AND occur_end )
+			ORDER BY $ordering ASC LIMIT 0,$total";
+
+		$now_events = $mcdb->get_results( $event_query );
+		$events     = array_merge( $events, $now_events );
+	}
 
 	$cats = array();
 	foreach ( array_keys( $events ) as $key ) {
@@ -555,7 +575,8 @@ function mc_get_search_results( $search, $time = '' ) {
 	 *
 	 * @return {int}
 	 */
-	$after = apply_filters( 'mc_future_search_results', 15 );
+	$after       = apply_filters( 'mc_future_search_results', 15 );
+	$event_array = array();
 	if ( is_array( $search ) ) {
 		// If from & to are set, we need to use a date-based event query.
 		$from     = mc_checkdate( $search['from'] );
@@ -832,7 +853,7 @@ function my_calendar_events_now( $category = 'default', $template = '<strong>{li
 	$select_author   = '';
 	$select_host     = '';
 	/**
-	 * Set primary sort for getting today's events. Default 'occur_begin'.
+	 * Set primary sort for getting happening events. Default 'occur_begin'.
 	 *
 	 * @hook mc_primary_sort
 	 *
@@ -843,7 +864,7 @@ function my_calendar_events_now( $category = 'default', $template = '<strong>{li
 	 */
 	$primary_sort = apply_filters( 'mc_primary_sort', 'occur_begin', 'my_calendar_events_now' );
 	/**
-	 * Set secondary sort for getting today's events. Default 'event_title ASC'.
+	 * Set secondary sort for getting happening events. Default 'event_title ASC'.
 	 *
 	 * @hook mc_secondary_sort
 	 *
@@ -1385,19 +1406,22 @@ function mc_status_links( $allow_filters ) {
 	// Translators: Number of total events.
 	$arc_text = sprintf( __( 'Archived (%d)', 'my-calendar' ), $counts['archive'] );
 
-	$can_text = '';
+	$can_text       = '';
+	$can_attributes = '';
 	if ( isset( $counts['cancel'] ) && 0 < (int) $counts['cancel'] ) {
 		$can_attributes = ( isset( $_GET['limit'] ) && 'cancelled' === $_GET['limit'] ) ? ' aria-current="true"' : '';
 		// Translators: Number of total events.
 		$can_text = sprintf( __( 'Cancelled (%d)', 'my-calendar' ), $counts['cancel'] );
 	}
-	$pri_text = '';
+	$pri_text       = '';
+	$pri_attributes = '';
 	if ( isset( $counts['private'] ) && 0 < (int) $counts['private'] ) {
 		$pri_attributes = ( isset( $_GET['limit'] ) && 'private' === $_GET['limit'] ) ? ' aria-current="true"' : '';
 		// Translators: Number of total events.
 		$pri_text = sprintf( __( 'Private (%d)', 'my-calendar' ), $counts['private'] );
 	}
-	$per_text = '';
+	$per_text       = '';
+	$per_attributes = '';
 	if ( isset( $counts['personal'] ) && 0 < (int) $counts['personal'] ) {
 		$per_attributes = ( isset( $_GET['limit'] ) && 'personal' === $_GET['limit'] ) ? ' aria-current="true"' : '';
 		// Translators: Number of total events.

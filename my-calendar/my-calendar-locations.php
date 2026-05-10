@@ -350,7 +350,7 @@ function mc_insert_location( $post ) {
 	 * @param {array} $add Array of location parameters to add.
 	 * @param {array} $post POST array.
 	 *
-	 * @return Before priority 10, returns the location ID; after priority 10 returns the location post ID. Sorry.
+	 * @return int Before priority 10, returns the location ID; after priority 10 returns the location post ID. Sorry.
 	 */
 	$results = apply_filters( 'mc_save_location', $insert_id, $add, $post );
 
@@ -367,7 +367,12 @@ function mc_insert_location( $post ) {
  */
 function mc_count_locations() {
 	global $wpdb;
+	$count = get_transient( 'mc_location_count' );
+	if ( $count ) {
+		return $count;
+	}
 	$count = $wpdb->get_var( 'SELECT COUNT(*) FROM ' . my_calendar_locations_table() ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+	set_transient( 'mc_location_count', $count, DAY_IN_SECONDS );
 
 	return $count;
 }
@@ -490,6 +495,7 @@ function my_calendar_add_locations() {
 	$post = map_deep( $_POST, 'wp_kses_post' );
 
 	if ( isset( $post['mode'] ) && 'add' === $post['mode'] ) {
+		delete_transient( 'mc_location_count' );
 
 		$results     = mc_insert_location( $post );
 		$location_id = $results['location_id'];
@@ -514,6 +520,7 @@ function my_calendar_add_locations() {
 			mc_update_option( 'default_location', (int) $location_id );
 		}
 	} elseif ( isset( $_GET['location_id'] ) && 'delete' === $_GET['mode'] ) {
+		delete_transient( 'mc_location_count' );
 		$loc = absint( $_GET['location_id'] );
 		echo wp_kses_post( mc_delete_location( $loc ) );
 	} elseif ( isset( $_GET['mode'] ) && isset( $_GET['location_id'] ) && 'edit' === $_GET['mode'] && ! isset( $post['mode'] ) ) {
@@ -706,6 +713,10 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
  * @return object|false location if found
  */
 function mc_get_location( $location_id, $update_location = true ) {
+	static $location_cache = array();
+	if ( isset( $location_cache[ $location_id ] ) ) {
+		return $location_cache[ $location_id ];
+	}
 	if ( ! is_admin() ) {
 		$location = get_transient( 'mc_location_' . $location_id );
 		if ( $location ) {
@@ -750,6 +761,7 @@ function mc_get_location( $location_id, $update_location = true ) {
 	if ( ! is_admin() ) {
 		set_transient( 'mc_location_' . $location_id, $location, WEEK_IN_SECONDS );
 	}
+	$location_cache[ $location_id ] = $location;
 
 	return $location;
 }

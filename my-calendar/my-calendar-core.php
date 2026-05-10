@@ -1528,6 +1528,16 @@ function mc_admin_bar() {
 		);
 		$wp_admin_bar->add_node( $args );
 	}
+	if ( function_exists( 'mcs_submissions' ) && is_numeric( get_option( 'mcs_edit_id' ) ) && mcs_user_can_submit_events() ) {
+		$url  = get_permalink( get_option( 'mcs_edit_id' ) );
+		$args = array(
+			'id'     => 'mc-edit-events',
+			'title'  => __( 'Public Event List', 'my-calendar' ),
+			'href'   => $url,
+			'parent' => 'mc-my-calendar',
+		);
+		$wp_admin_bar->add_node( $args );
+	}
 }
 
 /**
@@ -1827,7 +1837,8 @@ function mc_enqueue_duet() {
 		'mc.duet',
 		'duetFormats',
 		array(
-			'date' => ( get_option( 'mcs_date_format', '' ) ) ? get_option( 'mcs_date_format' ) : 'Y-m-d',
+			'date'  => ( get_option( 'mcs_date_format', '' ) ) ? get_option( 'mcs_date_format' ) : 'Y-m-d',
+			'error' => __( 'Your selected end date is before your start date.', 'my-calendar' ),
 		)
 	);
 	wp_localize_script(
@@ -2048,25 +2059,6 @@ function mc_scripts() {
 			)
 		);
 	}
-}
-
-
-/**
- * Get the My Calendar time format.
- *
- * @return string format.
- */
-function mc_time_format() {
-	$mc_time_format = mc_get_option( 'time_format' );
-	$time_format    = get_option( 'time_format', '' );
-	if ( '' === $mc_time_format ) {
-		$mc_time_format = $time_format;
-	}
-	if ( '' === $mc_time_format ) {
-		$mc_time_format = 'h:i a';
-	}
-
-	return $mc_time_format;
 }
 
 /**

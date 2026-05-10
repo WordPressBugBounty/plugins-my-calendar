@@ -3,10 +3,10 @@ Contributors: joedolson
 Donate link: https://www.joedolson.com/donate/
 Tags: event manager, event calendar, venue, location, accessibility
 Requires at least: 6.5
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.7.9
+Stable tag: 3.7.10
 License: GPL-2.0+
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -17,7 +17,7 @@ Accessible WordPress event calendar plugin. Manage single or recurring events, e
 
 = Rich Event Calendar Features =
 
-You'll find enormous design flexibility fo your custom calendar. With recurring event support, design customization tools, custom templating, and category and venue support out of the box, My Calendar gives you a great feature set to get your calendar set up.
+You'll find enormous design flexibility for your custom calendar. With recurring event support, design customization tools, custom templating, and category and venue support out of the box, My Calendar gives you a great feature set to get your calendar set up.
 
 = Built with Accessibility in Mind =
 
@@ -112,6 +112,23 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.7.10 =
+
+* Accessibility: End date error message always announced to screen readers.
+* Accessibility: Increase width of default event title focus outline.
+* Performance: Memoised frequently queried values.
+* Performance: Don't disable category transients in WP_DEBUG.
+* Change: Removed legacy My Calendar Pro support (more than 5 years)
+* Change: Hide 'author' column if only one author.
+* Bug fix: Fixed a handful of potentially undefined variables.
+* Bug fix: Set missing color on modal heading.
+* Bug fix: Remove line breaks from date badge because wpautop.
+* Bug fix: Empty '.recurs' div if not recurring.
+* New action: `mc_before_delete_event`. Needed so actions can have access to event data.
+* Style improvements: Recurring events panel.
+* Remove PHP < 7.4 supports.
+* Security: Missing publication authorization check via `event_approved` parameter. Props type5afe via WordFence.
 
 = 3.7.9 =
 

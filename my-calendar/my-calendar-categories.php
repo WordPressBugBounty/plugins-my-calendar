@@ -28,6 +28,7 @@ function mc_update_category( $field, $data, $category ) {
 	$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . my_calendar_categories_table() . " SET $field = %d WHERE category_id=%d", $data, $category ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 	// Delete category caches.
 	delete_transient( 'mc_cat_' . $category );
+	delete_transient( 'mc_private_categories' );
 
 	return $result;
 }
@@ -50,7 +51,7 @@ function mc_directory_list( $directory ) {
 	if ( ! $wp_filesystem->exists( $directory ) ) {
 		return array();
 	}
-	$results = ( WP_DEBUG ) ? array() : get_transient( 'mc_icon_list' );
+	$results = get_transient( 'mc_icon_list' );
 	if ( empty( $results ) ) {
 		$results = array();
 		$files   = list_files( $directory );
@@ -111,6 +112,10 @@ function mc_private_categories( $args = array() ) {
  * @return array private categories
  */
 function mc_get_private_categories() {
+	$cache = get_transient( 'mc_private_categories' );
+	if ( $cache ) {
+		return $cache;
+	}
 	$mcdb       = mc_is_remote_db();
 	$table      = my_calendar_categories_table();
 	$query      = 'SELECT category_id FROM `' . $table . '` WHERE category_private = 1';
@@ -129,7 +134,10 @@ function mc_get_private_categories() {
 	 *
 	 * @return {array}
 	 */
-	return apply_filters( 'mc_private_categories', $categories );
+	$return = apply_filters( 'mc_private_categories', $categories );
+	set_transient( 'mc_private_categories', $return, WEEK_IN_SECONDS );
+
+	return $return;
 }
 
 /**
@@ -792,9 +800,14 @@ function mc_no_category_default( $single = false ) {
  * @return object
  */
 function mc_get_category( $category ) {
+	static $cat_cache = array();
+	if ( is_int( $category ) && isset( $cat_cache[ $category ] ) && ! is_admin() ) {
+		return $cat_cache[ $category ];
+	}
 	if ( is_int( $category ) ) {
 		$cat = get_transient( 'mc_cat_' . $category );
 		if ( $cat ) {
+			$cat_cache[ (int) $category ] = $cat;
 			return $cat;
 		}
 	}

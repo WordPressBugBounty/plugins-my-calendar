@@ -283,17 +283,26 @@ function mc_create_event_post( $data, $event_id ) {
 		$post_status = $privacy;
 		$auth        = $data['event_author'];
 		$type        = 'mc-events';
-		$my_post     = array(
+		/**
+		 * Filter the permalink slug for My Calendar events. Return value will be run through `sanitize_title()`.
+		 *
+		 * @hook mc_event_permalink_slug
+		 *
+		 * @param {string} $title The event title, before sanitizing.
+		 * @param {array}  $data Array of event data.
+		 */
+		$post_name = apply_filters( 'mc_event_permalink_slug', $title, $data );
+		$my_post   = array(
 			'post_title'   => $title,
 			'post_content' => $description,
 			'post_status'  => $post_status,
 			'post_author'  => $auth,
-			'post_name'    => sanitize_title( $title ),
+			'post_name'    => sanitize_title( $post_name ),
 			'post_date'    => current_time( 'Y-m-d H:i:s' ),
 			'post_type'    => $type,
 			'post_excerpt' => $excerpt,
 		);
-		$post_id     = wp_insert_post( $my_post );
+		$post_id   = wp_insert_post( $my_post );
 		wp_set_object_terms( $post_id, $terms, 'mc-event-category' );
 		$attachment_id = false;
 		if ( isset( $post['event_image_id'] ) ) {
@@ -563,6 +572,7 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 	$proceed    = (bool) $output[0];
 	$post       = $output[4];
 	$message    = '';
+	$type       = 'notice';
 	$event_post = false;
 	$formats    = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d' );
 
@@ -792,10 +802,6 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 			} else {
 				// do an action using the $action and processed event data.
 				$new_event_status = ( current_user_can( 'mc_approve_events' ) ) ? 1 : 0;
-				// check for event_approved provides support for older versions of My Calendar Pro.
-				if ( isset( $post['event_approved'] ) && $post['event_approved'] !== $new_event_status ) {
-					$new_event_status = absint( $post['event_approved'] );
-				}
 				if ( isset( $post['prev_event_status'] ) ) {
 					/**
 					 * Execute an action when an event changes status.
@@ -858,6 +864,15 @@ function mc_delete_event( $event_id ) {
 		$instance = false;
 		$post_id  = mc_get_data( 'event_post', $event_id );
 		if ( empty( $_POST['event_instance'] ) ) {
+			/**
+			 * Action run just before an event is deleted.
+			 *
+			 * @hook mc_before_delete_event
+			 *
+			 * @param {int} $event_id Event ID.
+			 * @param {int} $post_id Event Post ID.
+			 */
+			do_action( 'mc_before_delete_event', $event_id, $post_id );
 			// Delete from instance table.
 			$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . my_calendar_event_table() . ' WHERE occur_event_id=%d', $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			// Delete from event table.
@@ -1137,7 +1152,7 @@ function mc_datepicker_html( $args ) {
  * @param string    $default_str Default string value.
  * @param int|false $group_id If in group editing, group ID.
  *
- * @return string.
+ * @return string
  */
 function mc_show_block( $field, $has_data, $data, $display = true, $default_str = '', $group_id = false ) {
 	global $user_ID;
@@ -2235,9 +2250,6 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 	$desc               = '';
 	$primary            = 1;
 
-	if ( version_compare( PHP_VERSION, '7.4', '<' ) && get_magic_quotes_gpc() ) { //phpcs:ignore PHPCompatibility.FunctionUse.RemovedFunctions.get_magic_quotes_gpcDeprecated
-		$post = array_map( 'stripslashes_deep', $post );
-	}
 	if ( ! wp_verify_nonce( $post['event_nonce_name'], 'event_nonce' ) ) {
 		return array();
 	}
@@ -2380,10 +2392,6 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 		$event_link   = ! empty( $post['event_link'] ) ? trim( $post['event_link'] ) : '';
 		$expires      = ! empty( $post['event_link_expires'] ) ? $post['event_link_expires'] : '0';
 		$approved     = ( current_user_can( 'mc_approve_events' ) ) ? 1 : 0;
-		// Check for event_approved provides support for older versions of My Calendar Pro.
-		if ( isset( $post['event_approved'] ) && $post['event_approved'] !== $approved ) {
-			$approved = absint( $post['event_approved'] );
-		}
 
 		$saved_location     = ! empty( $post['preset_location'] ) ? $post['preset_location'] : '';
 		$select_location    = ( ! empty( $post['location_preset'] ) ) ? $post['location_preset'] : '';
@@ -2921,7 +2929,7 @@ function mc_standard_datetime_input( $form, $has_data, $data, $instance, $contex
 		<label for="mc_event_date" id="eblabel">' . __( 'Date', 'my-calendar' ) . '</label> ' . $picker_begin . '
 		</p>
 		<p>
-			<label for="mc_event_enddate" id="eelabel" aria-labelledby="eelabel event_date_error"><em>' . __( 'End Date (optional)', 'my-calendar' ) . '</em></label> ' . $picker_end . '<span id="event_date_error" aria-live="assertive"><span class="dashicons dashicons-no" aria-hidden="true"></span>' . __( 'Your selected end date is before your start date.', 'my-calendar' ) . '</span>
+			<label for="mc_event_enddate" id="eelabel" aria-labelledby="eelabel event_date_error"><em>' . __( 'End Date (optional)', 'my-calendar' ) . '</em></label> ' . $picker_end . '<span id="event_date_error" aria-live="assertive"></span>
 		</p>
 	</div>
 	<ul class="checkboxes">

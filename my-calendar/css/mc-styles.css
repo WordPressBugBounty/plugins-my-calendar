@@ -306,9 +306,13 @@ li.datetime-template:nth-of-type(even) {
 
 #event_date_error.visible {
 	opacity: 1;
+	display: flex;
+	align-items: center;
 }
 
-#event_date_error .dashicons {
+#event_date_error.visible::before {
+	content: "\f158";
+	font-family: dashicons;
 	color: #a00;
 }
 
@@ -316,11 +320,22 @@ li.datetime-template:nth-of-type(even) {
 	opacity: 0;
 }
 
+#my-calendar .duet-date__input {
+	border-radius: 0 !important;
+	padding: 11px 60px 10px 14px;
+}
+
 #e_schedule .columns label:not(.duet-date__mobile-heading),
 .recurrences .columns label:not(.duet-date__mobile-heading),
 .recurring .columns label:not(.duet-date__mobile-heading) {
 	display: block;
 	max-width: fit-content;
+}
+
+.recurrences-disabled {
+	display: flex;
+	align-items: center;
+	gap: .5rem;
 }
 
 #e_schedule .columns .checkboxes label {
@@ -345,18 +360,6 @@ li.datetime-template:nth-of-type(even) {
 	outline-offset: 2px;
 }
 
-.recurrences input[type=time],
-#e_schedule input[type=time],
-.my-calendar-admin input[type=date],
-.recurring select {
-	padding: 8px 24px 8px 8px;
-}
-
-.recurring input[type=number] {
-	padding: 8px;
-	width: 5em;
-}
-
 #event1 .new-field {
 	display: none;
 }
@@ -367,11 +370,9 @@ p.event_span {
 }
 
 p.event_span.checkboxes {
-	border: 1px solid #c3c4c7;
-	border-radius: 3px;
-	padding: 1em 1em .5em;
-	background: #f0f0f1;
-	margin-bottom: 1em;
+	padding: 1em;
+	background: rgba( 0, 0, 0, .04 );
+	align-items: center;
 }
 
 ol.mc-repeat-events {
@@ -1612,10 +1613,6 @@ ul.mc-variables li:has(.wp-picker-active) label {
 
 .generator input {
 	line-height: normal;
-}
-
-select[name="event_recur"] {
-	vertical-align: top;
 }
 
 .my-calendar-admin li.events_access_notes {

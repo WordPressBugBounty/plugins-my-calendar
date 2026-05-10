@@ -221,7 +221,8 @@ function mc_map_string( $event, $source = 'event' ) {
 	if ( ! is_object( $event ) ) {
 		return '';
 	}
-	$event = mc_get_event_location( $event, $source );
+	$map_string = '';
+	$event      = mc_get_event_location( $event, $source );
 	if ( $event ) {
 		$map_string = $event->location_street . ' ' . $event->location_street2 . ' ' . $event->location_city . ' ' . $event->location_state . ' ' . $event->location_postcode . ' ' . $event->location_country;
 	}
@@ -548,6 +549,10 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	if ( ! is_object( $event ) ) {
 		return array();
 	}
+	static $tag_cache = array();
+	if ( isset( $tag_cache[ $event->occur_id ] ) ) {
+		return $tag_cache[ $event->occur_id ];
+	}
 	$location = mc_get_event_location( $event, 'event' );
 	/**
 	 * Execute action before tags are created.
@@ -595,15 +600,16 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	$terms       = wp_get_object_terms( $event->event_post, 'mc-event-access' );
 	$term_list   = implode( ', ', wp_list_pluck( $terms, 'name' ) );
 	$e['access'] = $term_list;
+	$is_all_day  = mc_is_all_day( $event );
 
 	// Date & time fields.
 	$real_end_date   = ( isset( $event->occur_end ) ) ? $event->occur_end : $event->event_end . ' ' . $event->event_endtime;
-	$real_end_time   = ( mc_is_all_day( $event ) ) ? strtotime( $real_end_date ) + 60 : strtotime( $real_end_date );
+	$real_end_time   = ( $is_all_day ) ? strtotime( $real_end_date ) + 60 : strtotime( $real_end_date );
 	$real_begin_date = ( isset( $event->occur_begin ) ) ? $event->occur_begin : $event->event_begin . ' ' . $event->event_time;
-	$dtstart         = mc_format_timestamp( strtotime( $real_begin_date ), $context );
-	$dtend           = mc_format_timestamp( $real_end_time, $context );
-	$recur_start     = mc_format_timestamp( strtotime( $event->event_begin . ' ' . $event->event_time ), $context );
-	$recur_end       = mc_format_timestamp( strtotime( $event->event_end . ' ' . $event->event_endtime ), $context );
+	$dtstart         = mc_format_timestamp( strtotime( $real_begin_date ) );
+	$dtend           = mc_format_timestamp( $real_end_time );
+	$recur_start     = mc_format_timestamp( strtotime( $event->event_begin . ' ' . $event->event_time ) );
+	$recur_end       = mc_format_timestamp( strtotime( $event->event_end . ' ' . $event->event_endtime ) );
 	/**
 	 * Start date format used in 'date_utc'. Default from My Calendar settings.
 	 *
@@ -627,14 +633,14 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	 */
 	$e['date_end_utc'] = date_i18n( apply_filters( 'mc_date_utc_format', $date_format, 'template_end_ts' ), $event->ts_occur_end );
 	$notime            = esc_html( mc_notime_label( $event ) );
-	$e['time']         = ( mc_is_all_day( $event ) ) ? $notime : mc_date( mc_time_format(), strtotime( $real_begin_date ), false );
-	$e['time24']       = ( mc_is_all_day( $event ) ) ? $notime : mc_date( 'G:i', strtotime( $real_begin_date ), false );
+	$e['time']         = ( $is_all_day ) ? $notime : mc_date( mc_time_format(), strtotime( $real_begin_date ), false );
+	$e['time24']       = ( $is_all_day ) ? $notime : mc_date( 'G:i', strtotime( $real_begin_date ), false );
 	$endtime           = ( '23:59:59' === $event->event_end ) ? '00:00:00' : mc_date( 'H:i:s', strtotime( $real_end_date ), false );
 	$e['endtime']      = ( $real_end_date === $real_begin_date || '1' === $event->event_hide_end || '23:59:59' === mc_date( 'H:i:s', strtotime( $real_end_date ), false ) ) ? '' : date_i18n( mc_time_format(), strtotime( $endtime ) );
 	$e['runtime']      = mc_runtime( $event->ts_occur_begin, $event->ts_occur_end, $event );
 	$e['duration']     = mc_duration( $event );
 	$e['dtstart']      = mc_date( 'Y-m-d\TH:i:s', strtotime( $real_begin_date ), false );  // Date: hcal formatted.
-	$hcal_dt_end       = ( mc_is_all_day( $event ) ) ? strtotime( $real_end_date ) + 60 : strtotime( $real_end_date );
+	$hcal_dt_end       = ( $is_all_day ) ? strtotime( $real_end_date ) + 60 : strtotime( $real_end_date );
 	$e['dtend']        = mc_date( 'Y-m-d\TH:i:s', $hcal_dt_end, false );    // Date: hcal formatted end.
 	$e['userstart']    = '<time class="mc-user-time" data-type="datetime" data-label="' . __( 'Local time:', 'my-calendar' ) . '">' . mc_date( 'Y-m-d\TH:i:s\Z', $event->ts_occur_begin, false ) . '</time>';
 	$e['userend']      = '<time class="mc-user-time" data-type="datetime" data-label="' . __( 'Local time:', 'my-calendar' ) . '">' . mc_date( 'Y-m-d\TH:i:s\Z', $event->ts_occur_end, false ) . '</time>';
@@ -888,14 +894,14 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	}
 
 	$strip_desc = mc_newline_replace( wp_strip_all_tags( $event->event_desc ) ) . ' ' . $e['link'];
-	if ( mc_is_all_day( $event ) ) {
+	if ( $is_all_day ) {
 		$google_start = mc_date( 'Ymd', strtotime( $dtstart ), false );
 		$google_end   = mc_date( 'Ymd', strtotime( $dtend ), false );
 	} else {
 		$google_start = $dtstart;
 		$google_end   = $dtend;
 	}
-	$allday            = mc_is_all_day( $event ) ? 'true' : 'false';
+	$allday            = $is_all_day ? 'true' : 'false';
 	$aria_described    = ( $calendar_id ) ? " aria-describedby='mc_$event->occur_id-title-$calendar_id'" : '';
 	$e['gcal']         = mc_google_cal( $google_start, $google_end, $e_link, wp_unslash( $e['title'] ), $map_gcal, $strip_desc );
 	$e['gcal_link']    = "<a href='" . esc_url( $e['gcal'] ) . "' class='gcal external' rel='nofollow'" . $aria_described . "><span class='mc-icon' aria-hidden='true'></span>" . __( 'Google', 'my-calendar' ) . '</a>';
@@ -912,10 +918,10 @@ function mc_create_tags( $event, $context = 'filters' ) {
 
 	// ICAL.
 	$e['ical_desc']       = $strip_desc;
-	$e['ical_start']      = ( mc_is_all_day( $event ) ) ? mc_date( 'Ymd', strtotime( $recur_start ), false ) : $recur_start;
-	$e['ical_end']        = ( mc_is_all_day( $event ) ) ? mc_date( 'Ymd', strtotime( $recur_end ) + 60, false ) : $recur_end;
-	$e['ical_date_start'] = ( mc_is_all_day( $event ) ) ? mc_date( 'Ymd', strtotime( $dtstart ), false ) : $dtstart;
-	$e['ical_date_end']   = ( mc_is_all_day( $event ) ) ? mc_date( 'Ymd', strtotime( $dtend ) + 60, false ) : $dtend;
+	$e['ical_start']      = ( $is_all_day ) ? mc_date( 'Ymd', strtotime( $recur_start ), false ) : $recur_start;
+	$e['ical_end']        = ( $is_all_day ) ? mc_date( 'Ymd', strtotime( $recur_end ) + 60, false ) : $recur_end;
+	$e['ical_date_start'] = ( $is_all_day ) ? mc_date( 'Ymd', strtotime( $dtstart ), false ) : $dtstart;
+	$e['ical_date_end']   = ( $is_all_day ) ? mc_date( 'Ymd', strtotime( $dtend ) + 60, false ) : $dtend;
 	$e['ical_recur']      = mc_generate_rrule( $event );
 	$ical_link            = mc_build_url(
 		array( 'vcal' => $event->occur_id ),
@@ -954,6 +960,7 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	 * @param {string} $context Current execution context.
 	 */
 	do_action( 'mc_tags_created', $event, $context );
+	$tag_cache[ $event->occur_id ] = $e;
 
 	return $e;
 }
@@ -1163,10 +1170,7 @@ function mc_get_details_label( $event, $e ) {
  */
 function mc_date_badge( $date ) {
 	$time  = strtotime( $date );
-	$badge = '<time class="mc-date-badge" datetime="' . mc_date( 'Y-m-d', $time, false ) . '">
-		<span class="month">' . date_i18n( 'M', mc_date( '', $time, false ) ) . '</span>
-		<span class="day">' . mc_date( 'j', $time, false ) . '</span>
-	</time>';
+	$badge = '<time class="mc-date-badge" datetime="' . mc_date( 'Y-m-d', $time, false ) . '"><span class="month">' . date_i18n( 'M', mc_date( '', $time, false ) ) . '</span><span class="day">' . mc_date( 'j', $time, false ) . '</span></time>';
 	/**
 	 * Filter the date badge HTML.
 	 *
@@ -1687,16 +1691,17 @@ function mc_search_highlight( $string1, $string2 = '', $term = '' ) {
 	} else {
 		$use = $string1;
 	}
-	$use    = wp_strip_all_tags( $use );
-	$length = strlen( $use );
-	$start  = 0;
+	$use       = wp_strip_all_tags( $use );
+	$length    = strlen( $use );
+	$start     = 0;
+	$positions = array();
 	if ( $length > 160 ) {
 		foreach ( $terms as $t ) {
 			$positions[] = stripos( $use, $t );
 		}
 		// Use the first term referenced for positioning.
 		sort( $positions );
-		$position = $positions[0];
+		$position = $positions[0] ?? false;
 		// Search term not found.
 		if ( false === $position ) {
 			return substr( $use, 0, 160 );

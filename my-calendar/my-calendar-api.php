@@ -80,10 +80,9 @@ function my_calendar_api() {
 				 *
 				 * @return {array}
 				 */
-				$args   = apply_filters( 'mc_filter_api_args', $args, $request );
-				$data   = my_calendar_events( $args );
-				$output = mc_format_api( $data, $format );
-				echo wp_kses_post( $output );
+				$args = apply_filters( 'mc_filter_api_args', $args, $request );
+				$data = my_calendar_events( $args );
+				mc_format_api( $data, $format );
 			}
 			die;
 		} else {
@@ -159,11 +158,11 @@ function mc_api_format_csv( $data ) {
 				unset( $values['event_id'] );
 			}
 
-			foreach ( $values as $key => $text ) {
+			foreach ( $values as $k => $text ) {
 				if ( is_array( $text ) ) {
 					$text = implode( '|', $text );
 				}
-				$values[ $key ] = mc_clean_data( $text );
+				$values[ $k ] = mc_clean_data( $text );
 			}
 			if ( ! $keyed ) {
 				$keys = array_keys( $values );
@@ -274,14 +273,14 @@ function mc_ics_subscribe() {
  * Generate Google subscribe feed data.
  */
 function mc_ics_subscribe_google() {
-	mc_ics_subscribe( 'google' );
+	mc_ics_subscribe();
 }
 
 /**
  * Generate Outlook subscribe feed data.
  */
 function mc_ics_subscribe_outlook() {
-	mc_ics_subscribe( 'outlook' );
+	mc_ics_subscribe();
 }
 
 /**

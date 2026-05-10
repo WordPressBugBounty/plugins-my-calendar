@@ -178,6 +178,7 @@ function mc_author_select_ids( $author ) {
 		} else {
 			$authors = explode( ',', $author );
 		}
+		$add = false;
 		foreach ( $authors as $index => $key ) {
 			$key = trim( $key );
 			if ( is_numeric( $key ) ) {
@@ -189,8 +190,9 @@ function mc_author_select_ids( $author ) {
 				$author = get_user_by( 'login', $key ); // Get author by username.
 				$add    = ( $author ) ? $author->ID : false;
 			}
-
-			$return[] = ( $add ) ?? $add;
+			if ( $add ) {
+				$return[] = $add;
+			}
 		}
 	} else {
 		if ( is_numeric( $author ) ) {

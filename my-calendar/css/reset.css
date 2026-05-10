@@ -1153,7 +1153,7 @@ button.mc-toggle:hover, button.mc-toggle:focus {
 .mc-main .event-title button:hover,
 .mc-main .event-title button:focus {
 	cursor: default;
-	outline: 1px solid var(--highlight-light);
+	outline: 2px solid var(--highlight-light);
 	outline-offset: -2px;
 }
 
@@ -1571,6 +1571,7 @@ dialog.my-calendar-modal .mc-modal-title-container {
 
 dialog.my-calendar-modal #modal-title {
 	font-size: var(--modal-title);
+	color: var(--primary-dark);
 	margin: 0;
 	padding: 0;
 	box-sizing: border-box;

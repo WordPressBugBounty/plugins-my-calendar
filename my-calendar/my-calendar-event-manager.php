@@ -93,10 +93,10 @@ function mc_bulk_action( $action, $events = array() ) {
 					 *
 					 * @hook mcs_complete_submission
 					 *
-					 * @param {string} $name Submitter's name.
-					 * @param {string} $email Submitter's email.
-					 * @param {int}    $id Event ID.
-					 * @param {string} $action Action performed ('edit').
+					 * @param {string}     $name Submitter's name.
+					 * @param {string}     $email Submitter's email.
+					 * @param {int|object} $id Event ID in bulk actions; event object in single actions.
+					 * @param {string}     $action Action performed ('edit').
 					 */
 					do_action( 'mcs_complete_submission', $name, $email, $id, 'edit' );
 				}
@@ -712,6 +712,8 @@ function mc_list_events() {
 		$filter          = $filters['filter'];
 		$restrict        = $filters['restrict'];
 		$allow_filters   = true;
+		$nav_label       = __( 'Events Pagination', 'my-calendar' );
+		$user_count      = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(DISTINCT event_author) FROM %i', my_calendar_table() ) );
 
 		if ( ! current_user_can( 'mc_manage_events' ) && ! current_user_can( 'mc_approve_events' ) ) {
 			$restrict      = 'event_author';
@@ -763,21 +765,20 @@ function mc_list_events() {
 			$found_rows = $wpdb->get_col( 'SELECT COUNT(*) FROM  ' . my_calendar_table() . ' AS e ' . $join . ' JOIN ' . my_calendar_categories_table() . " AS c WHERE e.event_category = c.category_id $limit ORDER BY c.category_name $sortbydirection" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 
 		}
-		$items     = $found_rows[0];
-		$num_pages = ceil( $items / $query['items_per_page'] );
+		$items      = $found_rows[0];
+		$num_pages  = ceil( $items / $query['items_per_page'] );
+		$page_links = paginate_links(
+			array(
+				'base'      => add_query_arg( 'paged', '%#%' ),
+				'format'    => '',
+				'prev_text' => __( '&laquo; Previous<span class="screen-reader-text"> Events</span>', 'my-calendar' ),
+				'next_text' => __( 'Next<span class="screen-reader-text"> Events</span> &raquo;', 'my-calendar' ),
+				'total'     => $num_pages,
+				'current'   => $query['current'],
+				'mid_size'  => 2,
+			)
+		);
 		if ( $num_pages > 1 ) {
-			$page_links = paginate_links(
-				array(
-					'base'      => add_query_arg( 'paged', '%#%' ),
-					'format'    => '',
-					'prev_text' => __( '&laquo; Previous<span class="screen-reader-text"> Events</span>', 'my-calendar' ),
-					'next_text' => __( 'Next<span class="screen-reader-text"> Events</span> &raquo;', 'my-calendar' ),
-					'total'     => $num_pages,
-					'current'   => $query['current'],
-					'mid_size'  => 2,
-				)
-			);
-			$nav_label  = __( 'Events Pagination', 'my-calendar' );
 			?>
 			<nav class='tablenav' aria-label='<?php echo esc_attr( $nav_label ); ?>'>
 				<div class='tablenav-pages'>
@@ -831,8 +832,10 @@ function mc_list_events() {
 					$col_head .= mc_table_header( __( 'Location', 'my-calendar' ), $sortbydirection, $sortby, '7', $url );
 					$url       = add_query_arg( 'sort', '4', $admin_url );
 					$col_head .= mc_table_header( __( 'Date/Time', 'my-calendar' ), $sortbydirection, $sortby, '4', $url );
-					$url       = add_query_arg( 'sort', '5', $admin_url );
-					$col_head .= mc_table_header( __( 'Author', 'my-calendar' ), $sortbydirection, $sortby, '5', $url );
+					if ( $user_count > 1 ) {
+						$url       = add_query_arg( 'sort', '5', $admin_url );
+						$col_head .= mc_table_header( __( 'Author', 'my-calendar' ), $sortbydirection, $sortby, '5', $url );
+					}
 					$url       = add_query_arg( 'sort', '6', $admin_url );
 					$col_head .= mc_table_header( __( 'Category', 'my-calendar' ), $sortbydirection, $sortby, '6', $url );
 					echo wp_kses( $col_head, 'mycalendar' );
@@ -896,7 +899,8 @@ function mc_list_events() {
  */
 function mc_admin_events_table( $events ) {
 	global $wpdb;
-	$class = '';
+	$class      = '';
+	$user_count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(DISTINCT event_author) FROM %i', my_calendar_table() ) );
 
 	foreach ( array_keys( $events ) as $key ) {
 		$e       =& $events[ $key ];
@@ -937,7 +941,7 @@ function mc_admin_events_table( $events ) {
 		$can_edit   = mc_can_edit_event( $event );
 		if ( current_user_can( 'mc_manage_events' ) || current_user_can( 'mc_approve_events' ) || $can_edit ) {
 			?>
-			<tr class="<?php echo esc_attr( "$class $spam $pending $trashed $problem $cancelled" ); ?>">
+			<tr class="<?php echo esc_attr( trim( "$class $spam $pending $trashed $problem $cancelled" ) ); ?>">
 				<th scope="row">
 					<input type="checkbox" value="<?php echo absint( $event->event_id ); ?>" name="mass_edit[]" id="mc<?php echo absint( $event->event_id ); ?>" aria-describedby='event<?php echo absint( $event->event_id ); ?>' />
 					<label for="mc<?php echo absint( $event->event_id ); ?>">
@@ -1048,21 +1052,30 @@ function mc_admin_events_table( $events ) {
 				}
 				$begin = date_i18n( mc_date_format(), mc_strtotime( $event->event_begin ) );
 				echo esc_html( "$begin, $event_time" );
-				?>
+				$recurs = mc_recur_string( $event );
+				if ( $recurs ) {
+					?>
 					<div class="recurs">
-						<?php echo wp_kses_post( mc_recur_string( $event ) ); ?>
+						<?php echo wp_kses_post( $recurs ); ?>
 					</div>
+					<?php
+				}
+				?>
 				</td>
 				<?php
-				$auth   = ( is_object( $author ) ) ? $author->ID : 0;
-				$filter = mc_admin_url( "admin.php?page=my-calendar-manage&amp;filter=$auth&amp;restrict=author" );
-				$author = ( is_object( $author ) ? $author->display_name : $author );
-				?>
+				if ( $user_count > 1 ) {
+					$auth   = ( is_object( $author ) ) ? $author->ID : 0;
+					$filter = mc_admin_url( "admin.php?page=my-calendar-manage&amp;filter=$auth&amp;restrict=author" );
+					$author = ( is_object( $author ) ? $author->display_name : $author );
+					?>
 				<td>
 					<a class='mc_filter' href="<?php echo esc_url( $filter ); ?>">
 						<span class="screen-reader-text"><?php esc_html_e( 'Show only: ', 'my-calendar' ); ?></span><?php echo esc_html( $author ); ?>
 					</a>
 				</td>
+					<?php
+				}
+				?>
 				<td>
 				<div class="mc-category-list">
 					<?php echo wp_kses( mc_admin_category_list( $event ), mc_kses_elements() ); ?>
@@ -1156,7 +1169,7 @@ function mc_can_edit_event( $event = false, $datatype = 'event' ) {
 	}
 
 	/**
-	 * Filter permissions to edit an event via the My Calendar Pro REST API..
+	 * Filter permissions to edit an event via the My Calendar Pro REST API.
 	 *
 	 * @hook mc_api_can_edit_event
 	 *
