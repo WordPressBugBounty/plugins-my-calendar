@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Return an array containing the SVG code for all core icons.
+ *
  * Icons by FontAwesome.
  *
  * @return array
@@ -973,7 +974,7 @@ function mc_get_core_icon_index() {
 	 *
 	 * @hook mc_get_core_icon_index
 	 *
-	 * @param {array} Array of icons where the key is the filename and the value is a text description used for search.
+	 * @param array $icons Array of icons where the key is the filename and the value is a text description used for search.
 	 */
 	$icons = apply_filters( 'mc_get_core_icon_index', $icons );
 
@@ -1938,7 +1939,7 @@ function mc_get_core_icons() {
 	 *
 	 * @hook mc_get_core_icons
 	 *
-	 * @param {array} Array of icons where the key is the filename and the value is the SVG icon code.
+	 * @param array $icons Array of icons where the key is the filename and the value is the SVG icon code.
 	 */
 	$icons = apply_filters( 'mc_get_core_icons', $icons );
 

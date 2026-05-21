@@ -67,14 +67,13 @@ function mc_post_type() {
 		'publicly_queryable'  => true,
 		/**
 		 * Should My Calendar post types be excluded from search. Default false.
+		 *
 		 * Allowing the event post type to be searchable will not provide a true event search, especially with respect to recurring events.
 		 * It will not search recurring events by date, only the post content from each event. See https://github.com/joedolson/my-calendar/issues/23.
 		 *
 		 * @hook mc_event_exclude_from_search
 		 *
-		 * @param {bool} $show True to exclude from search.
-		 *
-		 * @return {bool}
+		 * @param bool $show True to exclude from search.
 		 */
 		'exclude_from_search' => apply_filters( 'mc_event_exclude_from_search', true ),
 		'show_ui'             => true,
@@ -84,9 +83,9 @@ function mc_post_type() {
 		 *
 		 * @hook mc_show_custom_posts_in_menu
 		 *
-		 * @param {bool} $show True to show in menus.
+		 * @param bool $show True to show in menus.
 		 *
-		 * @return {bool}
+		 * @return bool
 		 */
 		'show_in_menu'        => apply_filters( 'mc_show_custom_posts_in_menu', false ),
 		'menu_icon'           => null,
@@ -100,9 +99,9 @@ function mc_post_type() {
 	 *
 	 * @hook mc_location_exclude_from_search
 	 *
-	 * @param {bool} $exclude True to exclude.
+	 * @param bool $exclude True to exclude.
 	 *
-	 * @return {bool}
+	 * @return bool
 	 */
 	$loc_arguments['exclude_from_search'] = apply_filters( 'mc_location_exclude_from_search', true );
 
@@ -115,9 +114,9 @@ function mc_post_type() {
 	 *
 	 * @hook mc_event_post_type_args
 	 *
-	 * @param {array} $arguments Post type arguments.
+	 * @param array $arguments Post type arguments.
 	 *
-	 * @return {array}
+	 * @return array
 	 */
 	$arguments = apply_filters( 'mc_event_post_type_args', $arguments );
 
@@ -126,9 +125,9 @@ function mc_post_type() {
 	 *
 	 * @hook mc_location_post_type_args
 	 *
-	 * @param {array} $loc_arguments Post type arguments.
+	 * @param array $loc_arguments Post type arguments.
 	 *
-	 * @return {array}
+	 * @return array
 	 */
 	$arguments = apply_filters( 'mc_location_post_type_args', $loc_arguments );
 
@@ -252,9 +251,9 @@ function mc_posttypes() {
 				 *
 				 * @hook mc_event_slug
 				 *
-				 * @param {string} $key Slug.
+				 * @param string $key Slug.
 				 *
-				 * @return {string}
+				 * @return string
 				 */
 				'slug'       => apply_filters( 'mc_event_slug', $key ),
 				/**
@@ -262,10 +261,10 @@ function mc_posttypes() {
 				 *
 				 * @hook mc_has_feeds
 				 *
-				 * @param {bool}   $enabled Default false.
-				 * @param {string} $key Post type name.
+				 * @param bool   $enabled Default false.
+				 * @param string $key Post type name.
 				 *
-				 * @return {bool}
+				 * @return bool
 				 */
 				'feeds'      => apply_filters( 'mc_has_feeds', false, $key ),
 			),
@@ -319,10 +318,10 @@ function mc_close_comments( $posts ) {
 		 *
 		 * @hook mc_autoclose_comments
 		 *
-		 * @param {bool}    $close 'true' to close comments.
-		 * @param {WP_Post} $post Post object.
+		 * @param bool    $close 'true' to close comments.
+		 * @param WP_Post $post Post object.
 		 *
-		 * @return {bool}
+		 * @return bool
 		 */
 		if ( apply_filters( 'mc_autoclose_comments', true, $post ) && 'closed' !== $post->comment_status ) {
 			$post->comment_status = 'closed';
@@ -366,9 +365,9 @@ function mc_taxonomies() {
 		 *
 		 * @hook mc_event_category_slug
 		 *
-		 * @param {string} $slug Default slug.
+		 * @param string $slug Default slug.
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$slug = apply_filters( 'mc_event_category_slug', 'mc-event-category' );
 		register_taxonomy(
@@ -387,9 +386,9 @@ function mc_taxonomies() {
 		 *
 		 * @hook mc_event_access_slug
 		 *
-		 * @param {string} $slug Default slug.
+		 * @param string $slug Default slug.
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$slug = apply_filters( 'mc_event_access_slug', 'mc-event-access' );
 		register_taxonomy(
@@ -411,9 +410,9 @@ function mc_taxonomies() {
 		 *
 		 * @hook mc_location_access_slug
 		 *
-		 * @param {string} $slug Default slug.
+		 * @param string $slug Default slug.
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$slug = apply_filters( 'mc_location_access_slug', 'mc-location-access' );
 		register_taxonomy(

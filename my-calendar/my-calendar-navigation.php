@@ -28,6 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array of calendar nav for top & bottom
  */
 function mc_generate_calendar_nav( $params, $cat, $start_of_week, $show_months, $id, $site, $date, $from ) {
+	$restore = false;
 	if ( $site ) {
 		$site    = ( 'global' === $site ) ? BLOG_ID_CURRENT_SITE : $site;
 		$restore = $site;
@@ -81,34 +82,32 @@ function mc_generate_calendar_nav( $params, $cat, $start_of_week, $show_months, 
 	$used = array_merge( $mc_toporder, $mc_bottomorder );
 	/**
 	 * Filter the order in which navigation elements are shown on the top of the calendar.
+	 *
 	 * Insert custom navigation elements by adding a value into the array with a callable function as a value.
 	 * E.g. `my_custom_nav`, that expects the $params array as an argument.
 	 *
 	 * @hook mc_header_navigation
 	 * @since 3.4.0
 	 *
-	 * @param {array} $mc_toporder Array of navigation elements.
-	 * @param {array} $used Array of all navigation elements in use for this view.
-	 * @param {array} $params Current calendar view parameters.
-	 *
-	 * @return {array}
+	 * @param array $mc_toporder Array of navigation elements.
+	 * @param array $used Array of all navigation elements in use for this view.
+	 * @param array $params Current calendar view parameters.
 	 */
 	$mc_toporder = apply_filters( 'mc_header_navigation', $mc_toporder, $used, $params );
 	$aboves      = $mc_toporder;
 
 	/**
 	 * Filter the order in which navigation elements are shown at the bottom of the calendar.
+	 *
 	 * Insert custom navigation elements by adding a value into the array with a callable function as a value.
 	 * E.g. `my_custom_nav`, that expects the $params array as an argument.
 	 *
 	 * @hook mc_footer_navigation
 	 * @since 3.4.0
 	 *
-	 * @param {array} $mc_bottomorder Array of navigation elements.
-	 * @param {array} $used Array of all navigation elements in use for this view.
-	 * @param {array} $params Current calendar view parameters.
-	 *
-	 * @return {array}
+	 * @param array $mc_bottomorder Array of navigation elements.
+	 * @param array $used Array of all navigation elements in use for this view.
+	 * @param array $params Current calendar view parameters.
 	 */
 	$mc_bottomorder = apply_filters( 'mc_footer_navigation', $mc_bottomorder, $used, $params );
 	$belows         = $mc_bottomorder;
@@ -208,7 +207,7 @@ function mc_generate_calendar_nav( $params, $cat, $start_of_week, $show_months, 
 
 	// Set up subscription feeds.
 	if ( in_array( 'feeds', $used, true ) ) {
-		$feeds = mc_sub_links( $subtract );
+		$feeds = mc_sub_links();
 	}
 
 	// Set up exports.
@@ -304,10 +303,10 @@ function mc_nav( $date, $format, $time, $show_months, $id, $site = false ) {
 		 *
 		 * @hook mc_prev_link
 		 *
-		 * @param {string} $prev_link HTML output for link.
-		 * @param {array} $prev Previous link parameters.
+		 * @param string $prev_link HTML output for link.
+		 * @param array $prev Previous link parameters.
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$prev_link = apply_filters( 'mc_previous_link', '<li class="my-calendar-prev"><button type="button" class="mc-navigation-button" id="mc_previous_' . $id . '" data-href="' . $prev_link . '"><span class="mc-icon" aria-hidden="true"></span>' . wp_kses_post( $prev['label'] ) . '</button></li>', $prev );
 	}
@@ -328,10 +327,10 @@ function mc_nav( $date, $format, $time, $show_months, $id, $site = false ) {
 		 *
 		 * @hook mc_next_link
 		 *
-		 * @param {string} $next_link HTML output for link.
-		 * @param {array} $next Next link parameters.
+		 * @param string $next_link HTML output for link.
+		 * @param array $next Next link parameters.
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$next_link = apply_filters( 'mc_next_link', '<li class="my-calendar-next"><button type="button" class="mc-navigation-button" id="mc_next_' . $id . '" data-href="' . $next_link . '">' . wp_kses_post( $next['label'] ) . '<span class="mc-icon" aria-hidden="true"></span></button></li>', $next );
 	}
@@ -355,9 +354,9 @@ function mc_nav( $date, $format, $time, $show_months, $id, $site = false ) {
 	 *
 	 * @hook mc_today_link
 	 *
-	 * @param {string} $today_link HTML output for link.
+	 * @param string $today_link HTML output for link.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	$today_link = apply_filters( 'mc_today_link', '<li class="my-calendar-today"><button type="button" id="mc_today_' . $id . '" data-href="' . $today . '" class="mc-navigation-button today' . $active . '"' . $current . '><span class="mc-icon" aria-hidden="true"></span>' . wp_kses_post( $today_text ) . '</button></li>' );
 
@@ -395,9 +394,9 @@ function mc_category_key( $category, $id = '' ) {
 	 *
 	 * @hook mc_category_key_array
 	 *
-	 * @param {array}  $categories Array of category objects.
-	 * @param {string} $category The active categories in the view. Comma-separated string of IDs or category name.
-	 * @param {string} $id The calendar view ID.
+	 * @param array  $categories Array of category objects.
+	 * @param string $category The active categories in the view. Comma-separated string of IDs or category name.
+	 * @param string $id The calendar view ID.
 	 */
 	$categories = apply_filters( 'mc_category_key_array', $categories, $category, $id );
 	$hlevel     = mc_get_heading_level( array(), '', 'primary' );
@@ -455,9 +454,9 @@ function mc_category_key( $category, $id = '' ) {
 	 *
 	 * @hook mc_text_all_categories
 	 *
-	 * @param {string} $all Text for link to show all categories.
+	 * @param string $all Text for link to show all categories.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	$all = apply_filters( 'mc_text_all_categories', __( 'All Categories', 'my-calendar' ) );
 	if ( isset( $_GET['mcat'] ) ) {
@@ -473,10 +472,10 @@ function mc_category_key( $category, $id = '' ) {
 	 *
 	 * @hook mc_category_key
 	 *
-	 * @param {string} $key Key HTML output.
-	 * @param {array} $categories Categories in key.
+	 * @param string $key Key HTML output.
+	 * @param array $categories Categories in key.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	$key = apply_filters( 'mc_category_key', $key, $categories );
 
@@ -584,13 +583,13 @@ function my_calendar_next_link( $date, $format, $time = 'month', $months = 1, $s
 		 *
 		 * @hook mc_month_format
 		 *
-		 * @param {string} $format PHP Date format string.
-		 * @param {array} $date Current date array.
-		 * @param {string} $format View format.
-		 * @param {string} $time View time frame.
-		 * @param {string} $month month used in navigation reference (next month.)
+		 * @param string $format PHP Date format string.
+		 * @param array $date Current date array.
+		 * @param string $format View format.
+		 * @param string $time View time frame.
+		 * @param string $month month used in navigation reference (next month.)
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$format = apply_filters( 'mc_month_year_format', 'F, Y', $date, $format, $time, $month );
 	} else {
@@ -599,13 +598,13 @@ function my_calendar_next_link( $date, $format, $time = 'month', $months = 1, $s
 		 *
 		 * @hook mc_month_format
 		 *
-		 * @param {string} $format PHP Date format string.
-		 * @param {array} $date Current date array.
-		 * @param {string} $format View format.
-		 * @param {string} $time View time frame.
-		 * @param {string} $month month used in navigation reference (next month.)
+		 * @param string $format PHP Date format string.
+		 * @param array $date Current date array.
+		 * @param string $format View format.
+		 * @param string $time View time frame.
+		 * @param string $month month used in navigation reference (next month.)
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$format = apply_filters( 'mc_month_format', 'F', $date, $format, $time, $month );
 	}
@@ -696,13 +695,13 @@ function my_calendar_prev_link( $date, $format, $time = 'month', $months = 1, $s
 		 *
 		 * @hook mc_month_year_format
 		 *
-		 * @param {string} $format PHP Date format string.
-		 * @param {array} $date Current date array.
-		 * @param {string} $format View format.
-		 * @param {string} $time View time frame.
-		 * @param {string} $month month used in navigation reference (previous month.)
+		 * @param string $format PHP Date format string.
+		 * @param array $date Current date array.
+		 * @param string $format View format.
+		 * @param string $time View time frame.
+		 * @param string $month month used in navigation reference (previous month.)
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$format = apply_filters( 'mc_month_year_format', 'F, Y', $date, $format, $time, $month );
 	} else {
@@ -711,13 +710,13 @@ function my_calendar_prev_link( $date, $format, $time = 'month', $months = 1, $s
 		 *
 		 * @hook mc_month_format
 		 *
-		 * @param {string} $format PHP Date format string.
-		 * @param {array} $date Current date array.
-		 * @param {string} $format View format.
-		 * @param {string} $time View time frame.
-		 * @param {string} $month month used in navigation reference (previous month, generally.)
+		 * @param string $format PHP Date format string.
+		 * @param array $date Current date array.
+		 * @param string $format View format.
+		 * @param string $time View time frame.
+		 * @param string $month month used in navigation reference (previous month, generally.)
 		 *
-		 * @return {string}
+		 * @return string
 		 */
 		$format = apply_filters( 'mc_month_format', 'F', $date, $format, $time, $month );
 	}
@@ -812,6 +811,7 @@ function mc_filters( $args, $target_url, $ltype = 'id', $options = array() ) {
 	}
 	$multiple = __( 'Events', 'my-calendar' );
 	$key      = '';
+	$show     = '';
 	foreach ( $fields as $show ) {
 		$show = trim( $show );
 		switch ( $show ) {
@@ -933,10 +933,10 @@ function my_calendar_categories_list( $show = 'list', $context = 'public', $grou
 	 *
 	 * @hook mc_category_selector
 	 *
-	 * @param {string} $toggle HTML output for control.
-	 * @param {array} $categories Available categories.
+	 * @param string $toggle HTML output for control.
+	 * @param array $categories Available categories.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	$output = apply_filters( 'mc_category_selector', $output, $categories );
 
@@ -1014,10 +1014,10 @@ function mc_access_list( $show = 'list', $group = 'single', $target_url = '' ) {
 	 *
 	 * @hook mc_access_selector
 	 *
-	 * @param {string} $output HTML output for control.
-	 * @param {array}  $access_options Available accessibility options.
+	 * @param string $output HTML output for control.
+	 * @param array  $access_options Available accessibility options.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	$output = apply_filters( 'mc_access_selector', $output, $access_options );
 
@@ -1099,10 +1099,10 @@ function mc_date_switcher( $type = 'calendar', $cid = 'all', $time = 'month', $d
 	 *
 	 * @hook mc_jumpbox_future_years
 	 *
-	 * @param {int}   $future Number of years ahead.
-	 * @param {string} $cid Current calendar ID. '' when running in the shortcode generator.
+	 * @param int   $future Number of years ahead.
+	 * @param string $cid Current calendar ID. '' when running in the shortcode generator.
 	 *
-	 * @return {int}
+	 * @return int
 	 */
 	$future = apply_filters( 'mc_jumpbox_future_years', $future, $cid );
 	$fut    = 1;
@@ -1136,11 +1136,11 @@ function mc_date_switcher( $type = 'calendar', $cid = 'all', $time = 'month', $d
 	 *
 	 * @hook mc_jumpbox
 	 *
-	 * @param {string} $date_switcher HTML output for control.
-	 * @param {string} $type Current view format.
-	 * @param {string} $time Current time frame.
+	 * @param string $date_switcher HTML output for control.
+	 * @param string $type Current view format.
+	 * @param string $time Current time frame.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	$date_switcher = apply_filters( 'mc_jumpbox', $date_switcher, $type, $time );
 
@@ -1219,11 +1219,11 @@ function mc_format_toggle( $format, $toggle, $time, $id ) {
 	 *
 	 * @hook mc_format_toggle_html
 	 *
-	 * @param {string} $toggle HTML output for control.
-	 * @param {string} $format Current view format.
-	 * @param {string} $time Current time frame.
+	 * @param string $toggle HTML output for control.
+	 * @param string $format Current view format.
+	 * @param string $time Current time frame.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	return apply_filters( 'mc_format_toggle_html', $toggle, $format, $time );
 }
@@ -1338,11 +1338,11 @@ function mc_time_toggle( $format, $time, $month, $year, $current, $start_of_week
 	 *
 	 * @hook mc_time_toggle_html
 	 *
-	 * @param {string} $toggle HTML output for control.
-	 * @param {string} $format Current view format.
-	 * @param {string} $time Current time frame.
+	 * @param string $toggle HTML output for control.
+	 * @param string $format Current view format.
+	 * @param string $time Current time frame.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	return apply_filters( 'mc_time_toggle_html', $toggle, $format, $time );
 }

@@ -32,9 +32,9 @@ function mc_prepare_search_query( $query ) {
 			 *
 			 * @hook mc_search_fields
 			 *
-			 * @param {string} $values Comma-separated list of columns.
+			 * @param string $values Comma-separated list of columns.
 			 *
-			 * @return {string}
+			 * @return string
 			 */
 			$search = ' AND MATCH(' . apply_filters( 'mc_search_fields', 'event_title,event_desc,event_short,event_registration' ) . ") AGAINST ( '$query' IN BOOLEAN MODE ) ";
 		} else {
@@ -303,11 +303,11 @@ function mc_select_location( $ltype = '', $lvalue = '' ) {
 	 *
 	 * @hook mc_location_limit_sql
 	 *
-	 * @param {string} $limit_string SQL limit for location query.
-	 * @param {string} $ltype Ltype value passed.
-	 * @param {string} $lvalue Lvalue passed.
+	 * @param string $limit_string SQL limit for location query.
+	 * @param string $ltype Ltype value passed.
+	 * @param string $lvalue Lvalue passed.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	return apply_filters( 'mc_location_limit_sql', $limit_string, $ltype, $lvalue );
 }

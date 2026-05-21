@@ -16,7 +16,7 @@
  * Text Domain: my-calendar
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/license/gpl-2.0.txt
- * Version:     3.7.10
+ * Version:     3.7.12
  */
 
 /*
@@ -53,7 +53,7 @@ function mc_get_version( $version = true ) {
 	if ( ! $version ) {
 		return get_option( 'mc_version', '' );
 	}
-	return '3.7.10';
+	return '3.7.12';
 }
 
 define( 'MC_DEBUG', false );
@@ -238,7 +238,7 @@ function mc_invalid_query() {
 	/**
 	 * Ignore the 404 handler that prevents access to dates outside of the calendar bounds.
 	 *
-	 * @param {bool} $ignore_bounds Default false.
+	 * @param bool $ignore_bounds Default false.
 	 */
 	$ignore_bounds = apply_filters( 'mc_ignore_404_handler', false );
 	// If the date requested is today, don't throw a 404 even if outside of bounds.
@@ -352,13 +352,11 @@ function mc_show_sidebar( $show = '', $add = false, $remove = false ) {
 	/**
 	 * Inject a sidebar panel in the My Calendar admin. Does not replace existing panels.
 	 *
-	 * @hook mc_custom_sidebar_panels
+	 * @hook mc_custom_admin_panels
 	 *
-	 * @param {array} $add Associative array with headings as keys and content as values.
-	 *
-	 * @return {array} Associative array with all extra sidebars.
+	 * @param array $add Associative array with headings as keys and content as values.
 	 */
-	$add = apply_filters( 'mc_custom_sidebar_panels', $add );
+	$add = apply_filters( 'mc_custom_admin_panels', $add );
 
 	if ( current_user_can( 'mc_view_help' ) ) {
 		?>
@@ -539,9 +537,9 @@ function my_calendar_menu() {
 		 *
 		 * @hook mcs_submission_permissions
 		 *
-		 * @param {string} $capability A string representing a WordPress capability.
+		 * @param string $capability A string representing a WordPress capability.
 		 *
-		 * @return {string} A string representing a WordPress capability.
+		 * @return string A string representing a WordPress capability.
 		 */
 		$permission = apply_filters( 'mcs_submission_permissions', $capability );
 		add_action( 'admin_head', 'my_calendar_sub_js' );

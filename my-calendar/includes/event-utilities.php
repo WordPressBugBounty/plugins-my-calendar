@@ -156,10 +156,8 @@ function mc_event_states() {
 	 *
 	 * @hook mc_event_states
 	 *
-	 * @param {array} Array of states where key is the integer value of the
+	 * @param array $states Array of states where key is the integer value of the
 	 *                state and the value is an array with type and label.
-	 *
-	 * @return {array}
 	 */
 	$states = apply_filters( 'mc_event_states', $states );
 
@@ -187,8 +185,8 @@ function mc_event_states_by_type( $type ) {
 	 *
 	 * @hook mc_event_states_by_type
 	 *
-	 * @param {array}  $values Array of integers representing the event states that match the passed type.
-	 * @param {string} $type Publication type requested.
+	 * @param array  $values Array of integers representing the event states that match the passed type.
+	 * @param string $type Publication type requested.
 	 */
 	return apply_filters( 'mc_event_states_by_type', $values, $type );
 }
@@ -205,15 +203,14 @@ function mc_event_states_type( $state ) {
 	$return = $states[ $state ]['type'];
 
 	/**
-	 * Filter the display conditions of an event status. Events can either be public; private; or hidden.
-	 * Public events are visible to all; private events are visible to logged-in users; and hidden events are not visible.
+	 * Filter the display conditions of an event status.
+	 *
+	 * Events can either be public; private; or hidden. Public events are visible to all; private events are visible to logged-in users; and hidden events are not visible.
 	 *
 	 * @hook mc_event_states_type
 	 *
-	 * @param {string} $return Type for the current status.
-	 * @param {int}    $states An integer representation of a status.
-	 *
-	 * @return {string}
+	 * @param string $return Type for the current status.
+	 * @param int    $states An integer representation of a status.
 	 */
 	return apply_filters( 'mc_event_states_type', $return, $states );
 }
@@ -234,10 +231,10 @@ function mc_event_states_label( $state ) {
 	 *
 	 * @hook mc_event_states_label
 	 *
-	 * @param {string} $return Type for the current status.
-	 * @param {int}    $states An integer representation of a status.
+	 * @param string $return Type for the current status.
+	 * @param int    $states An integer representation of a status.
 	 *
-	 * @return {string}
+	 * @return string
 	 */
 	return apply_filters( 'mc_event_states_label', $return, $states );
 }
