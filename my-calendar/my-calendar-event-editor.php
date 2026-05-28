@@ -89,17 +89,34 @@ function mc_event_post( $action, $data, $event_id, $result = false ) {
 		$description       = $data['event_desc'];
 		$excerpt           = $data['event_short'];
 		$auth              = ( isset( $data['event_author'] ) ) ? $data['event_author'] : get_current_user_id();
-		$type              = 'mc-events';
-		$my_post           = array(
+		/**
+		 * Filter the permalink slug for My Calendar events. Return value will be run through `sanitize_title()`.
+		 *
+		 * @hook mc_event_permalink_slug
+		 *
+		 * @param string $title The event title, before sanitizing.
+		 * @param array  $data Array of event data.
+		 */
+		$post_name   = apply_filters( 'mc_event_permalink_slug', $title, $data );
+		$my_post     = array(
 			'ID'           => $post_id,
 			'post_title'   => $title,
 			'post_content' => $description,
-			'post_status'  => $status,
-			'post_author'  => $auth,
-			'post_name'    => sanitize_title( $title ),
-			'post_type'    => $type,
 			'post_excerpt' => $excerpt,
 		);
+		$slug        = get_post_field( 'post_name', $post_id );
+		$post_status = get_post_status( $post_id );
+		$author      = get_post_field( 'post_author', $post_id );
+		// if current slug doesn't match sanitized post name and post name doesn't match title, change it.
+		if ( sanitize_title( $post_name ) !== $slug && $post_name !== $title ) {
+			$my_post['post_name'] = sanitize_title( $post_name );
+		}
+		if ( $author !== $auth ) {
+			$my_post['post_author'] = $auth;
+		}
+		if ( $post_status !== $status ) {
+			$my_post['post_status'] = $status;
+		}
 		if ( mc_switch_sites() && defined( BLOG_ID_CURRENT_SITE ) && is_multisite() ) {
 			switch_to_blog( BLOG_ID_CURRENT_SITE );
 		}
@@ -720,13 +737,7 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 			 * @return array
 			 */
 			$update       = apply_filters( 'mc_before_save_update', $update, $event_id );
-			$endtime      = mc_date( 'H:i:00', mc_strtotime( $update['event_endtime'] ), false );
-			$prev_eb      = ( isset( $post['prev_event_begin'] ) ) ? $post['prev_event_begin'] : '';
-			$prev_et      = ( isset( $post['prev_event_time'] ) ) ? $post['prev_event_time'] : '';
-			$prev_ee      = ( isset( $post['prev_event_end'] ) ) ? $post['prev_event_end'] : '';
-			$prev_eet     = ( isset( $post['prev_event_endtime'] ) ) ? $post['prev_event_endtime'] : '';
-			$update_time  = mc_date( 'H:i:00', mc_strtotime( $update['event_time'] ), false );
-			$date_changed = ( $update['event_begin'] !== $prev_eb || $update_time !== $prev_et || $update['event_end'] !== $prev_ee || ( $endtime !== $prev_eet && ( '' !== $prev_eet && '23:59:59' !== $endtime ) ) ) ? true : false;
+			$date_changed = mc_has_date_changed( $post, $update );
 			if ( isset( $post['event_instance'] ) ) {
 				// compares the information sent to the information saved for a given event.
 				$is_changed     = mc_compare( $update, $event_id );
@@ -850,6 +861,35 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 	 * @return array
 	 */
 	return apply_filters( 'mc_event_saved_message', $saved_response );
+}
+
+/**
+ * Test whether an event's date has changed.
+ *
+ * @param array $post   Posted data containing previous event values.
+ * @param array $update Dates and times being passed for this event.
+ *
+ * @return bool true if event has a new date.
+ */
+function mc_has_date_changed( $post, $update ) {
+	$prev_event_begin   = ( isset( $post['prev_event_begin'] ) ) ? $post['prev_event_begin'] : '';
+	$prev_event_time    = ( isset( $post['prev_event_time'] ) ) ? $post['prev_event_time'] : '';
+	$prev_event_end     = ( isset( $post['prev_event_end'] ) ) ? $post['prev_event_end'] : '';
+	$prev_event_endtime = ( isset( $post['prev_event_endtime'] ) ) ? $post['prev_event_endtime'] : '';
+	// Normalize formatting of times.
+	$endtime     = mc_date( 'H:i:00', mc_strtotime( $update['event_endtime'] ), false );
+	$update_time = mc_date( 'H:i:00', mc_strtotime( $update['event_time'] ), false );
+	// All day events use :59 for seconds; reformat if so.
+	$endtime = ( '23:59:00' === $endtime ) ? '23:59:59' : $endtime;
+
+	$begin_date_changed = ( $update['event_begin'] !== $prev_event_begin ) ? true : false;
+	$begin_time_changed = ( $update_time !== $prev_event_time ) ? true : false;
+	$end_date_changed   = ( $update['event_end'] !== $prev_event_end ) ? true : false;
+	$end_time_changed   = ( $endtime !== $prev_event_endtime ) ? true : false;
+
+	$return = ( $begin_date_changed || $begin_time_changed || $end_date_changed || $end_time_changed ) ? true : false;
+
+	return $return;
 }
 
 /**
@@ -1075,7 +1115,8 @@ function mc_edit_block_is_visible( $field ) {
 
 	// if this doesn't exist in array, return false. Field is hidden.
 	if ( ! isset( $input[ $field ] ) && ! isset( $show[ $field ] ) ) {
-		return false;
+		// Event author field visibility has different conditions.
+		return ( 'event_author' === $field ) ? true : false;
 	}
 	if ( $admin ) {
 		// Why is $show empty? I'm not getting the user option? May not exist?
@@ -1640,7 +1681,8 @@ function mc_form_fields( $data, $mode, $event_id ) {
 		<div class="inside">
 		<div class='mc-controls'>
 			<?php
-			if ( $post_id ) {
+			// Don't show this notice on individual date editors; it doesn't apply.
+			if ( $post_id && ! isset( $_GET['date'] ) ) {
 				$deleted  = get_post_meta( $post_id, '_mc_deleted_instances', true );
 				$custom   = get_post_meta( $post_id, '_mc_custom_instances', true );
 				$modified = get_post_meta( $post_id, '_mc_modified_instances', true );
@@ -2321,7 +2363,7 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 			$endtime          = ! empty( $post['event_endtime'][ $i ] ) ? trim( $post['event_endtime'][ $i ] ) : mc_date( 'H:i:s', mc_strtotime( $time . ' +' . $default_modifier ), false );
 			if ( empty( $post['event_endtime'][ $i ] ) && mc_date( 'H', mc_strtotime( $endtime ), false ) === '00' ) {
 				// If one hour pushes event into next day, reset to 11:59pm.
-				$endtime = '23:59:00';
+				$endtime = '23:59:59';
 			}
 		} else {
 			$endtime = ! empty( $post['event_endtime'][ $i ] ) ? trim( $post['event_endtime'][ $i ] ) : '';

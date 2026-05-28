@@ -817,7 +817,7 @@ function mc_create_tags( $event, $context = 'filters' ) {
 		$recurring_template = apply_filters( 'mc_recurring_template', '{date}, {time}', $event );
 		$e['recurring']     = '<ul class="recurring-events">' . mc_list_recurring( $event->event_id, $recurring_template ) . '</ul>';
 	} else {
-		$e['recurring'] = '';
+		$e['recurring'] = current_user_can( 'manage_options' ) ? __( 'Admin note: the recurring events list only renders on single event views.', 'my-calendar' ) : '';
 	}
 
 	// location fields.
@@ -1392,16 +1392,18 @@ function mc_generate_map( $event, $source = 'event', $multiple = false, $geoloca
 	 *
 	 * @return string Value.
 	 */
-	$height = apply_filters( 'mc_map_height', '300px', $event );
-	$styles = " style='width: $width;height: $height'";
+	$height  = apply_filters( 'mc_map_height', '300px', $event );
+	$styles  = " style='width: $width;height: $height'";
+	$maptype = 'default';
 
 	if ( $api_key ) {
 		$locations = ( is_object( $event ) ) ? array( $event ) : $event;
 		if ( is_array( $locations ) ) {
 			$multiple = ( count( $locations ) > 1 ) ? true : false;
 			foreach ( $locations as $location ) {
-				$id     = wp_rand();
-				$loc_id = $location->location_id;
+				$id      = wp_rand();
+				$loc_id  = $location->location_id;
+				$maptype = mc_location_custom_data( $loc_id, $location->location_post, 'maptype' );
 				/**
 				 * URL to Google Map marker image.
 				 *
@@ -1462,7 +1464,6 @@ function mc_generate_map( $event, $source = 'event', $multiple = false, $geoloca
 			 */
 			$markers = apply_filters( 'mc_gmap_html', $markers, $event );
 			$class   = ( $geolocate ) ? 'mc-geolocated' : 'mc-address';
-			$maptype = mc_location_custom_data( $loc_id, $location->location_post, 'maptype' );
 			$maptype = ( $maptype && 'default' !== strtolower( $maptype ) ) ? strtolower( $maptype ) : mc_get_option( 'maptype' );
 			$map     = "<div class='mc-gmap-markers $class' id='mc_gmap_$id' data-maptype='" . esc_attr( $maptype ) . "'$styles>" . $markers . '</div>';
 			$locs    = ( $loc_list ) ? '<div class="mc-gmap-location-list"><h2 class="screen-reader-text">' . __( 'Locations', 'my-calendar' ) . '</h2>' . $loc_list . '</div>' : '';
@@ -1979,6 +1980,9 @@ function mc_event_schema( $e, $tags = array() ) {
  * @return array
  */
 function mc_location_schema( $location ) {
+	if ( ! is_object( $location ) || ! property_exists( $location, 'location_label' ) ) {
+		return array();
+	}
 	$location_post = ( absint( $location->location_post ) ) ? $location->location_post : mc_get_location_post( $location->location_id );
 	$schema        = array(
 		'@context'    => 'https://schema.org',
