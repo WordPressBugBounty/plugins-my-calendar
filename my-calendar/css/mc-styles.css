@@ -89,6 +89,11 @@
 	justify-content: center;
 }
 
+.mc-category .mc-category-color.color {
+	padding: 6px;
+	border-radius: 100%;
+}
+
 .checkboxes .mc-category .mc-category-color {
 	order: 1;
 }
@@ -152,6 +157,15 @@ ul.links li {
 	vertical-align: top;
 }
 
+#my-calendar-admin-table tr > th:nth-of-type(1) input {
+	margin-top: -2px;
+}
+
+#my-calendar-admin-table tr > th:nth-of-type(1) label,
+#my-calendar-admin-table tr > th:nth-of-type(2) {
+	vertical-align: top;
+}
+
 #toggle {
 	height: 2em
 }
@@ -166,6 +180,12 @@ ul.links li {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: .25rem;
+}
+
+.my-calendar-text .mc-input-description:has(.my-calendar-contextual-help),
+#my-calendar-text .mc-input-description:has(.my-calendar-contextual-help) {
+	background: none;
+	padding: 0;
 }
 
 #mc_list_template-note {
@@ -1157,6 +1177,12 @@ label[for=mc_uri_query]::before {
 	align-items: center;
 	column-gap: 20px;
 	font-size: 1.2em;
+}
+
+.my-calendar-design .jcd-narrow .promotion .inside,
+.my-calendar-design .jcd-narrow .promotion .inside p {
+	text-align: center;
+	display: block;
 }
 
 .notice.mc-promotion img {

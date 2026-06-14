@@ -6,7 +6,7 @@ Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.7.14
+Stable tag: 3.7.15
 License: GPL-2.0+
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -55,7 +55,7 @@ Do you sell tickets for your events? [Use My Tickets](https://wordpress.org/plug
 *	Edit or add single dates in recurring events
 *	Rich permissions handling to restrict access to parts of My Calendar
 *	Email notifications when events are scheduled or drafted
-*	Post to X when events are created (using [XPoster](http://wordpress.org/plugins/wp-to-twitter/))
+*	Post to X, Bluesky, or Mastodon when events are created (using [XPoster](http://wordpress.org/plugins/wp-to-twitter/))
 *	Event location management
 *	Fetch events from a remote database. (Sharing events in a network of sites.)
 *	Multisite-friendly
@@ -112,6 +112,25 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.7.15 =
+
+* Bug fix: Prevent PHP warning if URL host value not parseable in print view.
+* Bug fix: Replace links to removed template tag help with tag help modal.
+* Bug fix: Fix prev/next event navigation when `mc_id` parameter omitted.
+* Bug fix: Fix hosts callback when hosts post type is enabled. [Pro]
+* Bug fix: Screen options did not account for "administrator view all" disabled.
+* Bug fix: Category colors not re-generated when new categories added, leaving stale cache. Props @mgmax.
+* Bug fix: PHP error thrown when editing categories with category icons disabled.
+* Bug fix: JS error thrown when category icons disabled.
+* Bug fix: Verify country input present before initiating autocompletion.
+* Bug fix: Compensate for DB time offset in upcoming events queries. Props @mgmax.
+* Change: Show category colors in admin selector when set as background.
+* Change: Add class `.event-title-container` on `div` inside event titles.
+* Change: Unset color and background applied to event title div.
+* Change: Add `.event-title` class on list template headings.
+* Change: Remove uses of obsolete 'updated' class.
+* Minor visual tweaks in admin.
 
 = 3.7.14 =
 

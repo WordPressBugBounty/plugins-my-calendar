@@ -402,6 +402,7 @@ function mc_create_category( $category ) {
 	 */
 	$add = apply_filters( 'mc_pre_add_category', $add, $category );
 	$wpdb->insert( my_calendar_categories_table(), $add, $formats );
+	delete_transient( 'mc_generated_category_styles' );
 	$cat_id = $wpdb->insert_id;
 	/**
 	 * Execute action after inserting a new category into the My Calendar database.
@@ -524,6 +525,10 @@ function mc_edit_category_form( $view = 'edit', $cat_id = false ) {
 								</div>
 								<?php mc_help_link( __( 'Show Category Icons', 'my-calendar' ), __( 'Category Icons', 'my-calendar' ), 'Category Icons', 6 ); ?>
 							</div>
+								<?php
+							} else {
+								?>
+							<input type='hidden' name='category_icon' id="mc_category_icon" value='<?php echo esc_attr( $icon ); ?>' />
 								<?php
 							}
 							if ( 'add' === $view ) {
@@ -1135,9 +1140,10 @@ function mc_category_select( $data = false, $option = true, $multiple = false, $
 			$category_name = wp_strip_all_tags( wp_unslash( trim( $cat->category_name ) ) );
 			$category_name = ( '' === $category_name ) ? '(' . __( 'Untitled category', 'my-calendar' ) . ')' : $category_name;
 			if ( $multiple ) {
-				$icon = mc_category_icon( $cat );
-				$icon = ( $icon ) ? mc_wrap_category_icon( $icon, $cat ) : $category_name;
-				$c    = '<li class="mc_cat_' . $cat->category_id . '"><input type="checkbox"' . $selected . ' name="' . esc_attr( $name ) . '" id="' . $id . $cat->category_id . '" value="' . $cat->category_id . '" ' . $selected . ' /> <label for="' . $id . $cat->category_id . '">' . $icon . '</label></li>';
+				$icon   = mc_category_icon( $cat );
+				$colors = ( 'default' === mc_get_option( 'apply_color' ) ) ? false : true;
+				$icon   = ( $icon || $colors ) ? mc_wrap_category_icon( $icon, $cat ) : $category_name;
+				$c      = '<li class="mc_cat_' . $cat->category_id . '"><input type="checkbox"' . $selected . ' name="' . esc_attr( $name ) . '" id="' . $id . $cat->category_id . '" value="' . $cat->category_id . '" ' . $selected . ' /> <label for="' . $id . $cat->category_id . '">' . $icon . '</label></li>';
 			} else {
 				$c = '<option value="' . $cat->category_id . '" ' . $selected . '>' . $category_name . '</option>';
 			}
@@ -1329,9 +1335,10 @@ function mc_get_categories( $event, $ids = true ) {
  * @return string
  */
 function mc_wrap_category_icon( $icon, $category ) {
-	if ( $icon && $category ) {
+	if ( $category ) {
 		$hex  = ( 0 !== strpos( $category->category_color, '#' ) ) ? '#' : '';
 		$type = ( stripos( $icon, 'svg' ) ) ? 'svg' : 'img';
+		$type = ( '' === $icon ) ? 'color' : $type;
 		$back = ( 'background' === mc_get_option( 'apply_color' ) ) ? ' style="background:' . $hex . $category->category_color . ';"' : '';
 		$icon = '<span class="mc-category"><span class="mc-category-color ' . $type . '"' . $back . '>' . $icon . '</span><span>' . $category->category_name . '</span></span>';
 	}
