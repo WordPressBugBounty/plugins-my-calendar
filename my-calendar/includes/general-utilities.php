@@ -5,7 +5,7 @@
  * @category Utilities
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -92,6 +92,9 @@ function mc_add_inner_box() {
 	if ( $event_id ) {
 		$url   = admin_url( 'admin.php?page=my-calendar&mode=edit&event_id=' . $event_id );
 		$event = mc_get_first_event( $event_id );
+		if ( ! $event ) {
+			return;
+		}
 		?>
 		<p>
 			<strong><?php echo esc_html( strip_tags( $event->event_title, mc_strip_tags() ) ); ?></strong><br />
@@ -147,7 +150,7 @@ if ( ! function_exists( 'exif_imagetype' ) ) {
 	 *
 	 * @param string $filename Name of file.
 	 *
-	 * @return string|bool type of file.
+	 * @return int|false integer representation of type of file, or false on failure.
 	 */
 	function exif_imagetype( $filename ) {
 		if ( ! is_dir( $filename ) && ( list( $width, $height, $type, $attr ) = getimagesize( $filename ) ) !== false ) { // phpcs:ignore WordPress.CodeAnalysis.AssignmentInCondition.NonVariableAssignmentFound
@@ -455,7 +458,7 @@ function mc_get_users( $group = 'authors' ) {
 	 * @param int    $blog_id Site ID (for use in network installs).
 	 */
 	$users = apply_filters( 'mc_get_users', false, $group, $blog_id );
-	if ( $users ) {
+	if ( is_array( $users ) && ! empty( $users ) ) {
 		return $users;
 	}
 	$count = count_users( 'time' );
@@ -468,7 +471,7 @@ function mc_get_users( $group = 'authors' ) {
 	 * Filter WP_User_Query arguments in `mc_get_users()`.
 	 *
 	 * @param array  $args Array of arguments.
-	 * @param int    $count The count of total users.
+	 * @param array  $count The counts of total users by type.
 	 * @param string $group Either 'authors' or 'hosts'.
 	 */
 	$args  = apply_filters( 'mc_filter_user_arguments', $args, $count, $group );

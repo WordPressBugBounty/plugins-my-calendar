@@ -5,7 +5,7 @@
  * @category Settings
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -90,7 +90,7 @@ function my_calendar_migration() {
 								$fields = apply_filters( 'mc_importer_custom_fields', '', $import_source );
 								echo wp_kses( $fields, mc_kses_elements() );
 								?>
-								<input type="submit" value="<?php esc_html_e( 'Import Events', 'my-calendar' ); ?>" name="import-calendar" class="button-primary"/>
+								<input type="submit" value="<?php esc_html_e( 'Import Events', 'my-calendar' ); ?>" name="import-calendar" class="button button-primary"/>
 							</div>
 						</form>
 							<?php
@@ -99,8 +99,7 @@ function my_calendar_migration() {
 					</div>
 						<?php
 					}
-					$in_progress = get_option( 'mc_import_running' );
-					echo wp_kses_post( mc_display_progress( $in_progress ) );
+					echo wp_kses_post( mc_display_progress() );
 					?>
 				</div>
 			</div>

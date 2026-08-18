@@ -5,7 +5,7 @@
  * @category Calendar
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -290,7 +290,7 @@ function my_calendar_categories( $atts ) {
 		'my_calendar_categories'
 	);
 
-	return my_calendar_categories_list( $args['show'], 'public', 'single', $args['target_url'] );
+	return my_calendar_categories_list( $args['show'], 'single', $args['target_url'] );
 }
 
 /**
@@ -435,8 +435,8 @@ add_action( 'add_meta_boxes', 'mc_calendar_view' );
 /**
  * Settings to configure My Calendar view or build shortcode.
  *
- * @param object|false $post WP_Post object or false if no data.
- * @param array|string $callback_args Post callback args or selected type.
+ * @param object|array|false $post WP_Post object, posted array, or false if no data.
+ * @param array|string       $callback_args Post callback args or selected type.
  */
 function mc_calendar_generator_fields( $post, $callback_args ) {
 	$params = array();
@@ -504,7 +504,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 			if ( $shortcode ) {
 				echo wp_kses_post(
 					'<div class="shortcode-preview"><p><label for="mc_shortcode_' . $type . '">Shortcode</label><textarea readonly class="large-text readonly mc-shortcode-container" id="mc_shortcode_' . $type . '">' . $shortcode . '</textarea>' . $append . '</p>
-					<div class="mc-copy-button"><button type="button" class="button-primary mc-copy-to-clipboard" data-clipboard-target="#mc_shortcode_' . $type . '">' . __( 'Copy to clipboard', 'my-calendar' ) . '</button><span class="mc-notice-copied">' . __( 'Shortcode Copied', 'my-calendar' ) . '</span></div>
+					<div class="mc-copy-button"><button type="button" class="button button-primary mc-copy-to-clipboard" data-clipboard-target="#mc_shortcode_' . $type . '">' . __( 'Copy to clipboard', 'my-calendar' ) . '</button><span class="mc-notice-copied">' . __( 'Shortcode Copied', 'my-calendar' ) . '</span></div>
 					<p><button data-type="' . $base . '" type="button" class="button button-secondary reset-my-calendar">' . __( 'Reset Shortcode', 'my-calendar' ) . '</button></p></div>'
 				);
 			}
@@ -527,7 +527,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 				?>
 				<fieldset class="categories">
 					<legend><?php esc_html_e( 'Categories', 'my-calendar' ); ?></legend>
-					<ul class="checkboxes" style="padding:0;margin:0;list-style-type:none;display:flex;flex-wrap:wrap;gap:12px;">
+					<ul class="checkboxes" style="padding:0;margin:0;list-style-type:none;display:flex;flex-wrap:wrap;gap:4px;">
 						<li>
 							<input type="checkbox" value="all" <?php checked( empty( $category ), true ); ?> name="category[]" id="category_<?php echo esc_attr( $type ); ?>"> <label for="category_<?php echo esc_attr( $type ); ?>"><?php esc_html_e( 'All', 'my-calendar' ); ?></label>
 						</li>
@@ -605,6 +605,10 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 						<option value=""><?php esc_html_e( 'Default', 'my-calendar' ); ?></option>
 						<?php
 						foreach ( $enabled_formats as $f ) {
+							if ( 'single' === $f ) {
+								// Single is not a valid format for the main calendar.
+								continue;
+							}
 							?>
 							<option value="<?php echo esc_attr( $f ); ?>"<?php selected( $f, $format ); ?>><?php echo esc_html( $format_labels[ $f ] ); ?></option>
 							<?php
@@ -720,7 +724,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 							$f  .= (int) current_time( 'Y' ) + $fut . "</option>\n";
 							$fut = $fut + 1;
 						}
-						echo wp_kses( $p . '<option value="' . current_time( 'Y' ) . '"' . selected( current_time( 'Y' ), $year ) . '>' . current_time( 'Y' ) . "</option>\n" . $f, mc_kses_elements() );
+						echo wp_kses( $p . '<option value="' . current_time( 'Y' ) . '"' . selected( current_time( 'Y' ), $year, false ) . '>' . current_time( 'Y' ) . "</option>\n" . $f, mc_kses_elements() );
 						?>
 					</select>
 				</p>
@@ -731,7 +735,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 						<?php
 						$list_months = '';
 						for ( $i = 1; $i <= 12; $i++ ) {
-							$list_months .= "<option value='$i'" . selected( $i, $month ) . '>' . date_i18n( 'F', mktime( 0, 0, 0, $i, 1 ) ) . '</option>' . "\n";
+							$list_months .= "<option value='$i'" . selected( $i, $month, false ) . '>' . date_i18n( 'F', mktime( 0, 0, 0, $i, 1 ) ) . '</option>' . "\n";
 						}
 						echo wp_kses( $list_months, mc_kses_elements() );
 						?>
@@ -744,7 +748,7 @@ function mc_calendar_generator_fields( $post, $callback_args ) {
 						<?php
 						$days = '';
 						for ( $i = 1; $i <= 31; $i++ ) {
-							$days .= "<option value='$i'" . selected( $i, $day ) . '>' . $i . '</option>' . "\n";
+							$days .= "<option value='$i'" . selected( $i, $day, false ) . '>' . $i . '</option>' . "\n";
 						}
 						echo wp_kses( $days, mc_kses_elements() );
 						?>

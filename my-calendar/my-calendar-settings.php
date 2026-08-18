@@ -5,7 +5,7 @@
  * @category Settings
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -18,13 +18,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @param string       $key Setting key.
  * @param string|array $fallback Fallback value to return.
+ * @param bool         $force_reset Clear static cache and fetch fresh data.
  *
  * @return mixed A boolean false return means the setting doesn't exist.
  */
-function mc_get_option( $key, $fallback = '' ) {
+function mc_get_option( $key, $fallback = '', $force_reset = false ) {
 	static $options = null;
 	static $default = null;
-	if ( is_admin() || null === $options ) {
+	if ( is_admin() || null === $options || $force_reset ) {
 		$options = get_option( 'my_calendar_options', mc_default_options() );
 		if ( ! is_array( $options ) ) {
 			$options = mc_default_options();
@@ -40,6 +41,10 @@ function mc_get_option( $key, $fallback = '' ) {
 	$return = ( is_array( $value ) ) ? $value : (string) $value;
 	if ( ! $return && $fallback ) {
 		$return = $fallback;
+	}
+	// If the setting is set to disclosure for mini or grid, return modal instead. Disclosure removed in 3.8.
+	if ( 'disclosure' === $return && ( 'calendar_javascript' === $new_key || 'mini_javascript' === $new_key ) ) {
+		$return = 'modal';
 	}
 
 	return $return;
@@ -400,8 +405,10 @@ function mc_update_output_settings( $post ) {
 	$main                      = ( empty( $post['mc_display_main'] ) ) ? array() : $post['mc_display_main'];
 	$card                      = ( empty( $post['mc_display_card'] ) ) ? array() : $post['mc_display_card'];
 	$mini                      = ( empty( $post['mc_display_mini'] ) ) ? array() : $post['mc_display_mini'];
+	$list                      = ( empty( $post['mc_display_list'] ) ) ? array() : $post['mc_display_list'];
 	$options['display_single'] = array_map( 'sanitize_text_field', $single );
 	$options['display_main']   = array_map( 'sanitize_text_field', $main );
+	$options['display_list']   = array_map( 'sanitize_text_field', $list );
 	$options['display_card']   = array_map( 'sanitize_text_field', $card );
 	$options['display_mini']   = array_map( 'sanitize_text_field', $mini );
 	$options['views']          = array_map( 'sanitize_text_field', $views );
@@ -514,10 +521,18 @@ function mc_update_email_settings( $post ) {
 
 /**
  * Generate URL to export settings.
+ *
+ * @param string $which Which settings to export. Default is 'current'. Can also be 'default'.
  */
-function mc_export_settings_url() {
+function mc_export_settings_url( $which = 'current' ) {
 	$nonce = wp_create_nonce( 'mc-export-settings' );
-	$url   = add_query_arg( 'mc-export-settings', $nonce, admin_url( 'admin.php?my-calendar-config' ) );
+	$url   = add_query_arg(
+		array(
+			'mc-export-settings' => $nonce,
+			'which'              => $which,
+		),
+		admin_url( 'admin.php?my-calendar-config' )
+	);
 
 	return $url;
 }
@@ -531,10 +546,12 @@ function mc_export_settings() {
 		if ( $nonce ) {
 			$date     = gmdate( 'Y-m-d', current_time( 'timestamp' ) ); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested
 			$settings = get_option( 'my_calendar_options' );
+			$which    = ( isset( $_GET['which'] ) && 'default' === $_GET['which'] ) ? mc_default_options() : $settings;
+			$date     = ( isset( $_GET['which'] ) && 'default' === $_GET['which'] ) ? 'default' : $date;
 			header( 'Content-Type: application/json' );
 			header( 'Content-Disposition: attachment; filename=my-calendar-' . sanitize_title( get_bloginfo( 'name' ) ) . '-' . $date . '.json' );
 			header( 'Pragma: no-cache' );
-			wp_send_json( $settings, 200 );
+			wp_send_json( $which, 200 );
 		}
 	}
 }
@@ -608,7 +625,6 @@ function mc_validate_settings( $settings ) {
 		}
 		if ( $i > 20 ) {
 			return true;
-			break;
 		}
 	}
 
@@ -972,20 +988,29 @@ return $mcdb;
 							</p>
 						</fieldset>
 						<p>
-							<input type="submit" name="mc_manage" class="button-primary" value="<?php esc_html_e( 'Save Management Settings', 'my-calendar' ); ?>"/>
+							<input type="submit" name="mc_manage" class="button button-primary" value="<?php esc_html_e( 'Save Management Settings', 'my-calendar' ); ?>"/>
 						</p>
 					</form>
 					<div class="mc-extended-settings">
 						<h3><?php esc_html_e( 'Import and Export Settings', 'my-calendar' ); ?></h3>
-						<p><a href="<?php echo esc_url( mc_export_settings_url() ); ?>"><?php esc_html_e( 'Export settings', 'my-calendar' ); ?></a></p>
+						<ul>
+							<li><a href="<?php echo esc_url( mc_export_settings_url() ); ?>"><?php esc_html_e( 'Export current settings', 'my-calendar' ); ?></a></li>
+							<li><a href="<?php echo esc_url( mc_export_settings_url( 'default' ) ); ?>"><?php esc_html_e( 'Export default settings', 'my-calendar' ); ?></a></li>
+						</ul>
 						<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-config#my-calendar-manage' ) ); ?>">
 							<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>" />
 							<p class="mc-input-settings">
 								<label for="mc-import-settings"><?php esc_html_e( 'Import Settings', 'my-calendar' ); ?></label>
 								<input type="file" name="mc-import-settings" id="mc-import-settings" accept="application/json" />
-								<input type="submit" class="button-secondary" value="<?php esc_html_e( 'Import Settings', 'my-calendar' ); ?>">
+								<input type="submit" class="button button-secondary" value="<?php esc_html_e( 'Import Settings', 'my-calendar' ); ?>">
 							</p>
 						</form>
+						<p>
+							<?php esc_html_e( 'Importing settings will overwrite your current settings. Please make a backup of your current settings before importing.', 'my-calendar' ); ?>
+						</p>
+						<p>
+							<?php esc_html_e( 'Importing settings does not alter Events, Locations, Categories, or other content.', 'my-calendar' ); ?>
+						</p>
 						<h3><?php esc_html_e( 'Settings on other screens', 'my-calendar' ); ?></h3>
 						<?php
 							$current_location_slug = ( '' === mc_get_option( 'location_cpt_base' ) ) ? __( 'mc-locations', 'my-calendar' ) : mc_get_option( 'location_cpt_base' );
@@ -1327,7 +1352,7 @@ return $mcdb;
 						</ul>
 					</fieldset>
 					<p>
-						<input type="submit" name="save" class="button-primary" value="<?php esc_html_e( 'Save Custom Text', 'my-calendar' ); ?>"/>
+						<input type="submit" name="save" class="button button-primary" value="<?php esc_html_e( 'Save Custom Text', 'my-calendar' ); ?>"/>
 					</p>
 				</form>
 				<p>
@@ -1352,12 +1377,13 @@ return $mcdb;
 									'card'     => __( 'Card', 'my-calendar' ),
 									'list'     => __( 'List', 'my-calendar' ),
 									'mini'     => __( 'Mini', 'my-calendar' ),
+									'single'   => __( 'Single Event', 'my-calendar' ),
 								);
 								mc_settings_field(
 									array(
 										'name'    => 'mc_views',
 										'label'   => $default_views,
-										'default' => array( 'calendar', 'list', 'mini' ),
+										'default' => array( 'calendar', 'list', 'mini', 'single' ),
 										'type'    => 'checkbox',
 									)
 								);
@@ -1464,9 +1490,10 @@ return $mcdb;
 							<div class="mc-tabs">
 								<div class="tabs" role="tablist" data-default="single-event-output">
 									<button type="button" role="tab" aria-selected="false" id="tab_single_output" aria-controls="single-event-output"><?php esc_html_e( 'Single Event', 'my-calendar' ); ?></button>
-									<button type="button" role="tab" aria-selected="false" id="tab_card_output" aria-controls="calendar-main-output"><?php esc_html_e( 'Card', 'my-calendar' ); ?></button>
-									<button type="button" role="tab" aria-selected="false" id="tab_main_output" aria-controls="calendar-main-output"><?php esc_html_e( 'Single Event Popup', 'my-calendar' ); ?></button>
-									<button type="button" role="tab" aria-selected="false" id="tab_mini_output" aria-controls="mini-calendar-popup"><?php esc_html_e( 'Mini Calendar Popup', 'my-calendar' ); ?></button>
+									<button type="button" role="tab" aria-selected="false" id="tab_card_output" aria-controls="calendar-card-output"><?php esc_html_e( 'Card', 'my-calendar' ); ?></button>
+									<button type="button" role="tab" aria-selected="false" id="tab_main_output" aria-controls="calendar-main-output"><?php esc_html_e( 'Event Popup (Grid)', 'my-calendar' ); ?></button>
+									<button type="button" role="tab" aria-selected="false" id="tab_list_output" aria-controls="calendar-list-output"><?php esc_html_e( 'Event Popup/Panel (List)', 'my-calendar' ); ?></button>
+									<button type="button" role="tab" aria-selected="false" id="tab_mini_output" aria-controls="mini-calendar-popup"><?php esc_html_e( 'Event Popup (Mini)', 'my-calendar' ); ?></button>
 								</div>
 								<div role='tabpanel' aria-labelledby='tab_single_output' class='wptab' id='single-event-output'>
 									<p>
@@ -1553,7 +1580,7 @@ return $mcdb;
 									esc_html_e( 'Choose fields to show in the calendar popup and expanded list views.', 'my-calendar' );
 									echo ' ';
 									// Translators: URL to single event view template editing screen.
-									printf( wp_kses_post( __( 'The <a href="%1$s">grid view template</a> overrides these settings for the calendar popup, and the <a href="%2$s">list view template</a> overrides these settings in list view.', 'my-calendar' ) ), esc_url( admin_url( 'admin.php?page=my-calendar-design&mc_template=grid#my-calendar-templates' ) ), esc_url( admin_url( 'admin.php?page=my-calendar-design&mc_template=list#my-calendar-templates' ) ) );
+									printf( wp_kses_post( __( 'The <a href="%1$s">grid view template</a> overrides these settings.', 'my-calendar' ) ), esc_url( admin_url( 'admin.php?page=my-calendar-design&mc_template=grid#my-calendar-templates' ) ) );
 									?>
 									</p>
 									<ul class="checkboxes">
@@ -1561,6 +1588,28 @@ return $mcdb;
 									mc_settings_field(
 										array(
 											'name'    => 'mc_display_main',
+											'label'   => $default_display_fields,
+											'default' => array( 'address', 'excerpt', 'image', 'tickets', 'access', 'gmap_link', 'more' ),
+											'type'    => 'checkbox',
+										)
+									);
+									?>
+									</ul>
+								</div>
+								<div role='tabpanel' aria-labelledby='tab_list_output' class='wptab' id='calendar-list-output'>
+									<p>
+									<?php
+									esc_html_e( 'Choose fields to show in the list view popup.', 'my-calendar' );
+									echo ' ';
+									// Translators: URL to single event view template editing screen.
+									printf( wp_kses_post( __( 'The <a href="%1$s">list view template</a> overrides these settings.', 'my-calendar' ) ), esc_url( admin_url( 'admin.php?page=my-calendar-design&mc_template=list#my-calendar-templates' ) ) );
+									?>
+									</p>
+									<ul class="checkboxes">
+									<?php
+									mc_settings_field(
+										array(
+											'name'    => 'mc_display_list',
 											'label'   => $default_display_fields,
 											'default' => array( 'address', 'excerpt', 'image', 'tickets', 'access', 'gmap_link', 'more' ),
 											'type'    => 'checkbox',
@@ -1682,7 +1731,7 @@ return $mcdb;
 											'google' => __( 'Google Maps', 'my-calendar' ),
 											'none'   => __( 'None', 'my-calendar' ),
 										),
-										'note'    => __( 'Setting only supports links; embedded maps are still only Google Maps.', 'my-calendar' ),
+										'note'    => __( 'Setting only supports links; embedded maps are only Google Maps.', 'my-calendar' ),
 										'type'    => 'select',
 									)
 								);
@@ -1700,7 +1749,6 @@ return $mcdb;
 											'hybrid'    => __( 'Hybrid (Satellite/Road)', 'my-calendar' ),
 											'terrain'   => __( 'Terrain', 'my-calendar' ),
 										),
-										'note'    => __( 'Setting only supports links; embedded maps are still only Google Maps.', 'my-calendar' ),
 										'type'    => 'select',
 									)
 								);
@@ -1877,7 +1925,7 @@ return $mcdb;
 								</ul>
 							</fieldset>
 						</div>
-						<p><input type="submit" name="save" class="button-primary" value="<?php esc_html_e( 'Save Display Settings', 'my-calendar' ); ?>"/></p>
+						<p><input type="submit" name="save" class="buton button-primary" value="<?php esc_html_e( 'Save Display Settings', 'my-calendar' ); ?>"/></p>
 					</div>
 				</div>
 			</form>
@@ -1943,7 +1991,7 @@ return $mcdb;
 							</ul>
 						</fieldset>
 						<p>
-							<input type="submit" name="save" class="button-primary" value="<?php esc_html_e( 'Save Input Settings', 'my-calendar' ); ?>"/>
+							<input type="submit" name="save" class="button button-primary" value="<?php esc_html_e( 'Save Input Settings', 'my-calendar' ); ?>"/>
 						</p>
 					</form>
 				</div>
@@ -1999,7 +2047,7 @@ return $mcdb;
 						</ul>
 					</fieldset>
 					<p>
-						<input type="submit" name="save" class="button-primary" value="<?php esc_html_e( 'Save Multisite Settings', 'my-calendar' ); ?>"/>
+						<input type="submit" name="save" class="button button-primary" value="<?php esc_html_e( 'Save Multisite Settings', 'my-calendar' ); ?>"/>
 					</p>
 				</form>
 			</div>
@@ -2045,7 +2093,7 @@ return $mcdb;
 		?>
 						</div>
 						<p>
-							<input type="submit" name="mc_permissions" class="button-primary" value="<?php esc_html_e( 'Save Permissions', 'my-calendar' ); ?>"/>
+							<input type="submit" name="mc_permissions" class="button button-primary" value="<?php esc_html_e( 'Save Permissions', 'my-calendar' ); ?>"/>
 						</p>
 					</form>
 		<?php
@@ -2159,7 +2207,7 @@ return $mcdb;
 						</ul>
 					</fieldset>
 					<p>
-						<input type="submit" name="save" class="button-primary" value="<?php esc_html_e( 'Save Email Settings', 'my-calendar' ); ?>"/>
+						<input type="submit" name="save" class="button button-primary" value="<?php esc_html_e( 'Save Email Settings', 'my-calendar' ); ?>"/>
 					</p>
 				</form>
 			</div>

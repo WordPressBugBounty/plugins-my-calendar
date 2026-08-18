@@ -5,7 +5,7 @@
  * @category Import
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -58,6 +58,9 @@ function mc_convert_post_status_to_approval( $status ) {
 		case 'publish':
 			$approval = 1;
 			break;
+		case 'future':
+			$approval = 6;
+			break;
 		case 'draft':
 			$approval = 0;
 			break;
@@ -83,6 +86,9 @@ function mc_convert_approval_to_post_status( $approval ) {
 		case 1:
 			$status = 'publish';
 			break;
+		case 6:
+			$status = 'future';
+			break;
 		case 0:
 			$status = 'draft';
 			break;
@@ -107,6 +113,7 @@ function mc_import_source_calendar() {
 	$cats           = $wpdb->get_results( 'SELECT * FROM ' . $wpdb->prefix . 'calendar_categories', 'ARRAY_A' );
 	$cats_results   = false;
 	$category_map   = array();
+	$new_id         = false;
 	foreach ( $cats as $key ) {
 		$name                = $key['category_name'];
 		$color               = $key['category_colour'];
@@ -117,6 +124,9 @@ function mc_import_source_calendar() {
 		);
 		$new_id              = mc_create_category( $category );
 		$category_map[ $id ] = $new_id;
+	}
+	if ( $new_id ) {
+		$cats_results = true;
 	}
 	foreach ( $events as $key ) {
 		$endtime        = ( '00:00:00' === $key['event_time'] ) ? '00:00:00' : date( 'H:i:s', strtotime( "$key[event_time] +1 hour" ) ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date

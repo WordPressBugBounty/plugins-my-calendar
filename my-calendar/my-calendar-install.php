@@ -5,7 +5,7 @@
  * @category Core
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -318,8 +318,12 @@ function mc_create_demo_content() {
 
 /**
  * Get template values.
+ *
+ * @param string $type Type of template to return.
+ *
+ * @return array|string nested array of all templates or string of a single template.
  */
-function mc_template_settings() {
+function mc_template_settings( $type = 'all' ) {
 	$globals   = mc_globals( 'templates' );
 	$templates = array(
 		'title'      => '{time}: {title}',
@@ -335,7 +339,12 @@ function mc_template_settings() {
 		'label'      => '', // Empty because usage has a fallback value.
 	);
 
-	return $templates;
+	$template = '';
+	if ( isset( $templates[ $type ] ) ) {
+		$template = $templates[ $type ];
+	}
+
+	return ( 'all' === $type ) ? $templates : $template;
 }
 
 /**
@@ -348,6 +357,7 @@ function mc_default_options() {
 		'display_single'               => array( 'ical', 'address', 'gcal', 'description', 'image', 'tickets', 'access', 'link', 'gmap_link' ),
 		'display_main'                 => array( 'address', 'excerpt', 'image', 'tickets', 'access', 'gmap_link', 'more' ),
 		'display_mini'                 => array( 'excerpt', 'image', 'more' ),
+		'display_list'                 => array( 'address', 'excerpt', 'image', 'tickets', 'access', 'gmap_link', 'more' ),
 		'use_permalinks'               => 'true',
 		'use_styles'                   => 'false',
 		'show_months'                  => '1',
@@ -433,9 +443,10 @@ function mc_default_options() {
 		'map_service'                  => 'google',
 		'disable_legacy_templates'     => 'false',
 		'maptype'                      => 'roadmap',
-		'views'                        => array( 'calendar', 'list', 'mini' ),
+		'views'                        => array( 'calendar', 'list', 'mini', 'single' ),
 		'time_views'                   => array( 'month', 'week', 'day' ),
 		'list_template'                => '',
+		'upgrade_380'                  => 'false',
 	);
 
 	/**
@@ -489,7 +500,7 @@ function mc_generate_calendar_page( $slug ) {
 	$page_by_path = get_page_by_path( $slug );
 	$page_status  = ( $page_by_path ) ? $page_by_path->post_status : '';
 	$allowed      = array( 'private', 'publish' );
-	if ( ! $page_by_path || ( $page_by_path && ! in_array( $page_status, $allowed, true ) ) ) {
+	if ( null === $page_by_path || ( $page_by_path && ! in_array( $page_status, $allowed, true ) ) ) {
 		$page      = array(
 			'post_title'   => __( 'My Calendar', 'my-calendar' ),
 			'post_status'  => 'publish',

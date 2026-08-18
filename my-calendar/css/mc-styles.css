@@ -182,6 +182,15 @@ ul.links li {
 	gap: .25rem;
 }
 
+p:has(#mc_api_enabled) {
+	display: flex;
+	align-items: center;
+}
+
+p:has(#mc_api_enabled) label {
+	margin-right: .5rem;
+}
+
 .my-calendar-text .mc-input-description:has(.my-calendar-contextual-help),
 #my-calendar-text .mc-input-description:has(.my-calendar-contextual-help) {
 	background: none;
@@ -531,7 +540,7 @@ ul.mc-file-list ul li {
 }
 
 .my-calendar-admin .mc-image-upload .image_fields button {
-	background: #f0f0f1;
+	background: #fff;
 }
 
 .my-calendar-admin .mc-image-upload.has-image .image_fields {
@@ -1160,8 +1169,8 @@ label[for=mc_uri_query]::before {
 	column-gap: 6px;
 }
 
-.my-calendar-text span,
-#my-calendar-text span {
+.my-calendar-text span:not(.my-calendar-contextual-help span),
+#my-calendar-text span:not(.my-calendar-contextual-help span) {
 	background: rgba( 0,0,0,.04 );
 	padding: 5px;
 	border-radius: 3px;
@@ -1208,6 +1217,8 @@ label[for=mc_uri_query]::before {
 	display: grid;
 	grid-template-columns: 1fr auto;
 	margin: 1rem 0;
+	gap: 8px;
+	align-items: center;
 }
 
 .mc-input-with-note {
@@ -1223,6 +1234,7 @@ label[for=mc_uri_query]::before {
 
 .mc-input-with-note p {
 	margin: 0;
+	width: 100%;
 }
 
 .mc-input-with-note span {
@@ -1374,13 +1386,13 @@ input[name="mc_uri"] {
 	display: block;
 }
 
-.my-calendar-admin .mc-clear-filters {
+.my-calendar-admin .mc-clear-admin-filters {
 	position: absolute;
 	top: -3em;
 	right: 1em;
 }
 
-.my-calendar-admin .mc-clear-filters .dashicons {
+.my-calendar-admin .mc-clear-admin-filters .dashicons {
 	text-decoration: none;
 }
 
@@ -1516,12 +1528,15 @@ ul.mc-variables li:has(.wp-picker-active) label {
 	display: block;
 }
 
+.my-calendar-admin .checkboxes li input {
+	margin-top: 0;
+}
+
 .my-calendar-admin .checkboxes li {
-	padding: 0 8px;
+	padding: 8px;
 	background: rgba(0, 0, 0, .04);
 	display: inline-flex;
 	align-items: center;
-	min-height: 32px;
 	margin: 0;
 	gap: 4px;
 }
@@ -1606,9 +1621,9 @@ ul.mc-variables li:has(.wp-picker-active) label {
 
 .wrap a.my-calendar-contextual-help {
 	display: inline-flex;
-	column-gap: 5px;
 	align-items: center;
 	text-decoration: none;
+	gap: 5px;
 }
 
 .wrap .notice a.my-calendar-contextual-help {
@@ -1655,12 +1670,31 @@ ul.mc-variables li:has(.wp-picker-active) label {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 12px;
-	align-items: center;
+	align-items: end;
 	margin: 0;
 }
 
+.mc-controls li {
+	margin-bottom: 0;
+}
+
+.mc-controls #mc-scheduled-publication,
+.mc-controls li:has(label) {
+	display: grid;
+}
+
+.mc-controls li:has(a) {
+	padding-bottom: 8px;
+}
+
+@media screen and ( width < 782px ) {
+	.mc-controls li:has(a) {
+		padding-bottom: 12px;
+	}
+}
+
 .mc-controls.footer {
-	margin: 20px 0 0;
+	margin: 12px 0 0;
 }
 
 .mc-controls li:last-of-type {
@@ -1722,6 +1756,23 @@ ul.mc-variables li:has(.wp-picker-active) label {
 	align-items: center;
 	gap: 10px;
 }
+
+#my-calendar-style .mc-new-variable .add-new-variable {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+#my-calendar-style .mc-new-variable .add-new-variable[aria-expanded=true]::before {
+	font-family: 'dashicons';
+	content: "\f460" / '';
+}
+
+#my-calendar-style .mc-new-variable .add-new-variable[aria-expanded=false]::before {
+	font-family: 'dashicons';
+	content: "\f132" / '';
+}
+
 
 #my-calendar-style .my-calendar-style-preview {
 	position: relative;
@@ -1817,6 +1868,17 @@ ul.mc-variables li:has(.wp-picker-active) label {
 
 div.mc-search {
 	text-align: right;
+}
+
+.mc-search .mc-flex {
+	gap: 0;
+	align-items: inherit;
+	justify-content: flex-end;
+}
+
+.mc-actions input.button,
+.mc-search .mc-flex input.button {
+	margin-bottom: 0;
 }
 
 .mc-submissions input[disabled] {
@@ -2005,6 +2067,7 @@ tr.problem .error {
 	margin-left: 1em;
 }
 
+#mc-scheduled-publication.hidden,
 .my-calendar-admin .hidden {
 	display: none;
 }
@@ -2202,14 +2265,8 @@ input#mc_event_time:valid+span {
 		display: block;
 	}
 
-	.recurrences .columns p:first-of-type,
-	.recurrences .columns p:nth-of-type(2),
-	#e_schedule .columns p:first-of-type,
-	#e_schedule .columns p:nth-of-type(2),
-	.recurring .columns p:first-of-type,
-	.recurring .columns p:nth-of-type(2) {
-		display: inline-block;
-		margin-right: 10px;
+	.recurring .columns p:first-of-type {
+		margin: 0;
 	}
 }
 

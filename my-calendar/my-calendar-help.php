@@ -5,7 +5,7 @@
  * @category Core
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -98,7 +98,6 @@ function my_calendar_help() {
 				</p>
 				<h3><?php esc_html_e( 'Custom Template Locations', 'my-calendar' ); ?></h3>
 				<p><?php echo wp_kses_post( __( 'Default My Calendar templates are found in <code>/wp-content/my-calendar/mc-templates/</code>. Copy those templates into a <code>/mc-templates/</code> directory in your theme to customize.', 'my-calendar' ) ); ?></p>
-				<p><?php esc_html_e( 'Legacy My Calendar templates can be loaded as text files (.txt) from any of the allowed style directory locations.', 'my-calendar' ); ?></p>
 				<h3><?php esc_html_e( 'Custom Icons Location', 'my-calendar' ); ?></h3>
 				<ul>
 					<li><code><?php echo esc_html( str_replace( '/my-calendar', '', plugin_dir_path( __FILE__ ) ) ) . 'my-calendar-custom/icons/'; ?></code></li>
@@ -417,4 +416,59 @@ function mc_display_icons() {
 	$append = ( $is_custom ) ? '' : '<p><a target="_parent" href="https://fontawesome.com/license">' . __( 'Icons by Font Awesome', 'my-calendar' ) . '</a></p>';
 
 	return $output . $append;
+}
+
+
+/**
+ * Add help tab on events.
+ *
+ * @return void
+ */
+function mc_add_help_tab() {
+	$screen  = get_current_screen();
+	$content = '<ul>
+			<li>' . __( '<strong>Published</strong>: Events are live and visible.', 'my-calendar' ) . '</li>
+			<li>' . __( '<strong>Draft</strong>: Events in progress, not visible.', 'my-calendar' ) . '</li>
+			<li>' . __( '<strong>Trash</strong>: Events intended for deletion, not visible.', 'my-calendar' ) . '</li>
+			<li>' . __( '<strong>Archive</strong>: Events still visible, but removed from "Published" list.', 'my-calendar' ) . '</li>
+			<li>' . __( '<strong>Spam</strong>: Events identified as potential spam, not visible.', 'my-calendar' ) . '</li>
+			<li>' . __( '<strong>Private</strong>: In a private category, only visible to logged-in users.', 'my-calendar' ) . '</li>
+			<li>' . __( '<strong>Invalid</strong>: There is something wrong with the dates assigned for this event, and it should be checked.', 'my-calendar' ) . '</li>
+		</ul>';
+
+	$screen->add_help_tab(
+		array(
+			'id'      => 'mc_help_tab',
+			'title'   => __( 'Event Statuses', 'my-calendar' ),
+			'content' => $content,
+		)
+	);
+}
+
+/**
+ * Add help tab on locations.
+ *
+ * @return void
+ */
+function mc_location_help_tab() {
+	$screen       = get_current_screen();
+	$settings_url = admin_url( 'admin.php?page=my-calendar-config#my-calendar-input' );
+	$content      = '<h2>' . __( 'Merge Duplicates', 'my-calendar' ) . '</h2><ul><li>' . __( 'Check the locations you wish to remove', 'my-calendar' ) . '</li><li>' . __( 'Check the "Merge Duplicates" option at the top of the table', 'my-calendar' ) . '</li><li>' . __( 'Enter the ID of the location you want to have replace these locations', 'my-calendar' ) . '</li><li>' . __( 'Submit the form', 'my-calendar' ) . '</li></ul><p>' . __( 'The checked locations will be deleted. Events using those locations will be updated to use the provided ID', 'my-calendar' ) . '</p>';
+	// Translators: URL to change location controls.
+	$limits = '<h2>' . __( 'Location Controls', 'my-calendar' ) . '</h2><p>' . sprintf( __( 'You can limit the values available for locations using the <a href="%s">Location Control</a> settings at <code>My Calendar > Settings > Inputs</code>.', 'my-calendar' ), $settings_url ) . '</p>';
+	$screen->add_help_tab(
+		array(
+			'id'      => 'mc_location_help_tab',
+			'title'   => __( 'Merging Duplicate Locations', 'my-calendar' ),
+			'content' => $content,
+		)
+	);
+
+	$screen->add_help_tab(
+		array(
+			'id'      => 'mc_location_help_tab_limits',
+			'title'   => __( 'Limit Location Inputs', 'my-calendar' ),
+			'content' => $limits,
+		)
+	);
 }

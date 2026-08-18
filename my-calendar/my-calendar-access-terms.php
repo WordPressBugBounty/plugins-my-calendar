@@ -5,7 +5,7 @@
  * @category Terms
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -260,7 +260,7 @@ function mc_edit_access_term_form( $view = 'edit', $term_id = false, $taxonomy =
 								</p>
 							</div>
 							<p>
-								<input type="submit" name="save" class="button-primary" value="<?php echo esc_attr( $save_text ); ?> "/>
+								<input type="submit" name="save" class="button button-primary" value="<?php echo esc_attr( $save_text ); ?> "/>
 							</p>
 							<?php
 							/**
@@ -328,7 +328,7 @@ function mc_manage_access_terms( $taxonomy = 'mc-event-access' ) {
 			$cat_name = wp_unslash( strip_tags( $term->name, mc_strip_tags() ) );
 			?>
 		<tr>
-			<th scope="row"><?php echo absint( $term->term_id ); ?></th>
+			<th scope="row" aria-label="<?php echo esc_attr( $cat_name ); ?>"><?php echo absint( $term->term_id ); ?></th>
 			<td>
 			<?php
 			echo esc_html( $cat_name );
@@ -483,9 +483,9 @@ function mc_admin_access_term_list( $event = false, $taxonomy = 'mc-event-access
 /**
  * Generate access term classes.
  *
- * @param object|array $event  Event object.
- * @param string       $taxonomy Taxonomy for terms.
- * @param string       $prefix Prefix to append to class; varies on context.
+ * @param object $event  Event object.
+ * @param string $taxonomy Taxonomy for terms.
+ * @param string $prefix Prefix to append to class; varies on context.
  *
  * @return array an array of classes
  */

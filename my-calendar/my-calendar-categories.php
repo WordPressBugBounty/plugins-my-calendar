@@ -5,7 +5,7 @@
  * @category Events
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -190,9 +190,13 @@ function my_calendar_manage_categories() {
 			$mcnonce = wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' );
 			if ( $mcnonce ) {
 				$cat_id      = (int) $_GET['category_id'];
+				$term_id     = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT category_term FROM ' . my_calendar_categories_table() . ' WHERE category_id=%d', $cat_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 				$results     = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . my_calendar_categories_table() . ' WHERE category_id=%d', $cat_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 				$rel_results = false;
 				if ( $results ) {
+					if ( $term_id ) {
+						wp_delete_term( $term_id, 'mc-event-category' );
+					}
 					// Set events with deleted category as primary to default category as primary.
 					$set_category = ( is_numeric( $default_category ) && $cat_id !== (int) $default_category ) ? absint( $default_category ) : 1;
 					$cal_results  = $wpdb->query( $wpdb->prepare( 'UPDATE `' . my_calendar_table() . '` SET event_category=%d WHERE event_category=%d', $set_category, $cat_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
@@ -200,6 +204,8 @@ function my_calendar_manage_categories() {
 					$rel_results = $wpdb->query( $wpdb->prepare( 'UPDATE `' . my_calendar_category_relationships_table() . '` SET category_id = %d WHERE category_id=%d', $set_category, $cat_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 					// clean out duplicates.
 					$wpdb->query( 'DELETE cr1 FROM `' . my_calendar_category_relationships_table() . '` AS cr1 INNER JOIN `' . my_calendar_category_relationships_table() . '` AS cr2 WHERE cr1.relationship_id > cr2.relationship_id AND cr1.category_id = cr2.category_id AND cr1.event_id = cr2.event_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+					delete_transient( 'mc_cat_' . $cat_id );
+					delete_transient( 'mc_private_categories' );
 				} else {
 					$cal_results = false;
 				}
@@ -409,9 +415,9 @@ function mc_create_category( $category ) {
 	 *
 	 * @hook mc_post_add_category
 	 *
-	 * @param array  $add Category data array used for DB insert.
-	 * @param int    $cat_id ID of new category.
-	 * @param string $category Original array sent to function.
+	 * @param array $add Category data array used for DB insert.
+	 * @param int   $cat_id ID of new category.
+	 * @param array $category Original array sent to function.
 	 */
 	do_action( 'mc_post_add_category', $add, $cat_id, $category );
 
@@ -569,7 +575,7 @@ function mc_edit_category_form( $view = 'edit', $cat_id = false ) {
 								?>
 							</fieldset>
 							<p>
-								<input type="submit" name="save" class="button-primary" value="<?php echo esc_attr( $save_text ); ?> "/>
+								<input type="submit" name="save" class="button button-primary" value="<?php echo esc_attr( $save_text ); ?> "/>
 							</p>
 							<?php
 							/**
@@ -706,7 +712,7 @@ function mc_category_settings() {
 				</ul>
 			</div>
 			<p>
-				<input type="submit" name="mc_category_settings" class="button-primary" value="' . __( 'Save Settings', 'my-calendar' ) . '" />
+				<input type="submit" name="mc_category_settings" class="button button-primary" value="' . __( 'Save Settings', 'my-calendar' ) . '" />
 			</p>
 		</form>';
 
@@ -802,7 +808,7 @@ function mc_no_category_default( $single = false ) {
  *
  * @param int|string $category Category name/id.
  *
- * @return object
+ * @return object|null
  */
 function mc_get_category( $category ) {
 	static $cat_cache = array();
@@ -899,7 +905,7 @@ function mc_manage_categories() {
 			$cat_name = wp_unslash( strip_tags( $cat->category_name, mc_strip_tags() ) );
 			?>
 		<tr>
-			<th scope="row"><?php echo absint( $cat->category_id ); ?></th>
+			<th scope="row" aria-label="<?php echo esc_attr( $cat_name ); ?>"><?php echo absint( $cat->category_id ); ?></th>
 			<td>
 			<?php
 			$category_event_url = add_query_arg( 'filter', $cat->category_id, admin_url( 'admin.php?page=my-calendar-manage&restrict=category&view=list&limit=all' ) );
@@ -1086,8 +1092,8 @@ function mc_category_select( $data = false, $option = true, $multiple = false, $
 		 *
 		 * @hook mc_category_list
 		 *
-		 * @param array  $cats Array of categories.
-		 * @param object $data An object with selected category data.
+		 * @param array                       $cats Array of categories.
+		 * @param object|false|int|null|array $data object with event_category value, empty value, or a category ID.
 		 *
 		 * @return array
 		 */
@@ -1106,7 +1112,7 @@ function mc_category_select( $data = false, $option = true, $multiple = false, $
 			if ( ! empty( $data ) ) {
 				if ( ! is_object( $data ) ) {
 					$category = $data;
-				} elseif ( is_array( $data ) && $multiple && 'mc_user_permissions[]' === $name ) {
+				} elseif ( is_array( $data ) && $multiple && ( 'mc_user_permissions[]' === $name ) ) {
 					$category = $data;
 				} elseif ( is_array( $data ) && $multiple && $id ) {
 					// This is coming from a widget.
@@ -1271,11 +1277,11 @@ function mc_admin_category_list( $event ) {
  * Get all categories for given event
  *
  * @param object|int     $event Event object or event ID.
- * @param boolean|string $ids Return objects, ids, text, or html output.
+ * @param boolean|string $return_type Return objects, ids, text, or html output.
  *
- * @return array of values
+ * @return array|string Array of objects, of ids, or a text string of values.
  */
-function mc_get_categories( $event, $ids = true ) {
+function mc_get_categories( $event, $return_type = true ) {
 	$mcdb     = mc_is_remote_db();
 	$event_id = ( is_object( $event ) ) ? absint( $event->event_id ) : absint( $event );
 	$return   = array();
@@ -1289,7 +1295,7 @@ function mc_get_categories( $event, $ids = true ) {
 		$primary = mc_get_data( 'event_category', $event_id );
 	} else {
 
-		return ( 'html' === $ids || 'text' === $ids ) ? '' : array();
+		return ( 'html' === $return_type || 'text' === $return_type ) ? '' : array();
 	}
 
 	if ( ! $results ) {
@@ -1303,7 +1309,7 @@ function mc_get_categories( $event, $ids = true ) {
 			set_transient( 'mc_categories_' . $event_id, $results, WEEK_IN_SECONDS );
 		}
 	}
-	if ( true === $ids ) {
+	if ( true === $return_type ) {
 		if ( $results ) {
 			foreach ( $results as $result ) {
 				$return[] = $result->category_id;
@@ -1311,16 +1317,16 @@ function mc_get_categories( $event, $ids = true ) {
 		} else {
 			$return[] = $primary;
 		}
-	} elseif ( 'html' === $ids || 'text' === $ids ) {
-		$return = mc_categories_html( $results, $primary, $ids );
-	} elseif ( 'testing' === $ids ) {
+	} elseif ( 'html' === $return_type || 'text' === $return_type ) {
+		$return = mc_categories_html( $results, $primary, $return_type );
+	} elseif ( 'testing' === $return_type ) {
 		if ( $results ) {
 			foreach ( $results as $result ) {
 				$return[] = $result->category_id;
 			}
 		}
 	} else {
-		$return = ( is_array( $results ) ) ? $results : array( $event->event_category );
+		$return = ( is_array( $results ) ) ? $results : array( $primary );
 	}
 
 	return $return;
@@ -1488,7 +1494,7 @@ function mc_category_icon( $event_or_category ) {
 	 * @return string|bool
 	 */
 	$override = apply_filters( 'mc_override_category_icon', false, $event_or_category );
-	if ( $override ) {
+	if ( $override && is_string( $override ) ) {
 		return $override;
 	}
 	if ( is_object( $event_or_category ) && property_exists( $event_or_category, 'category_icon' ) ) {

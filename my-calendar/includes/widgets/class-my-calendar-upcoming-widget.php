@@ -5,7 +5,7 @@
  * @category Widgets
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @package   My Calendar
  * @author    Joe Dolson
  * @copyright 2009
- * @license   GPLv3
+ * @license   GPLv2
  * @version   1.0
  */
 class My_Calendar_Upcoming_Widget extends WP_Widget {
@@ -122,8 +122,6 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 	 * Edit the upcoming events widget.
 	 *
 	 * @param array $instance Current widget settings.
-	 *
-	 * @return void
 	 */
 	public function form( $instance ) {
 		$defaults = mc_widget_defaults();
@@ -199,7 +197,7 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 		</p>
 		<p class="mc-custom-template">
 			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_template' ) ); ?>"><?php esc_html_e( 'Template', 'my-calendar' ); ?></label><br/>
-			<textarea class="widefat" rows="4" cols="20" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_template' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_template' ) ); ?>"><?php echo esc_textarea( $template ); ?></textarea>
+			<textarea class="widefat" rows="4" cols="20" id="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_template' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'my_calendar_upcoming_template' ) ); ?>"><?php echo esc_textarea( wp_unslash( html_entity_decode( $template ) ) ); ?></textarea>
 		</p>
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'my_calendar_upcoming_type' ) ); ?>"><?php esc_html_e( 'Display upcoming events by:', 'my-calendar' ); ?></label>
@@ -334,6 +332,7 @@ class My_Calendar_Upcoming_Widget extends WP_Widget {
 		</p>
 		</div>
 		<?php
+		return '';
 	}
 
 	/**

@@ -5,7 +5,7 @@
  * @category Core
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -70,10 +70,6 @@ function my_calendar_behaviors_edit() {
 					<input type="radio" id="calendar_js_modal" name="calendar_js" value="modal" <?php checked( mc_get_option( 'calendar_javascript' ), 'modal' ); ?>/>
 					<label for="calendar_js_modal"><?php esc_html_e( 'Modal', 'my-calendar' ); ?></label>
 				</li>
-				<li>
-					<input type="radio" id="calendar_js_widget" name="calendar_js" value="disclosure" <?php checked( mc_get_option( 'calendar_javascript' ), 'disclosure' ); ?>/>
-					<label for="calendar_js_widget"><?php esc_html_e( 'Disclosure Widget', 'my-calendar' ); ?></label>
-				</li>
 				</ul>
 			</fieldset>
 			<fieldset>
@@ -89,7 +85,7 @@ function my_calendar_behaviors_edit() {
 				</li>
 				<li>
 					<input type="radio" id="list_js_widget" name="list_js" value="disclosure" <?php checked( mc_get_option( 'list_javascript' ), 'disclosure' ); ?>/>
-					<label for="list_js_widget"><?php esc_html_e( 'Disclosure Widget', 'my-calendar' ); ?></label>
+					<label for="list_js_widget"><?php esc_html_e( 'Toggle Date Details', 'my-calendar' ); ?></label>
 				</li>
 				</ul>
 			</fieldset>
@@ -104,20 +100,16 @@ function my_calendar_behaviors_edit() {
 					<input type="radio" id="mini_js_modal" name="mini_js" value="modal" <?php checked( mc_get_option( 'mini_javascript' ), 'modal' ); ?>/>
 					<label for="mini_js_modal"><?php esc_html_e( 'Modal', 'my-calendar' ); ?></label>
 				</li>
-				<li>
-					<input type="radio" id="mini_js_widget" name="mini_js" value="disclosure" <?php checked( mc_get_option( 'mini_javascript' ), 'disclosure' ); ?>/>
-					<label for="mini_js_widget"><?php esc_html_e( 'Disclosure Widget', 'my-calendar' ); ?></label>
-				</li>
 				</ul>
 			</fieldset>
 			<ul class="checkboxes">
 				<li>
 					<input type="checkbox" id="ajax_js" name="ajax_js" value="1" <?php checked( mc_get_option( 'ajax_javascript' ), '1' ); ?> />
-					<label for="ajax_js"><?php esc_html_e( 'Disable AJAX', 'my-calendar' ); ?></label></li>
+					<label for="ajax_js"><?php esc_html_e( 'Disable AJAX Navigation', 'my-calendar' ); ?></label></li>
 			</ul>
 		</div>
 		<p>
-			<input type="submit" name="mc-js-save" class="button-primary" value="<?php echo esc_attr( __( 'Save', 'my-calendar' ) ); ?>"/>
+			<input type="submit" name="mc-js-save" class="button button-primary" value="<?php echo esc_attr( __( 'Save', 'my-calendar' ) ); ?>"/>
 		</p>
 	</form>
 	<?php

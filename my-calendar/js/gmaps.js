@@ -109,6 +109,7 @@
 		if ( '' == $marker.getAttribute( 'data-lat' ) || '' == $marker.getAttribute( 'data-lng' ) ) {
 			const geocoder = new google.maps.Geocoder();
 			marker = new getAddress( geocoder, $marker, plot, bounds );
+
 		} else {
 			plot.setCenter( latlng );
 			let args;
@@ -145,10 +146,11 @@
 			bounds.extend( latlng );
 			// If current bounds are too tight, add .005 degrees and zoom out. (~1/2 mile).
 			if ( bounds.getNorthEast().equals( bounds.getSouthWest() ) ) {
-				const extendPoint = new google.maps.LatLng( bounds.getNorthEast().lat() + 0.005, bounds.getNorthEast().lng() + 0.005 );
-				bounds.extend( extendPoint );
+				const northEast = bounds.getNorthEast();
+				const expandBy = 0.005;
+				bounds.extend( new google.maps.LatLng( northEast.lat() + expandBy, northEast.lng() + expandBy ) );
+				bounds.extend( new google.maps.LatLng( northEast.lat() - expandBy, northEast.lng() - expandBy ) );
 			}
-			plot.fitBounds(bounds);
 
 			// if marker contains HTML, add it to an infoWindow
 			let content = $marker.querySelector( '.mc-google-marker' );
@@ -179,23 +181,24 @@
 	 */
 	function getAddress( geocoder, $marker, plot, bounds ) {
 		let address = $marker.getAttribute( 'data-address' );
-		let marker = null;
-		marker = geocoder.geocode({'address': address}, function(results, status) {
+		geocoder.geocode({'address': address}, function(results, status) {
 			if ( status === 'OK' ) {
 				plot.setCenter( results[0].geometry.location );
-				marker = new google.maps.Marker({
+				const marker = new google.maps.Marker({
 					map : plot,
 					position : results[0].geometry.location,
 					clickable : true,
 					title : $marker.getAttribute( 'data-title' ),
 				});
 
-				let latlng = new google.maps.LatLng( marker.position.lat(), marker.position.lng() );
+				let latlng = results[0].geometry.location;
 				bounds.extend( latlng );
 				// If current bounds are too tight, add .005 degrees and zoom out. (~1/2 mile).
 				if ( bounds.getNorthEast().equals( bounds.getSouthWest() ) ) {
-					const extendPoint = new google.maps.LatLng( bounds.getNorthEast().lat() + 0.005, bounds.getNorthEast().lng() + 0.005 );
-					bounds.extend( extendPoint );
+					const northEast = bounds.getNorthEast();
+					const expandBy = 0.005;
+					bounds.extend( new google.maps.LatLng( northEast.lat() + expandBy, northEast.lng() + expandBy ) );
+					bounds.extend( new google.maps.LatLng( northEast.lat() - expandBy, northEast.lng() - expandBy ) );
 				}
 				plot.fitBounds(bounds);
 
@@ -209,7 +212,10 @@
 
 					// show info window when marker is clicked
 					marker.addListener( 'click', () => {
-						infowindow.open( { anchor: marker, plot } );
+						infowindow.open({
+							anchor: marker,
+							map: plot
+						});
 					});
 				}
 			} else {

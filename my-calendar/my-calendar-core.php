@@ -5,7 +5,7 @@
  * @category Core
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -197,8 +197,8 @@ function mc_style_variables( $styles = array() ) {
 		'--grid-header-border'    => '#313233',
 		'--grid-header-color'     => '#313233',
 		'--grid-weekend-color'    => '#313233',
-		'--grid-header-bg'        => 'transparent',
-		'--grid-weekend-bg'       => 'transparent',
+		'--grid-header-bg'        => '#fff',
+		'--grid-weekend-bg'       => '#fff',
 		'--grid-cell-background'  => 'transparent',
 		'--current-day-border'    => '#313233',
 		'--current-day-color'     => '#313233',
@@ -219,7 +219,7 @@ function mc_style_variables( $styles = array() ) {
 			'--modal-title'         => '1.5rem',
 			'--navigation-controls' => 'clamp( .75rem, 16px, 1.5rem )',
 			'--card-heading'        => '1.125rem',
-			'--list-date'           => '1.25rem',
+			'--list-date'           => 'clamp( 1rem, 20px, 2.0rem )',
 			'--author-card'         => 'clamp( .75rem, 14px, 1.5rem)',
 			'--single-event-title'  => 'clamp( 1.25rem, 24px, 2.5rem )',
 			'--mini-time-text'      => 'clamp( .75rem, 14px 1.25rem )',
@@ -369,11 +369,11 @@ function mc_enqueue_calendar_js() {
 	if ( SCRIPT_DEBUG ) {
 		$version = $version . '-' . wp_rand( 10000, 100000 );
 	}
-	$grid    = '';
-	$mini    = '';
-	$list    = '';
-	$ajax    = '';
-	$enqueue = false;
+	$ajax     = '';
+	$enqueue  = false;
+	$gridtype = mc_get_option( 'calendar_javascript' );
+	$listtype = mc_get_option( 'list_javascript' );
+	$minitype = mc_get_option( 'mini_javascript' );
 	if ( '1' !== mc_get_option( 'calendar_javascript' ) && 'true' !== mc_get_option( 'open_uri' ) ) {
 		/**
 		 * Filter to replace scripts used on front-end for grid behavior. Default empty string.
@@ -389,7 +389,7 @@ function mc_enqueue_calendar_js() {
 		if ( $url ) {
 			wp_enqueue_script( 'mc.grid', $url, array( 'jquery' ), $version );
 		} else {
-			$grid = ( 'modal' === mc_get_option( 'calendar_javascript' ) ) ? 'modal' : 'true';
+			$gridtype = ( 'modal' === $gridtype ) ? 'modal' : 'true';
 		}
 	}
 	if ( '1' !== mc_get_option( 'list_javascript' ) ) {
@@ -407,7 +407,7 @@ function mc_enqueue_calendar_js() {
 		if ( $url ) {
 			wp_enqueue_script( 'mc.list', $url, array( 'jquery' ), $version );
 		} else {
-			$list = ( 'modal' === mc_get_option( 'list_javascript' ) ) ? 'modal' : 'true';
+			$listtype = ( 'modal' === $listtype ) ? 'modal' : 'true';
 		}
 	}
 	if ( '1' !== mc_get_option( 'mini_javascript' ) && 'true' !== mc_get_option( 'open_day_uri' ) ) {
@@ -426,7 +426,7 @@ function mc_enqueue_calendar_js() {
 		if ( $url ) {
 			wp_enqueue_script( 'mc.mini', $url, array( 'jquery' ), $version );
 		} else {
-			$mini = ( 'modal' === mc_get_option( 'mini_javascript' ) ) ? 'modal' : 'true';
+			$minitype = ( 'modal' === $minitype ) ? 'modal' : 'true';
 		}
 	}
 	if ( '1' !== mc_get_option( 'ajax_javascript' ) ) {
@@ -451,9 +451,9 @@ function mc_enqueue_calendar_js() {
 		$url = ( true === SCRIPT_DEBUG ) ? plugins_url( 'js/mcjs.js', __FILE__ ) : plugins_url( 'js/mcjs.min.js', __FILE__ );
 		wp_enqueue_script( 'mc.mcjs', $url, array( 'wp-a11y', 'wp-i18n' ), $version, true );
 		$args = array(
-			'grid'      => $grid,
-			'list'      => $list,
-			'mini'      => $mini,
+			'grid'      => $gridtype,
+			'list'      => $listtype,
+			'mini'      => $minitype,
 			'ajax'      => $ajax,
 			'links'     => mc_get_option( 'list_link_titles' ),
 			'newWindow' => __( 'New tab', 'my-calendar' ),
@@ -464,14 +464,12 @@ function mc_enqueue_calendar_js() {
 			'ajaxurl'   => admin_url( 'admin-ajax.php' ),
 		);
 		wp_localize_script( 'mc.mcjs', 'my_calendar', $args );
-		// If any disclosure widget is enabled, load the scripting for those.
-		if ( 'true' === $grid || 'true' === $list || 'true' === $mini ) {
+		// If the list disclosure widget is enabled, load the scripting for it.
+		if ( 'true' === $listtype ) {
 			wp_enqueue_script( 'mc.legacy' );
 		}
 	}
-	$gridtype = mc_get_option( 'calendar_javascript' );
-	$listtype = mc_get_option( 'list_javascript' );
-	$minitype = mc_get_option( 'mini_javascript' );
+
 	if ( 'modal' === $gridtype || 'modal' === $listtype || 'modal' === $minitype ) {
 		$script = ( SCRIPT_DEBUG ) ? 'modal/accessible-modal-window-aria.js' : 'modal/accessible-modal-window-aria.min.js';
 		wp_enqueue_script( 'mc-modal', plugins_url( 'js/' . $script, __FILE__ ), array(), $version, true );
@@ -1207,13 +1205,13 @@ function my_calendar_check() {
 		$settings           = get_option( 'my_calendar_options' );
 		if ( $my_calendar_exists && '' === $old_version ) {
 			// If the table exists, but I don't know what version it is, run all upgrades.
-			$old_version = '3.1.12';
+			$old_version = '3.2.0';
 		}
 
 		if ( $my_calendar_exists ) {
 			// For each release requiring an upgrade path, add a version compare.
 			// Loop will run every relevant upgrade cycle.
-			$valid_upgrades = array( '3.1.13', '3.3.0', '3.4.0', '3.5.0', '3.7.0', '3.7.7' );
+			$valid_upgrades = array( '3.3.0', '3.4.0', '3.5.0', '3.7.0', '3.8.0' );
 			foreach ( $valid_upgrades as $upgrade ) {
 				if ( version_compare( $old_version, $upgrade, '<' ) ) {
 					$upgrade_path[] = $upgrade;
@@ -1254,8 +1252,24 @@ function mc_do_upgrades( $upgrade_path ) {
 	// Retain upgrade paths for 5 years.
 	foreach ( $upgrade_path as $upgrade ) {
 		switch ( $upgrade ) {
-			case '3.7.7': // 2026-04-08.
-				mc_upgrade_db(); // Event description is now MEDIUMTEXT.
+			case '3.8.0': // 2026-08-10.
+				$options = get_option( 'my_calendar_options' );
+				$caljs   = $options['calendar_javascript'];
+				$minijs  = $options['mini_javascript'];
+				if ( 'disclosure' === $caljs ) {
+					$options['calendar_javascript'] = 'modal';
+				}
+				if ( 'disclosure' === $minijs ) {
+					$options['mini_javascript'] = 'modal';
+				}
+				// Add a flag to indicate that the upgrade has been run.
+				// Used to ensure failing to run the upgrade doesn't turn off single views.
+				$options['upgrade_380'] = 'true';
+				$enabled                = $options['views'];
+				$enabled[]              = 'single';
+				$options['views']       = $enabled;
+				update_option( 'my_calendar_options', $options );
+				mc_upgrade_db(); // Maybe switch tables to utf8mb4.
 				break;
 			case '3.7.0': // 2026-01-20
 				// Accessibility terms are now saved as taxonomy terms.
@@ -1265,15 +1279,7 @@ function mc_do_upgrades( $upgrade_path ) {
 			case '3.5.0': // 2024-05-05
 				// Need to set card display settings. TODO.
 				$options = get_option( 'my_calendar_options' );
-				$caljs   = $options['calendar_javascript'];
-				$minijs  = $options['mini_javascript'];
 				$listjs  = $options['list_javascript'];
-				if ( ! $caljs ) {
-					$options['calendar_javascript'] = 'disclosure';
-				}
-				if ( ! $minijs ) {
-					$options['mini_javascript'] = 'disclosure';
-				}
 				if ( ! $listjs ) {
 					$options['list_javascript'] = 'disclosure';
 				}
@@ -1338,9 +1344,6 @@ function mc_do_upgrades( $upgrade_path ) {
 				delete_option( 'mc_event_link' );
 				delete_option( 'mc_display_more' );
 				delete_option( 'mc_title' );
-				break;
-			case '3.1.13': // 2019-03-15
-				delete_option( 'mc_inverse_color' );
 				break;
 			default:
 				break;
@@ -2212,7 +2215,7 @@ Version: $theme_version
 ==Active Plugins:==
 $plugins_string
 	";
-	$support_data = '<div class="mc-copy-button"><button class="button-primary mc-copy-to-clipboard" data-clipboard-target="#mc-clipboard">' . __( 'Copy to clipboard', 'my-calendar' ) . '</button>
+	$support_data = '<div class="mc-copy-button"><button class="button button-primary mc-copy-to-clipboard" data-clipboard-target="#mc-clipboard">' . __( 'Copy to clipboard', 'my-calendar' ) . '</button>
 	<span class="mc-notice-copied">' . __( 'Help Info Copied', 'my-calendar' ) . '</span></div>
 	<label for="mc-clipboard">' . __( 'Help Info', 'my-calendar' ) . '</label><textarea id="mc-clipboard" class="help" readonly>%s</textarea>';
 	if ( $checked ) {
@@ -2603,7 +2606,7 @@ function mc_promotion_notice() {
 		$upgrade = 'https://www.joedolson.com/awesome/my-calendar-pro/';
 		$dismiss = admin_url( 'admin.php?page=my-calendar-config&dismiss=promotion' );
 		// Translators: URL to upgrade.
-		echo "<div class='notice mc-promotion'><p><img src='" . esc_url( plugins_url( 'images/awd-logo-disc.png', __FILE__ ) ) . "' alt='Joe Dolson Accessible Web Design' /><span>" . wp_kses_post( sprintf( __( 'I hope you\'ve enjoyed <strong>My Calendar</strong>! Take a look at <a href=\'%1$s\'>upgrading to My Calendar Pro</a> for advanced event management with WordPress! <a href=\'%2$s\' class="button-secondary">Dismiss</a>', 'my-calendar' ), esc_url( $upgrade ), esc_url( $dismiss ) ) ) . '</span></p></div>';
+		echo "<div class='notice mc-promotion'><p><img src='" . esc_url( plugins_url( 'images/awd-logo-disc.png', __FILE__ ) ) . "' alt='Joe Dolson Accessible Web Design' /><span>" . wp_kses_post( sprintf( __( 'I hope you\'ve enjoyed <strong>My Calendar</strong>! Take a look at <a href=\'%1$s\'>upgrading to My Calendar Pro</a> for advanced event management with WordPress! <a href=\'%2$s\' class="button button-secondary">Dismiss</a>', 'my-calendar' ), esc_url( $upgrade ), esc_url( $dismiss ) ) ) . '</span></p></div>';
 	}
 }
 add_action( 'admin_notices', 'mc_promotion_notice', 10 );

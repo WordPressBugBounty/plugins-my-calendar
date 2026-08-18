@@ -5,7 +5,7 @@
  * @category Events
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -284,8 +284,14 @@ function my_calendar_get_events( $args ) {
 			foreach ( array_keys( $events ) as $key ) {
 				$event          =& $events[ $key ];
 				$event->site_id = $s;
-				$object_id      = $event->event_id;
-				$location_id    = $event->event_location;
+				if ( 'S1' !== $event->event_recur ) {
+					$check = get_post_meta( $event->event_post, '_occurrence_overlap', true );
+					if ( 'false' === $check ) {
+						continue;
+					}
+				}
+				$object_id   = $event->event_id;
+				$location_id = $event->event_location;
 				if ( ! isset( $cats[ $object_id ] ) ) {
 					$categories         = mc_get_categories( $event, 'objects' );
 					$event->categories  = $categories;
@@ -410,6 +416,13 @@ function mc_get_all_events( $args ) {
 		$event          =& $events[ $key ];
 		$event->site_id = $site;
 		$object_id      = $event->event_id;
+		if ( 'S1' !== $event->event_recur ) {
+			$check = get_post_meta( $event->event_post, '_occurrence_overlap', true );
+			if ( 'false' === $check ) {
+				unset( $events[ $key ] );
+				continue;
+			}
+		}
 		if ( ! isset( $fetched[ $object_id ] ) ) {
 			$cats                  = mc_get_categories( $event, 'objects' );
 			$event->categories     = $cats;
@@ -743,7 +756,7 @@ function mc_get_nearest_event( $id, $next = false ) {
  * @param int    $id  Event instance ID.
  * @param string $type  'object' or 'html'.
  *
- * @return object|string
+ * @return object|string|false Object if $type is 'object', HTML if $type is 'html', false if no event found.
  */
 function mc_get_event( $id, $type = 'object' ) {
 	if ( ! is_numeric( $id ) ) {
@@ -752,6 +765,9 @@ function mc_get_event( $id, $type = 'object' ) {
 	$ts_string = mc_ts();
 	$mcdb      = mc_is_remote_db();
 	$event     = $mcdb->get_row( $mcdb->prepare( 'SELECT *, ' . $ts_string . ' FROM ' . my_calendar_event_table() . ' JOIN ' . my_calendar_table() . ' AS e ON (event_id=occur_event_id) JOIN ' . my_calendar_categories_table() . ' AS c ON (e.event_category=c.category_id) WHERE occur_id=%d', $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	if ( ! $event ) {
+		return false;
+	}
 	if ( 'object' === $type ) {
 		$event = mc_event_object( $event );
 		return $event;
@@ -770,11 +786,16 @@ function mc_get_event( $id, $type = 'object' ) {
  * @param string $field database column.
  * @param int    $id Event core ID.
  *
- * @return mixed string/integer value
+ * @return string|integer|float Data type depends on the field.
  */
 function mc_get_data( $field, $id ) {
 	$mcdb   = mc_is_remote_db();
 	$result = $mcdb->get_var( $mcdb->prepare( "SELECT $field FROM " . my_calendar_table() . ' WHERE event_id = %d', $id ) );
+	if ( ctype_digit( $result ) ) {
+		$result = (int) $result;
+	} elseif ( false !== filter_var( $result, FILTER_VALIDATE_FLOAT ) ) {
+		$result = (float) $result;
+	}
 
 	return $result;
 }
@@ -1009,7 +1030,7 @@ function my_calendar_events_next( $category = 'default', $template = '<strong>{l
 			 * @hook mc_happening_next_template
 			 *
 			 * @param string $template HTML and template tags.
-			 * @param object $event Event object to draw.
+			 * @param array  $event Array of event tags to draw.
 			 *
 			 * @return string
 			 */
@@ -1026,25 +1047,6 @@ function my_calendar_events_next( $category = 'default', $template = '<strong>{l
 	}
 
 	return $return;
-}
-
-
-/**
- *  Get all occurrences associated with an event.
- *
- * @param int $id Event ID.
- *
- * @return array of objects with instance and event IDs.
- */
-function mc_get_occurrences( $id ) {
-	$mcdb = mc_is_remote_db();
-	$id   = absint( $id );
-	if ( 0 === $id ) {
-		return array();
-	}
-	$results = $mcdb->get_results( $mcdb->prepare( 'SELECT occur_id, occur_event_id FROM ' . my_calendar_event_table() . ' WHERE occur_event_id=%d ORDER BY occur_begin ASC', $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-
-	return $results;
 }
 
 /**
@@ -1111,10 +1113,14 @@ function mc_instance_list( $args ) {
  *
  * @return array Array of instances.
  */
-function mc_get_event_instances( $id ) {
-	global $wpdb;
+function mc_get_occurrences( $id ) {
+	$mcdb = mc_is_remote_db();
+	$id   = absint( $id );
+	if ( 0 === $id ) {
+		return array();
+	}
 	$ts_string = mc_ts();
-	$results   = $wpdb->get_results( $wpdb->prepare( 'SELECT *, ' . $ts_string . ' FROM ' . my_calendar_event_table() . ' WHERE occur_event_id=%d ORDER BY occur_begin ASC', $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	$results   = $mcdb->get_results( $mcdb->prepare( 'SELECT *, ' . $ts_string . ' FROM ' . my_calendar_event_table() . ' WHERE occur_event_id=%d ORDER BY occur_begin ASC', $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	if ( empty( $results ) ) {
 		return array();
 	} else {
@@ -1132,7 +1138,7 @@ function mc_get_event_instances( $id ) {
  */
 function mc_admin_instances( $id, $occur = 0 ) {
 	$output  = '';
-	$results = mc_get_event_instances( $id );
+	$results = mc_get_occurrences( $id );
 	if ( empty( $results ) ) {
 		return '';
 	}

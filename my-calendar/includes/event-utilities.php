@@ -5,7 +5,7 @@
  * @category Utilities
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -39,9 +39,9 @@ function mc_error_check( $event_id ) {
  * @param object  $data Event object.
  * @param boolean $should_return Return or echo.
  *
- * @return string|void Warning text about problem with event.
+ * @return string Warning text about problem with event.
  */
-function mc_test_occurrence_overlap( $data, $should_return = false ) {
+function mc_test_occurrence_overlap( $data, $should_return = false ): string {
 	$warning = '';
 	// If this event is single, skip query.
 	$single_recur = ( 'S' === $data->event_recur || 'S1' === $data->event_recur ) ? true : false;
@@ -56,7 +56,7 @@ function mc_test_occurrence_overlap( $data, $should_return = false ) {
 			$endtime = mc_date( mc_time_format(), strtotime( $data->event_endtime ), false );
 			$begin   = date_i18n( mc_date_format(), strtotime( $check['occur_begin'] ) ) . ' ' . mc_date( mc_time_format(), strtotime( $check['occur_begin'] ), false );
 			// Translators: End date, end time, beginning of next event.
-			$warning .= sprintf( __( 'Event end date: <strong>%1$s %2$s</strong>. Next occurrence starts: <strong>%3$s</strong>', 'my-calendar' ), $enddate, $endtime, $begin ) . '</p></div>';
+			$warning .= sprintf( __( '<a href="#eelabel">Edit Event end date</a>: <strong>%1$s %2$s</strong>. Next occurrence starts: <strong>%3$s</strong>', 'my-calendar' ), $enddate, $endtime, $begin ) . '</p></div>';
 			update_post_meta( $data->event_post, '_occurrence_overlap', 'false' );
 		} else {
 			delete_post_meta( $data->event_post, '_occurrence_overlap' );
@@ -85,13 +85,13 @@ function mc_test_occurrence_overlap( $data, $should_return = false ) {
  *
  * @return mixed results array or false
  */
-function mcs_check_conflicts( $begin, $time, $end, $endtime, $loc_id ) {
+function mc_check_conflicts( $begin, $time, $end, $endtime, $loc_id ) {
 	global $wpdb;
 	$select_location = ( $loc_id ) ? "event_location = '" . absint( $loc_id ) . "' AND" : '';
 	$begin_time      = $begin . ' ' . $time;
 	$end_time        = $end . ' ' . $endtime;
 	// Need two queries; one to find outer events, one to find inner events.
-	$event_query = 'SELECT occur_id
+	$event_query = 'SELECT occur_id, occur_event_id
 					FROM ' . my_calendar_event_table() . '
 					JOIN ' . my_calendar_table() . "
 					ON (event_id=occur_event_id)
@@ -103,7 +103,7 @@ function mcs_check_conflicts( $begin, $time, $end, $endtime, $loc_id ) {
 
 	if ( empty( $results ) ) {
 		// Finds events that conflict if they either start or end during another event.
-		$event_query2 = 'SELECT occur_id
+		$event_query2 = 'SELECT occur_id, occur_event_id
 						FROM ' . my_calendar_event_table() . '
 						JOIN ' . my_calendar_table() . "
 						ON (event_id=occur_event_id)
@@ -148,6 +148,10 @@ function mc_event_states() {
 		'5' => array(
 			'type'  => 'private',
 			'label' => __( 'Personal', 'my-calendar' ),
+		),
+		'6' => array(
+			'type'  => 'hidden',
+			'label' => __( 'Scheduled', 'my-calendar' ),
 		),
 	);
 
@@ -210,9 +214,9 @@ function mc_event_states_type( $state ) {
 	 * @hook mc_event_states_type
 	 *
 	 * @param string $return Type for the current status.
-	 * @param int    $states An integer representation of a status.
+	 * @param int    $state An integer representation of a status.
 	 */
-	return apply_filters( 'mc_event_states_type', $return, $states );
+	return apply_filters( 'mc_event_states_type', $return, $state );
 }
 
 /**
@@ -224,6 +228,9 @@ function mc_event_states_type( $state ) {
  */
 function mc_event_states_label( $state ) {
 	$states = mc_event_states();
+	if ( ! isset( $states[ $state ] ) ) {
+		return '';
+	}
 	$return = $states[ $state ]['label'];
 
 	/**
@@ -232,28 +239,30 @@ function mc_event_states_label( $state ) {
 	 * @hook mc_event_states_label
 	 *
 	 * @param string $return Type for the current status.
-	 * @param int    $states An integer representation of a status.
+	 * @param int    $state An integer representation of a status.
 	 *
 	 * @return string
 	 */
-	return apply_filters( 'mc_event_states_label', $return, $states );
+	return apply_filters( 'mc_event_states_label', $return, $state );
 }
 
 /**
  * Get the integer value for an event state.
  *
- * @param string $label A text state value.
+ * @param string $type A text state value.
  *
  * @return int Integer representation of state.
  */
-function mc_event_state_from_label( $label ) {
-	if ( ! $label ) {
-		return '';
+function mc_event_state_from_label( $type ) {
+	if ( ! $type ) {
+		return 0;
 	}
 	$states = mc_event_states();
 	foreach ( $states as $state => $l ) {
-		if ( isset( $l['type'] ) && $label === $l['type'] ) {
+		if ( isset( $l['type'] ) && $type === $l['type'] ) {
 			return $state;
 		}
 	}
+
+	return 0;
 }

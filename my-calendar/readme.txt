@@ -3,10 +3,10 @@ Contributors: joedolson
 Donate link: https://www.joedolson.com/donate/
 Tags: event manager, event calendar, venue, location, accessibility
 Requires at least: 6.5
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.7.17
+Stable tag: 3.8.0
 License: GPL-2.0+
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -112,6 +112,48 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.8.0 =
+
+* Feature: Add option to disable single event view.
+* Feature: Add support for scheduled publication of events.
+* Feature: Add additional display settings panel for list view, so grid and list are not assumed to be the same.
+* Feature: Screen options to hide category, author, and location columns in event manager.
+* Change: Switched front-end input button class from `.button` to `.mc-button`.
+* Change: Removed legacy disclosure widget for grid and mini views.
+* Change: Merge similar admin functions `mc_get_occurrences()` and `mc_get_event_instances()`.
+* Change: Update recurring event calculations to be inclusive of end date chosen.
+* Change: Modernize GMT offset calculations to use `wp_timezone()`.
+* Change: Add check to see whether an import is in progress when calculating event status.
+* Change: Don't run `mc_test_occurrence_overlap()` on front-end.
+* Bug fix: Fix recurring event generation adding duplicate dates on first date matched.
+* Bug fix: Fix location assignment so multiple simultaneous events with a new location all get assigned the new location without duplication.
+* Bug fix: Fix recurring event weekday parsing to improve behavior if start date is a weekend.
+* Bug fix: Reset location count transient when a location is deleted.
+* Bug fix: Ensure terms are deleted from taxonomy when categories are deleted.
+* Bug fix: Convert text tables to utf8mb4 if they were originally created before that core change. Adds emoji support if missing.
+* Bug fix: Fix issue where legacy values in older events could trigger event recurrence recalculation, restoring deleted dates.
+* Bug fix: Only check mc_list_template nonce when editing list template settings.
+* Bug fix: Outlook & Office 365 add to calendar links passed invalid date format.
+* Bug fix: Return an empty state label if value passed not valid.
+* Bug fix: Don't run link or button logic if the title already contains a link.
+* Bug fix: Exit early in post metabox if event ID does not return an event.
+* Bug fix: Only construct mini calendar URLs if option is enabled.
+* Bug fix: Allow `mc_template_settings()` to return a single template.
+* Bug fix: Prevent mc_category_icon()  from returning non-string values from filters.
+* Bug fix: `selected()` set to echo instead of return in shortcode generator.
+* Bug fix: Don't label draft events as private in admin.
+* Bug fix: If autocomplete passes no value while add location panel is open, don't create blank location.
+* Bug fix: Bounds were extended asymmetrically on Google Maps, causing an off-center marker.
+* Bug fix: Fix some cases where post and event statuses weren't synced properly.
+* Bug fix: Navigation didn't always consistently retain existing values.
+* Bug fix: Print view should only support grid.
+* Bug fix: Remove duplicate nonce in event editor.
+* Remove upgrade cycle from < 3.1.13.
+* Design: Variety of front-end changes for consistency and reliability.
+* Accessibility: Focus loss when closing modal.
+* Accessibility: Make control labels visible in event manager.
+* Docs: Misc. function doc parameter and return type fixes.
 
 = 3.7.17 =
 
@@ -325,171 +367,6 @@ Accessibility-first breaking change: The default navigation has changed from usi
 * Accessibility: fixes to admin tabs.
 * Accessibility: fix when event date selection triggers errors.
 * Accessibility: Use aria-pressed to indicate currently selected categories.
-
-= 3.6.17 =
-
-* Security: Broken Access Control in unused mc_dismiss_notice() function. Props @patchstack and Doan Dinh Van.
-
-= 3.6.16 =
-
-* Bug fix: Omit `mc_id` parameter on permalinks if event is singular.
-* Bug fix: Hidden focusable elements inside the dialog broke focus management. Props @alh0319.
-* Change: Switch non-modal content from using `aria-hidden` to using `inert`.
-
-= 3.6.15 =
-
-* Bug fix: Add `METHOD:PUBLISH` to iCal exports.
-* Bug fix: Strip tags from iCal title.
-
-= 3.6.14 =
-
-* Bug fix: Made a dumb mistake in the date badge, and I localized a string instead of a date.
-
-= 3.6.13 =
-
-* Bug fix: Month in date badge was not localized.
-* Bug fix: Default maptype was not inherited from settings correctly.
-* Change: Minor style and text changes on PHP templates screen.
-
-= 3.6.12 =
-
-* Bug fix: Update screen reader text classes to remove `clip`.
-* Bug fix: Fix PHP warning from unverified array keys.
-* Bug fix: Navigation broken when using auto-generated ID keys.
-* Bug fix: Switch `webcals` URLs back to `webcal` due to lack of Google support.
-* Bug fix: Missing variable declaration in Today's events widget.
-* Bug fix: Inspect event object for location_post property before accessing.
-* Change: Modify list preset 4 template so group 3 is not a child of group 2.
-* Change: Remove Chrome hack for `windowunload` events.
-
-= 3.6.11 =
-
-* Bug fix: Omitted new argument in `mc_after_details` filter in legacy custom template path caused fatal error on single events.
-
-= 3.6.10 =
-
-* Bug fix: Typo in upcoming events arguments broke sort order by attempting to assign the template key as an order.
-* Bug fix: Trigger for editing events did not work for single events that ran multiple days because of non-unique ID.
-* Bug fix: Add HTML for icons to iCal link for design parity.
-* Bug fix: Omit aria-described when there is no calendar ID.
-* Change: Exit edit panel generation before creating if not in context that generates it.
-
-= 3.6.9 =
-
-* Bug fix: Incorrect handling of non-array function results triggered fatal error.
-* Bug fix: For event titles with no `time` string, modify the template, not the title of the event.
-
-= 3.6.8 =
-
-* Feature: Add new conditional function `mc_has_category( $event )`.
-* Change: Add text arguments to core template functions that return template text. Allows template logic to override settings.
-* Bug fix: Stringify array data before sending to Akismet.
-* Bug fix: Allow `svg` in print view.
-* Bug fix: Move `pre_get_document_title` filter to later priority to apply after SEO plugins.
-* Bug fix: Add site name to page title.
-* Bug fix: Section headers were not selectable.
-* Bug fix: Single-day view returned all dates of long-running single events.
-* Bug fix: In legacy templates, data passed to get event images was the full data object instead of the tags array.
-
-= 3.6.7 =
-
-* Bug fix: Properly fetch icons for secondary categories in admin events list.
-* Bug fix: Improve argument passing in upcoming & today's events handler.
-* Bug fix: List preset wrapper templates missing in legacy templating on today's events lists.
-* Bug fix: Don't output edit and delete links if the link is not valid. (Pro)
-* Change & bug fix: Change `js-modal` prefix to `mc-modal` to reduce conflicts with other uses of this modal library.
-* Change: UI changes to shortcode builder & widget interfaces to clarify usage.
-
-= 3.6.6 =
-
-* Bug fix: Fix two PHP 8+ fatal errors in My Calendar legacy widget admin.
-* Bug fix: Fix undefined array key in widget output.
-* Bug fix: Add CID attribute to time format navigation, allow time format switching in mini calendar.
-* Bug fix: CSS fix for time frame and calendar format navigation margins.
-
-= 3.6.5 =
-
-* Bug fix: Network site check referenced obsolete option.
-* Bug fix: Front-end edit controls didn't override theme margins.
-* Bug fix: Control rendering for edit & subscribe panels dependent on AJAX being enabled.
-* Bug fix: Open day URI setting had no default value.
-* Bug fix: Card view closing div in wrong location.
-
-= 3.6.4 =
-
-* Bug fix: Follow up fix to incorrect headings in 5-day view when week starts on Monday.
-* Bug fix: `mc_event_over` action should only fire after event ends, not after it starts.
-* Bug fix: Don't output `aria-labelledby` on event details container in single event view. Only relevant for dialog rendering.
-
-= 3.6.3 =
-
-* Bug fix: Don't reset the start of the week when hiding weekends after weekend-heading fix in 3.6.2.
-* Bug fix: Missed spaces between attributes broke registration information field.
-
-= 3.6.2 =
-
-* Bug fix: 'weekend-heading' class applied on rightmost two cells instead of Saturday/Sunday.
-* Bug fix: Upcoming Events navigation layout broken in card preset.
-* Bug fix: Add autorefresh parameter to CodeMirror to fix layout in template editor.
-* Bug fix: Restore default z-index on close button in legacy disclosure.
-* Bug fix: Set max-width on close button.
-* Bug fix: Remove position:relative from twentyfifteen.css to prevent overriding position:absolute.
-* Change: Set 'is-main-view' class on initial load, removed on navigation.
-
-= 3.6.1 =
-
-* Bug fix: Fix logic that set details to show in card view when event links pointed to individual pages, but caused details to render in non-card views.
-* Remove upgrade cycle intended for 3.6.0. There were no settings or database updates required.
-
-= 3.6.0 =
-
-* Feature: Added 'Cancelled' state as an event status option. Cancelled events are public, but marked as cancelled.
-* Feature: Added text setting to customize 'Cancelled' text.
-* Feature: Added 'Private' state as an event status option. Private events are public, but only to logged-in users.
-* Feature: Added default template designs for upcoming events and other list outputs.
-* Feature: Made default template designs selectable globally and individually by shortcode/widget.
-* Feature: Add main shortcode parameter to define custom classes.
-* Feature: Improve AJAX editing of single instances to support dynamic editing as well as deletion.
-* Feature: Add option to automatically copy PHP templates into your theme.
-* Feature: Add "edit in theme" link in PHP template browser when custom template exists.
-* Feature: Add `mc_date_badge()` to generate a formatted date badge on events.
-* Feature: Add CSS variables targeting list presets.
-* Feature: Add previous and next events navigation in Upcoming Events list.
-* Change: Improved UX when copying events.
-* Change: Improve design of category selector for widgets and user permissions.
-* Change: Change table responsiveness to be driven by container width rather than viewport width.
-* Change: Added wrapper around upcoming lists and other list outputs.
-* Change: Added support for My Calendar CSS variables inside upcoming lists and other list outputs.
-* Change: Added variables for weekend grid headers.
-* Change: Added class to disable responsive styles.
-* Change: Extensive fixes to responsive behavior in the admin.
-* Change: Support usertime JS updates in Upcoming Events lists.
-* Change: Minimum WordPress version to 6.4.
-* Change: Update autocomplete to version 3.0.3.
-* Change: Don't render single events in main shortcode if pretty permalinks enabled.
-* Change: Polish themes.
-* Filters: Added filter to modify categories shown in category key `mc_category_key_array`.
-* Bug fix: Fix deprecated jQuery methods.
-* Bug fix: Hide admin notices inside the Help modal.
-* Bug fix: Prevent invalid event IDs in canonical link generator.
-* Bug fix: Change `webcal` protocols to `webcals`.
-* Bug fix: Change instance key to use full date and time.
-* Bug fix: Don't display search results if the page content contains the main shortcode.
-* Bug fix: Enqueue front-end admin styles in back-end admin.
-* Bug fix: Add missing attributes to kses handler.
-* Bug fix: Misc. design tweaks to handle additional theme design cases.
-* Bug fix: Start time didn't display if event started at midnight.
-* Bug fix: 24 hour time template used saved template instead of forcing 24 hour time.
-* Bug fix: Prevent double padding or missing padding on event titles.
-* Bug fix: When disabling event title links, don't disable event details in card view.
-* Bug fix: Don't show week numbers in card view.
-* Bug fix: Validate occurrence IDs before attempting redirect.
-* Bug fix: Default admin events view is not 'all', and 'all' should not be marked active.
-* Security: Misc. hardening.
-* Structure: Move action scheduler into vendor directory.
-* Accessibility: Reduce animations when prefers-reduced-motion applied.
-* Accessibility: Announce when main calendar is loading changes.
-* Performance: Move SVG resources to code, to avoid excess file lookups.
 
 == Frequently Asked Questions ==
 

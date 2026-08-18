@@ -5,7 +5,7 @@
  * @category Events
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -114,6 +114,13 @@ function mc_bulk_action( $action, $events = array() ) {
 	do_action( 'mc_do_bulk_actions', $action, $ids );
 
 	$result = ( '' !== $sql ) ? $wpdb->query( $wpdb->prepare( $sql, $ids ) ) : false; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	if ( in_array( $action, array( 'cancel', 'private', 'personal', 'approve', 'draft', 'trash' ), true ) ) {
+		foreach ( $ids as $id ) {
+			if ( function_exists( 'mc_sync_event_post_status' ) ) {
+				mc_sync_event_post_status( $id );
+			}
+		}
+	}
 
 	mc_update_count_cache();
 	$results = array(
@@ -257,7 +264,7 @@ function my_calendar_manage() {
 							// Translators: Title & date of event to delete.
 							$delete_text = sprintf( __( 'Delete %s', 'my-calendar' ), $event_info );
 						?>
-						<input type="submit" name="submit" class="button-secondary delete" value="<?php echo esc_attr( $delete_text ); ?>"/>
+						<input type="submit" name="submit" class="button button-secondary delete" value="<?php echo esc_attr( $delete_text ); ?>"/>
 				</form>
 			</div>
 			<?php
@@ -276,15 +283,9 @@ function my_calendar_manage() {
 				$wpdb->get_results( $wpdb->prepare( 'UPDATE ' . my_calendar_table() . ' SET event_approved = 1 WHERE event_id=%d', $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 				// Remove spam flag if present.
 				$wpdb->get_results( $wpdb->prepare( 'UPDATE ' . my_calendar_table() . ' SET event_flagged = 0 WHERE event_id=%d', $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-				$event   = mc_get_event_core( $event_id );
-				$private = mc_private_event( $event, false );
-				$status  = ( $private ) ? 'private' : 'publish';
-				wp_update_post(
-					array(
-						'ID'          => mc_get_event_post( $event_id ),
-						'post_status' => $status,
-					)
-				);
+				if ( function_exists( 'mc_sync_event_post_status' ) ) {
+					mc_sync_event_post_status( $event_id );
+				}
 				mc_update_count_cache();
 			} else {
 				mc_show_error( __( 'You do not have permission to approve that event.', 'my-calendar' ) );
@@ -301,12 +302,9 @@ function my_calendar_manage() {
 			if ( current_user_can( 'mc_approve_events' ) ) {
 				$event_id = absint( $_GET['event_id'] );
 				$wpdb->get_results( $wpdb->prepare( 'UPDATE ' . my_calendar_table() . ' SET event_approved = 2 WHERE event_id=%d', $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-				wp_update_post(
-					array(
-						'ID'          => mc_get_event_post( $event_id ),
-						'post_status' => 'trash',
-					)
-				);
+				if ( function_exists( 'mc_sync_event_post_status' ) ) {
+					mc_sync_event_post_status( $event_id );
+				}
 				mc_update_count_cache();
 			} else {
 				mc_show_error( __( 'You do not have permission to trash that event.', 'my-calendar' ) );
@@ -625,10 +623,10 @@ function mc_admin_event_search( $context = '' ) {
 	<form action="<?php echo esc_url( add_query_arg( $args, admin_url( 'admin.php' ) ) ); ?>" method="post" role='search'>
 		<div><input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/>
 		</div>
-		<div>
+		<div class="mc-flex">
 			<label for="mc_search<?php echo esc_attr( $context ); ?>" class='screen-reader-text'><?php esc_html_e( 'Search Events', 'my-calendar' ); ?></label>
 			<input type='text' name='mcs' id='mc_search<?php echo esc_attr( $context ); ?>' value='<?php echo esc_attr( $search_text ); ?>' />
-			<input type='submit' value='<?php echo esc_attr( __( 'Search', 'my-calendar' ) ); ?>' class='button-secondary'/>
+			<input type='submit' value='<?php echo esc_attr( __( 'Search', 'my-calendar' ) ); ?>' class='button button-compact button-secondary'/>
 		</div>
 	</form>
 	</div>
@@ -785,11 +783,14 @@ function mc_list_events() {
 			</nav>
 			<?php
 		}
+		// Check which columns should be visible.
+		$columns = get_user_meta( get_current_user_id(), 'mc_set_event_columns_page', true );
+		$columns = is_array( $columns ) ? $columns : mc_column_defaults();
 
 		// Display a link to clear filters if set.
 		$filtered = '';
 		if ( '' !== $filter && $allow_filters ) {
-			$filtered = "<a class='mc-clear-filters' href='" . admin_url( 'admin.php?page=my-calendar-manage' ) . "'><span class='dashicons dashicons-no' aria-hidden='true'></span> " . __( 'Clear filters', 'my-calendar' ) . '</a>';
+			$filtered = "<a class='mc-clear-admin-filters' href='" . admin_url( 'admin.php?page=my-calendar-manage' ) . "'><span class='dashicons dashicons-no' aria-hidden='true'></span> " . __( 'Clear filters', 'my-calendar' ) . '</a>';
 		}
 		?>
 		<nav class="mc-admin-header" aria-label="<?php esc_attr_e( 'Search and Filter', 'my-calendar' ); ?>">
@@ -811,7 +812,7 @@ function mc_list_events() {
 						<option value=""><?php esc_html_e( 'Bulk actions', 'my-calendar' ); ?></option>
 						<?php mc_show_bulk_actions(); ?>
 					</select>
-					<input type="submit" class="button-secondary" value="<?php echo esc_attr( __( 'Apply', 'my-calendar' ) ); ?>" />
+					<input type="submit" class="button button-secondary" value="<?php echo esc_attr( __( 'Apply', 'my-calendar' ) ); ?>" />
 					<div><input type='checkbox' class='selectall' id='mass_edit' data-action="mass_edit" /> <label for='mass_edit'><?php esc_html_e( 'Check all', 'my-calendar' ); ?></label></div>
 				</div>
 
@@ -826,16 +827,22 @@ function mc_list_events() {
 					$col_head  = mc_table_header( __( 'ID', 'my-calendar' ), $sortbydirection, $sortby, '1', $url );
 					$url       = add_query_arg( 'sort', '2', $admin_url );
 					$col_head .= mc_table_header( __( 'Title', 'my-calendar' ), $sortbydirection, $sortby, '2', $url );
-					$url       = add_query_arg( 'sort', '7', $admin_url );
-					$col_head .= mc_table_header( __( 'Location', 'my-calendar' ), $sortbydirection, $sortby, '7', $url );
+					if ( isset( $columns['location'] ) && 'on' === $columns['location'] ) {
+						$url       = add_query_arg( 'sort', '7', $admin_url );
+						$col_head .= mc_table_header( __( 'Location', 'my-calendar' ), $sortbydirection, $sortby, '7', $url );
+					}
 					$url       = add_query_arg( 'sort', '4', $admin_url );
 					$col_head .= mc_table_header( __( 'Date/Time', 'my-calendar' ), $sortbydirection, $sortby, '4', $url );
-					if ( $user_count > 1 ) {
-						$url       = add_query_arg( 'sort', '5', $admin_url );
-						$col_head .= mc_table_header( __( 'Author', 'my-calendar' ), $sortbydirection, $sortby, '5', $url );
+					if ( isset( $columns['author'] ) && 'on' === $columns['author'] ) {
+						if ( $user_count > 1 ) {
+							$url       = add_query_arg( 'sort', '5', $admin_url );
+							$col_head .= mc_table_header( __( 'Author', 'my-calendar' ), $sortbydirection, $sortby, '5', $url );
+						}
 					}
-					$url       = add_query_arg( 'sort', '6', $admin_url );
-					$col_head .= mc_table_header( __( 'Category', 'my-calendar' ), $sortbydirection, $sortby, '6', $url );
+					if ( isset( $columns['category'] ) && 'on' === $columns['category'] ) {
+						$url       = add_query_arg( 'sort', '6', $admin_url );
+						$col_head .= mc_table_header( __( 'Category', 'my-calendar' ), $sortbydirection, $sortby, '6', $url );
+					}
 					echo wp_kses( $col_head, 'mycalendar' );
 					?>
 					</tr>
@@ -850,7 +857,7 @@ function mc_list_events() {
 					<option value=""><?php esc_html_e( 'Bulk actions', 'my-calendar' ); ?></option>
 					<?php mc_show_bulk_actions(); ?>
 				</select>
-				<input type="submit" class="button-secondary" value="<?php echo esc_attr( __( 'Apply', 'my-calendar' ) ); ?>" />
+				<input type="submit" class="button button-secondary" value="<?php echo esc_attr( __( 'Apply', 'my-calendar' ) ); ?>" />
 				<input type='checkbox' class='selectall' id='mass_edit_footer' data-action="mass_edit" /> <label for='mass_edit_footer'><?php esc_html_e( 'Check all', 'my-calendar' ); ?></label>
 			</div>
 		</form>
@@ -913,6 +920,7 @@ function mc_admin_events_table( $events ) {
 		$pending   = ( 0 === (int) $event->event_approved ) ? 'pending' : '';
 		$trashed   = ( 2 === (int) $event->event_approved ) ? 'trashed' : '';
 		$cancelled = ( 3 === (int) $event->event_approved ) ? 'cancelled' : '';
+		$future    = ( 6 === (int) $event->event_approved ) ? 'future' : '';
 		$author    = ( 0 !== (int) $event->event_author ) ? get_userdata( $event->event_author ) : 'Public Submitter';
 
 		if ( 1 === (int) $event->event_flagged && ( isset( $_GET['restrict'] ) && 'flagged' === $_GET['restrict'] ) ) {
@@ -927,7 +935,8 @@ function mc_admin_events_table( $events ) {
 		$cancel   = ( '' !== $cancelled ) ? ' - ' . __( 'Cancelled', 'my-calendar' ) : '';
 		$inv      = ( $invalid ) ? ' - ' . __( 'Invalid Event', 'my-calendar' ) : '';
 		$limit    = ( isset( $_GET['limit'] ) ) ? sanitize_text_field( $_GET['limit'] ) : 'all';
-		$private  = ( mc_private_event( $event, false ) ) ? ' - ' . __( 'Private', 'my-calendar' ) : '';
+		$private  = ( ! $draft && ! $future && mc_private_event( $event, false ) ) ? ' - ' . __( 'Private', 'my-calendar' ) : '';
+		$future   = ( 6 === (int) $event->event_approved ) ? ' - ' . __( 'Scheduled', 'my-calendar' ) : '';
 		$check    = mc_test_occurrence_overlap( $event, true );
 		$problem  = ( '' !== $check ) ? 'problem' : '';
 		$edit_url = admin_url( "admin.php?page=my-calendar&amp;mode=edit&amp;event_id=$event->event_id" );
@@ -938,10 +947,14 @@ function mc_admin_events_table( $events ) {
 		$mcnonce    = wp_create_nonce( 'mcnonce' );
 		$delete_url = add_query_arg( '_mcnonce', $mcnonce, admin_url( "admin.php?page=my-calendar-manage&amp;mode=delete&amp;event_id=$event->event_id" ) );
 		$can_edit   = mc_can_edit_event( $event );
+		// Check which columns should be visible.
+		$columns = get_user_meta( get_current_user_id(), 'mc_set_event_columns_page', true );
+		$columns = is_array( $columns ) ? $columns : mc_column_defaults();
+
 		if ( current_user_can( 'mc_manage_events' ) || current_user_can( 'mc_approve_events' ) || $can_edit ) {
 			?>
 			<tr class="<?php echo esc_attr( trim( "$class $spam $pending $trashed $problem $cancelled" ) ); ?>">
-				<th scope="row">
+				<th scope="row" class="mc-checkbox" aria-label="<?php echo esc_attr( $event->event_title ); ?>">
 					<input type="checkbox" value="<?php echo absint( $event->event_id ); ?>" name="mass_edit[]" id="mc<?php echo absint( $event->event_id ); ?>" aria-describedby='event<?php echo absint( $event->event_id ); ?>' />
 					<label for="mc<?php echo absint( $event->event_id ); ?>">
 					<?php
@@ -950,7 +963,7 @@ function mc_admin_events_table( $events ) {
 					?>
 					</label>
 				</th>
-				<td>
+				<td class="mc-event-title">
 					<strong>
 					<?php
 					if ( $can_edit ) {
@@ -967,16 +980,18 @@ function mc_admin_events_table( $events ) {
 							echo wp_kses_post( '<br /><strong class="error">' . sprintf( __( 'There is a problem with this event. <a href="%s">Edit</a>', 'my-calendar' ), esc_url( $edit_url ) ) . '</strong>' );
 						}
 					}
-					echo wp_kses_post( $private . $trash . $draft . $cancel . $inv );
+					echo wp_kses_post( $future . $private . $trash . $draft . $cancel . $inv );
 					?>
 					</strong>
 
 					<div class='row-actions'>
 						<?php
 						if ( mc_event_published( $event ) ) {
-							?>
+							if ( $view_url ) {
+								?>
 							<a href="<?php echo esc_url( $view_url ); ?>" class='view' aria-describedby='event<?php echo absint( $event->event_id ); ?>'><?php esc_html_e( 'View', 'my-calendar' ); ?></a> |
-							<?php
+								<?php
+							}
 						} elseif ( current_user_can( 'mc_manage_events' ) ) {
 							?>
 							<a href="<?php echo esc_url( add_query_arg( 'preview', 'true', $view_url ) ); ?>" class='view' aria-describedby='event<?php echo absint( $event->event_id ); ?>'><?php esc_html_e( 'Preview', 'my-calendar' ); ?></a> |
@@ -1028,21 +1043,27 @@ function mc_admin_events_table( $events ) {
 						?>
 					</div>
 				</td>
-				<td>
-					<?php
-					$elabel = '';
-					if ( property_exists( $event, 'location' ) && is_object( $event->location ) ) {
-						$filter = $event->event_location;
-						$elabel = $event->location->location_label;
-					}
-					if ( '' !== $elabel ) {
-						?>
-					<a class='mc_filter' href='<?php echo esc_url( mc_admin_url( 'admin.php?page=my-calendar-manage&amp;filter=' . urlencode( $filter ) . '&amp;restrict=where' ) ); ?>'><span class="screen-reader-text"><?php esc_html_e( 'Show only: ', 'my-calendar' ); ?></span><?php echo esc_html( wp_unslash( $elabel ) ); ?></a>
-						<?php
-					}
+				<?php
+				if ( isset( $columns['location'] ) && 'on' === $columns['location'] ) {
 					?>
-				</td>
-				<td>
+					<td class="mc-event-location">
+						<?php
+						$elabel = '';
+						if ( property_exists( $event, 'location' ) && is_object( $event->location ) ) {
+							$filter = $event->event_location;
+							$elabel = $event->location->location_label;
+						}
+						if ( '' !== $elabel ) {
+							?>
+						<a class='mc_filter' href='<?php echo esc_url( mc_admin_url( 'admin.php?page=my-calendar-manage&amp;filter=' . urlencode( $filter ) . '&amp;restrict=where' ) ); ?>'><span class="screen-reader-text"><?php esc_html_e( 'Show only: ', 'my-calendar' ); ?></span><?php echo esc_html( wp_unslash( $elabel ) ); ?></a>
+							<?php
+						}
+						?>
+					</td>
+					<?php
+				}
+				?>
+				<td class="mc-event-date">
 				<?php
 				if ( '23:59:59' !== $event->event_endtime ) {
 					$event_time = date_i18n( mc_time_format(), mc_strtotime( $event->event_time ) );
@@ -1062,24 +1083,32 @@ function mc_admin_events_table( $events ) {
 				?>
 				</td>
 				<?php
-				if ( $user_count > 1 ) {
-					$auth   = ( is_object( $author ) ) ? $author->ID : 0;
-					$filter = mc_admin_url( "admin.php?page=my-calendar-manage&amp;filter=$auth&amp;restrict=author" );
-					$author = ( is_object( $author ) ? $author->display_name : $author );
-					?>
-				<td>
+				if ( isset( $columns['author'] ) && 'on' === $columns['author'] ) {
+					if ( $user_count > 1 ) {
+						$auth   = ( is_object( $author ) ) ? $author->ID : 0;
+						$filter = mc_admin_url( "admin.php?page=my-calendar-manage&amp;filter=$auth&amp;restrict=author" );
+						$author = ( is_object( $author ) ? $author->display_name : $author );
+						?>
+				<td class="mc-event-author">
 					<a class='mc_filter' href="<?php echo esc_url( $filter ); ?>">
 						<span class="screen-reader-text"><?php esc_html_e( 'Show only: ', 'my-calendar' ); ?></span><?php echo esc_html( $author ); ?>
 					</a>
 				</td>
-					<?php
+						<?php
+					}
 				}
 				?>
-				<td>
+				<?php
+				if ( isset( $columns['category'] ) && 'on' === $columns['category'] ) {
+					?>
+				<td class="mc-event-category">
 				<div class="mc-category-list">
 					<?php echo wp_kses( mc_admin_category_list( $event ), mc_kses_elements() ); ?>
 				</div>
 				</td>
+					<?php
+				}
+				?>
 			</tr>
 			<?php
 		}

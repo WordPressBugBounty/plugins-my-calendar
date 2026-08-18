@@ -5,7 +5,7 @@
  * @category Locations
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -374,7 +374,7 @@ function mc_count_locations() {
 	$count = $wpdb->get_var( 'SELECT COUNT(*) FROM ' . my_calendar_locations_table() ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 	set_transient( 'mc_location_count', $count, DAY_IN_SECONDS );
 
-	return $count;
+	return (int) $count;
 }
 
 /**
@@ -388,7 +388,7 @@ function mc_count_location_events( $location ) {
 	global $wpdb;
 	$count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . my_calendar_table() . ' WHERE event_location = %d', $location ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 
-	return $count;
+	return (int) $count;
 }
 
 /**
@@ -471,6 +471,7 @@ function mc_delete_location( $location, $type = 'string' ) {
 		$value  = false;
 		$return = mc_show_error( __( 'Location could not be deleted', 'my-calendar' ), false );
 	}
+	delete_transient( 'mc_location_count' );
 	delete_transient( 'mc_location_' . $location );
 
 	return ( 'string' === $type ) ? $return : $value;
@@ -641,7 +642,7 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
 									}
 								}
 								?>
-								<li><input type="submit" name="save" class="button-primary" value="<?php echo esc_attr( ( 'edit' === $view ) ? __( 'Save Changes', 'my-calendar' ) : __( 'Add Location', 'my-calendar' ) ); ?> "/></li>
+								<li><input type="submit" name="save" class="button button-primary" value="<?php echo esc_attr( ( 'edit' === $view ) ? __( 'Save Changes', 'my-calendar' ) : __( 'Add Location', 'my-calendar' ) ); ?> "/></li>
 							</ul>
 						</div>
 						<div><input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/></div>
@@ -679,7 +680,7 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
 										}
 									}
 									?>
-									<li><input type="submit" name="save" class="button-primary" value="<?php echo esc_attr( ( 'edit' === $view ) ? __( 'Save Changes', 'my-calendar' ) : __( 'Add Location', 'my-calendar' ) ); ?> "/></li>
+									<li><input type="submit" name="save" class="button button-primary" value="<?php echo esc_attr( ( 'edit' === $view ) ? __( 'Save Changes', 'my-calendar' ) : __( 'Add Location', 'my-calendar' ) ); ?> "/></li>
 								</ul>
 							</div>
 						</form>
@@ -709,17 +710,18 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
  *
  * @param int         $location_id Location ID.
  * @param bool|string $update_location Whether to update location on fetch. 'Force' to force update.
+ * @param bool        $force_reset Clear static cache and fetch fresh data.
  *
- * @return object|false location if found
+ * @return object|false|null location if found
  */
-function mc_get_location( $location_id, $update_location = true ) {
+function mc_get_location( $location_id, $update_location = true, $force_reset = false ) {
 	static $location_cache = array();
-	if ( isset( $location_cache[ $location_id ] ) ) {
+	if ( ! $force_reset && isset( $location_cache[ $location_id ] ) ) {
 		return $location_cache[ $location_id ];
 	}
 	if ( ! is_admin() ) {
 		$location = get_transient( 'mc_location_' . $location_id );
-		if ( $location ) {
+		if ( $location && ! $force_reset ) {
 			return $location;
 		}
 	}
@@ -1151,7 +1153,7 @@ function mc_location_custom_data( $location_id = false, $location_post = false, 
 		return;
 	}
 	$fields = mc_location_fields();
-	if ( $field && ! in_array( $field, array_keys( $fields ), true ) ) {
+	if ( ! in_array( $field, array_keys( $fields ), true ) ) {
 		return '';
 	}
 	$location_id = ( isset( $_GET['location_id'] ) ) ? (int) $_GET['location_id'] : $location_id;

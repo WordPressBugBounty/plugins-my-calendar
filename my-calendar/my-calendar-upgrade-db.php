@@ -5,7 +5,7 @@
  * @category Core
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -55,7 +55,7 @@ function my_calendar_check_db() {
 						<input type="hidden" name="upgrade" value="true" />
 					</div>
 					<p>
-						<input type="submit" value="<?php esc_attr_e( 'Update now', 'my-calendar' ); ?>" name="update-calendar" class="button-primary"/>
+						<input type="submit" value="<?php esc_attr_e( 'Update now', 'my-calendar' ); ?>" name="update-calendar" class="button button-primary"/>
 					</p>
 				</form>
 			</div>
@@ -119,7 +119,6 @@ function mc_migrate_settings() {
 		'uri'                          => get_option( 'mc_uri' ),
 		'uri_id'                       => get_option( 'mc_uri_id' ),
 		'open_uri'                     => get_option( 'mc_open_uri' ),
-		'use_permalinks'               => get_option( 'mc_use_permalinks' ),
 		'drop_tables'                  => get_option( 'mc_drop_tables' ),
 		'drop_settings'                => get_option( 'mc_drop_settings' ),
 		'api_enabled'                  => get_option( 'mc_api_enabled' ),
@@ -131,7 +130,6 @@ function mc_migrate_settings() {
 		'show_list_events'             => get_option( 'mc_show_list_events' ),
 		'event_title_template'         => get_option( 'mc_event_title_template' ),
 		'heading_text'                 => get_option( 'mc_heading_text' ),
-		'notime_text'                  => get_option( 'mc_notime_text' ),
 		'hosted_by'                    => get_option( 'mc_hosted_by' ),
 		'posted_by'                    => get_option( 'mc_posted_by' ),
 		'buy_tickets'                  => get_option( 'mc_buy_tickets' ),
@@ -149,7 +147,6 @@ function mc_migrate_settings() {
 		'location_cpt_base'            => get_option( 'mc_location_cpt_base', 'mc-locations' ),
 		'default_category'             => get_option( 'mc_default_category' ),
 		'skip_holidays_category'       => get_option( 'mc_skip_holidays_category' ),
-		'hide_icons'                   => get_option( 'mc_hide_icons' ),
 		'use_list_template'            => get_option( 'mc_use_list_template' ),
 		'use_mini_template'            => get_option( 'mc_use_mini_template' ),
 		'use_details_template'         => get_option( 'mc_use_details_template' ),
@@ -247,6 +244,7 @@ function mc_migrate_settings() {
  */
 function mc_upgrade_db() {
 	$globals = mc_globals();
+	$version = get_option( 'mc_db_version' );
 
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 	dbDelta( $globals['initial_db'] );
@@ -255,5 +253,11 @@ function mc_upgrade_db() {
 	dbDelta( $globals['initial_rel_db'] );
 	dbDelta( $globals['initial_loc_db'] );
 	dbDelta( $globals['initial_loc_rel_db'] );
+	if ( version_compare( $version, '3.8.0', '<' ) ) {
+		// Convert tables that contain text content to utf8mb4 for emoji support.
+		maybe_convert_table_to_utf8mb4( my_calendar_table() );
+		maybe_convert_table_to_utf8mb4( my_calendar_locations_table() );
+		maybe_convert_table_to_utf8mb4( my_calendar_categories_table() );
+	}
 	update_option( 'mc_db_version', mc_get_version() );
 }

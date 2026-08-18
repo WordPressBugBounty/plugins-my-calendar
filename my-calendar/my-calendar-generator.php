@@ -5,7 +5,7 @@
  * @category Core
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -33,7 +33,7 @@ function mc_generate( $format = 'shortcode' ) {
 		 * @hook mc_shortcode_generator
 		 *
 		 * @param string $output Output from handling a POST request.
-		 * @param string $post   $_POST input.
+		 * @param array  $post   $_POST input.
 		 *
 		 * @return string|array
 		 */
@@ -123,7 +123,7 @@ function mc_generator( $type, $data = array() ) {
 	<form action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-shortcodes' ) ) . '#mc_' . esc_attr( $type ); ?>" method="POST" id="my-calendar-generate">
 	<?php mc_calendar_generator_fields( $data, $type ); ?>
 	<p>
-		<input type="submit" class="button-primary" name="generator" value="<?php esc_html_e( 'Generate Shortcode', 'my-calendar' ); ?>"/>
+		<input type="submit" class="button button-primary" name="generator" value="<?php esc_html_e( 'Generate Shortcode', 'my-calendar' ); ?>"/>
 	</p>
 	</form>
 	<?php

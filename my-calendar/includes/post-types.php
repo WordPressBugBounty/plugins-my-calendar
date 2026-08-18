@@ -5,7 +5,7 @@
  * @category Posts
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -129,6 +129,13 @@ function mc_post_type() {
 	 */
 	$arguments = apply_filters( 'mc_event_post_type_args', $arguments );
 
+	$views = mc_get_option( 'views' );
+	// If single event view is disabled, alter visibility.
+	$upgrade_has_run = mc_get_option( 'upgrade_380' );
+	if ( 'true' === $upgrade_has_run && ! in_array( 'single', $views, true ) ) {
+		$arguments['public']             = false;
+		$arguments['publicly_queryable'] = false;
+	}
 	/**
 	 * Filter post type arguments for My Calendar locations (mc-locations).
 	 *
@@ -138,7 +145,7 @@ function mc_post_type() {
 	 *
 	 * @return array
 	 */
-	$arguments = apply_filters( 'mc_location_post_type_args', $loc_arguments );
+	$loc_arguments = apply_filters( 'mc_location_post_type_args', $loc_arguments );
 
 	$types = array(
 		'mc-events'    => array(
@@ -526,7 +533,7 @@ function mc_posttypes_messages( $messages ) {
  * @param int    $post_id Post ID.
  * @param object $post Post object.
  *
- * @return bool|int
+ * @return int Post ID.
  */
 function mc_save_post( $post_id, $post ) {
 	if ( empty( $_POST ) || ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || wp_is_post_revision( $post_id ) || isset( $_POST['_inline_edit'] ) || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ! ( 'mc-events' === get_post_type( $post_id ) ) ) {
@@ -544,3 +551,126 @@ function mc_save_post( $post_id, $post ) {
 	return $post_id;
 }
 add_action( 'wp_after_insert_post', 'mc_save_post', 10, 2 );
+
+/**
+ * Map event approval status to WordPress post status.
+ *
+ * @param object $event Event object.
+ *
+ * @return string
+ */
+function mc_get_event_post_status( $event ) {
+	if ( ! is_object( $event ) ) {
+		return 'draft';
+	}
+
+	$approval = isset( $event->event_approved ) ? (int) $event->event_approved : 0;
+	switch ( $approval ) {
+		case 0:
+			return 'draft';
+		case 2:
+			return 'trash';
+		case 6:
+			return 'future';
+		default:
+			return ( mc_private_event( $event, false ) ) ? 'private' : 'publish';
+	}
+}
+
+/**
+ * Sync an event post status with current event status.
+ *
+ * @param int $event_id Event ID.
+ *
+ * @return void
+ */
+function mc_sync_event_post_status( $event_id ) {
+	$event_id = absint( $event_id );
+	if ( ! $event_id ) {
+		return;
+	}
+
+	$event   = mc_get_event_core( $event_id );
+	$post_id = (int) mc_get_event_post( $event_id );
+	if ( ! $event || ! $post_id ) {
+		return;
+	}
+
+	$target_status = mc_get_event_post_status( $event );
+	$post_status   = get_post_status( $post_id );
+	if ( ! $post_status || $post_status === $target_status ) {
+		return;
+	}
+
+	$update = array(
+		'ID'          => $post_id,
+		'post_status' => $target_status,
+	);
+	if ( 'future' === $target_status ) {
+		$post_date = get_post_field( 'post_date', $post_id );
+		$post_time = $post_date ? strtotime( $post_date ) : 0;
+		$now       = current_time( 'timestamp' ); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested
+		if ( $post_time <= $now ) {
+			$post_date               = mc_date( 'Y-m-d H:i:s', $now + MINUTE_IN_SECONDS, false );
+			$update['post_date']     = $post_date;
+			$update['post_date_gmt'] = get_gmt_from_date( $post_date );
+		}
+	}
+
+	wp_update_post( $update );
+}
+
+/**
+ * Sync post status whenever an event transitions statuses.
+ *
+ * @param int    $prev_status Previous event status.
+ * @param int    $new_status New event status.
+ * @param string $action Action context.
+ * @param array  $update Submitted event data.
+ * @param int    $event_id Event ID.
+ */
+function mc_sync_post_status_on_event_transition( $prev_status, $new_status, $action, $update, $event_id ) {
+	if ( (int) $prev_status === (int) $new_status ) {
+		return;
+	}
+
+	mc_sync_event_post_status( $event_id );
+}
+add_action( 'mc_transition_event', 'mc_sync_post_status_on_event_transition', 20, 5 );
+
+/**
+ * Update event approval when a scheduled event post is published.
+ *
+ * @param string $new_status New post status.
+ * @param string $old_status Previous post status.
+ * @param object $post Post object.
+ */
+function mc_publish_scheduled_event( $new_status, $old_status, $post ) {
+	if ( 'mc-events' !== $post->post_type || 'future' !== $old_status || 'publish' !== $new_status ) {
+		return;
+	}
+	$event_id = (int) get_post_meta( $post->ID, '_mc_event_id', true );
+	if ( ! $event_id ) {
+		return;
+	}
+	$previous_status = (int) mc_get_data( $event_id, 'event_approved' );
+	if ( 1 === $previous_status ) {
+		return;
+	}
+	mc_update_data( $event_id, 'event_approved', 1 );
+
+	/**
+	 * Execute an action when an event changes status.
+	 *
+	 * @hook mc_transition_event
+	 *
+	 * @param int    $prev_event_status Previous status.
+	 * @param int    $new_event_status New status.
+	 * @param string $action Action being performed.
+	 * @param array  $update Submitted event data.
+	 * @param int    $event_id Event ID.
+	 */
+	do_action( 'mc_transition_event', $previous_status, 1, 'edit', array(), $event_id );
+	mc_update_count_cache();
+}
+add_action( 'transition_post_status', 'mc_publish_scheduled_event', 10, 3 );

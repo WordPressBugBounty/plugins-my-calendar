@@ -5,7 +5,7 @@
  * @category Calendar
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -379,8 +379,8 @@ function mc_google_cal( $dtstart, $dtend, $url, $title, $location, $description 
  * @return string
  */
 function mc_outlook_cal( $dtstart, $dtend, $url, $title, $location, $description, $allday ) {
-	$start  = gmdate( 'Y-m-d\THi00\Z', strtotime( $dtstart ) );
-	$end    = gmdate( 'Y-m-d\THi00\Z', strtotime( $dtend ) );
+	$start  = mc_date( 'Y-m-d\TH:i:s\Z', $dtstart, false );
+	$end    = mc_date( 'Y-m-d\TH:i:s\Z', $dtend, false );
 	$source = 'https://outlook.live.com/calendar/0/action/compose';
 
 	$args = array(
@@ -448,7 +448,7 @@ function mc_location_image( $event, $source = 'event' ) {
  */
 function mc_hcard( $event, $address = 'true', $map = 'true', $source = 'event' ) {
 	$event = mc_get_event_location( $event, $source );
-	if ( ! $event ) {
+	if ( ! is_object( $event ) ) {
 		return '';
 	}
 	$source  = 'location';
@@ -923,9 +923,9 @@ function mc_create_tags( $event, $context = 'filters' ) {
 	$aria_described    = ( $calendar_id ) ? " aria-describedby='mc_$event->occur_id-title-$calendar_id'" : '';
 	$e['gcal']         = mc_google_cal( $google_start, $google_end, $e_link, wp_unslash( $e['title'] ), $map_gcal, $strip_desc );
 	$e['gcal_link']    = "<a href='" . esc_url( $e['gcal'] ) . "' class='gcal external' rel='nofollow'" . $aria_described . "><span class='mc-icon' aria-hidden='true'></span>" . __( 'Google', 'my-calendar' ) . '</a>';
-	$e['office']       = mc_office_cal( $google_start, $google_end, $e_link, wp_unslash( $e['title'] ), $map_gcal, $strip_desc, $allday );
+	$e['office']       = mc_office_cal( $event->ts_occur_begin, $event->ts_occur_end, $e_link, wp_unslash( $e['title'] ), $map_gcal, $strip_desc, $allday );
 	$e['office_link']  = "<a href='" . esc_url( $e['office'] ) . "' class='office external' rel='nofollow'" . $aria_described . "><span class='mc-icon' aria-hidden='true'></span>" . __( 'Office 365', 'my-calendar' ) . '</a>';
-	$e['outlook']      = mc_outlook_cal( $google_start, $google_end, $e_link, wp_unslash( $e['title'] ), $map_gcal, $strip_desc, $allday );
+	$e['outlook']      = mc_outlook_cal( $event->ts_occur_begin, $event->ts_occur_end, $e_link, wp_unslash( $e['title'] ), $map_gcal, $strip_desc, $allday );
 	$e['outlook_link'] = "<a href='" . esc_url( $e['outlook'] ) . "' class='outlook external' rel='nofollow'" . $aria_described . "><span class='mc-icon' aria-hidden='true'></span>" . __( 'Outlook Live', 'my-calendar' ) . '</a>';
 
 	// IDs.
@@ -1031,6 +1031,12 @@ function mc_get_permalink( $event ) {
  * @return string URL.
  */
 function mc_get_details_link( $event ) {
+	$views = mc_get_option( 'views' );
+	// If single event view is disabled, return an empty string.
+	$upgrade_has_run = mc_get_option( 'upgrade_380' );
+	if ( 'true' === $upgrade_has_run && ! in_array( 'single', $views, true ) ) {
+		return '';
+	}
 	if ( is_numeric( $event ) ) {
 		$event = mc_get_event( $event );
 	}
@@ -1055,10 +1061,10 @@ function mc_get_details_link( $event ) {
 	 *
 	 * @param string $option Value of mc_use_permalinks setting.
 	 *
-	 * @return bool True value if permalinks are enabled.
+	 * @return bool Truthy value if permalinks are enabled.
 	 */
 	$permalinks = apply_filters( 'mc_use_permalinks', mc_get_option( 'use_permalinks' ) );
-	$permalinks = ( 1 === $permalinks || true === $permalinks || 'true' === $permalinks ) ? true : false;
+	$permalinks = ( 'true' === $permalinks ) ? true : false;
 	$permalink  = '';
 	if ( 0 !== (int) $event->event_post && 'true' !== mc_get_option( 'remote' ) && $permalinks ) {
 		$permalink = get_permalink( $event->event_post );
@@ -1760,13 +1766,11 @@ function mc_search_highlight( $string1, $string2 = '', $term = '' ) {
  * @return string
  */
 function mc_str_replace_word_i( $needle, $haystack ) {
-	$keyword  = $needle;
 	$needle   = str_replace( '/', '\\/', preg_quote( $needle ) ); // allow '/' in keywords.
 	$pattern  = "/\b$needle(?!([^<]+)?>)\b/i";
-	$type     = 'all';
 	$haystack = preg_replace_callback(
 		$pattern,
-		function ( $m ) use ( $type, $keyword ) {
+		function ( $m ) {
 			return '<strong class="mc_search_term">' . $m[0] . '</strong>';
 		},
 		$haystack
@@ -2174,10 +2178,10 @@ function mc_template_host( $data, $type = 'calendar' ) {
 /**
  * Print accessibility features in PHP templates. Backwards compatible with display settings.
  *
- * @param object $data Calendar view data.
- * @param string $type View type.
- * @param string $text Optional. Accessibility heading text.
- * @param string $return_type return or echo.
+ * @param object|array $data Calendar view data. Array argument is deprecated.
+ * @param string       $type View type.
+ * @param string       $text Optional. Accessibility heading text.
+ * @param string       $return_type return or echo.
  */
 function mc_template_access( $data, $type = 'calendar', $text = '', $return_type = 'echo' ) {
 	$event  = ( is_object( $data ) ) ? $data->event : $data['event'];
@@ -2225,7 +2229,7 @@ function mc_template_access( $data, $type = 'calendar', $text = '', $return_type
 		 *
 		 * @hook mc_subheading_level
 		 *
-		 * @param string $el Element name. Default 'h4' in grouped templates, h2 on single templates.
+		 * @param string $sublevel Element name. Default 'h4' in grouped templates, h2 on single templates.
 		 * @param string $type View type.
 		 * @param string $time View timeframe.
 		 * @param string $template Current template.
@@ -2267,13 +2271,13 @@ function mc_template_location_access( $data, $text = false ) {
 	foreach ( $terms as $term ) {
 		$access[] = '<li class="' . esc_attr( $term->slug ) . '"><span>' . esc_html( $term->name ) . '</span></li>';
 	}
-	$access_content = '<ul class="mc-access">' . implode( '', $access ) . '</ul>';
+	$access_content = ! empty( $access ) ? '<ul class="mc-access">' . implode( '', $access ) . '</ul>' : '';
 	/**
 	 * Filter subheading levels inside event content.
 	 *
 	 * @hook mc_subheading_level
 	 *
-	 * @param string $el Element name. Default 'h4' in grouped templates, h2 on single templates.
+	 * @param string $sublevel Element name. Default 'h4' in grouped templates, h2 on single templates.
 	 * @param string $template Current template.
 	 * @param string $time View timeframe.
 	 * @param string $template Current template.
@@ -2351,8 +2355,8 @@ function mc_template_share( $data, $type = 'calendar', $text = '' ) {
 	if ( $sharing ) {
 		$sharing = '
 		<div class="mc-calendar-share sharing">
-			<button class="mc-toggle-button has-popup" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="mc-share-links-' . absint( $event->event_id ) . '">' . __( 'Add to Calendar', 'my-calendar' ) . '</button>
-			<ul id="mc-share-links-' . absint( $event->event_id ) . '">
+			<button class="mc-toggle-button has-popup" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="mc-share-links-' . absint( $event->event_id ) . '-' . absint( $event->occur_id ) . '">' . __( 'Add to Calendar', 'my-calendar' ) . '</button>
+			<ul id="mc-share-links-' . absint( $event->event_id ) . '-' . absint( $event->occur_id ) . '">
 				' . $sharing . '
 			</ul>
 		</div>';

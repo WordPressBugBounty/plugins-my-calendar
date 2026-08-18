@@ -5,7 +5,7 @@
  * @category Events
  * @package  My Calendar
  * @author   Joe Dolson
- * @license  GPLv3
+ * @license  GPLv2
  * @link     https://www.joedolson.com/my-calendar/
  */
 
@@ -159,8 +159,8 @@ function my_calendar_save_group( $action, $output, $event_id, $post = array() ) 
 			 *
 			 * @hook mc_update_group_data
 			 *
-			 * @param array $update Event update data for groups.
-			 * @param string $event_author Author for these events.
+			 * @param array  $update Event update data for groups.
+			 * @param int    $event_author Author for these events.
 			 * @param string $action Action performed.
 			 * @param int    $event_id Event ID being updated.
 			 *
@@ -170,8 +170,8 @@ function my_calendar_save_group( $action, $output, $event_id, $post = array() ) 
 			$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d' );
 			$result  = $wpdb->update( my_calendar_table(), $update, array( 'event_id' => $event_id ), $formats, '%d' );
 
-			$edit_url = '<a href="' . admin_url( "admin.php?page=my-calendar&amp;mode=edit&amp;event_id=$event_id" ) . '" class="button-secondary">' . __( 'Edit Event', 'my-calendar' ) . '</a>';
-			$view_url = ' <a href="' . mc_get_permalink( mc_get_first_event( $event_id ) ) . '" class="button-secondary">' . __( 'View Event', 'my-calendar' ) . '</a>';
+			$edit_url = '<a href="' . admin_url( "admin.php?page=my-calendar&amp;mode=edit&amp;event_id=$event_id" ) . '" class="button button-compact">' . __( 'Edit Event', 'my-calendar' ) . '</a>';
+			$view_url = ' <a href="' . mc_get_permalink( mc_get_first_event( $event_id ) ) . '" class="button button-compact">' . __( 'View Event', 'my-calendar' ) . '</a>';
 			$url      = $edit_url . $view_url;
 			// Make sure POST data is available in update array.
 			$update = array_merge( $update, $post );
@@ -319,7 +319,6 @@ function mc_edit_groups( $mode = 'edit', $event_id = 0, $group_id = 0 ) {
  */
 function my_calendar_print_group_fields( $data, $mode, $event_id ) {
 	global $user_ID;
-	$has_data    = ( is_object( $data ) ) ? true : false;
 	$user        = get_userdata( $user_ID );
 	$group_id    = ( ! empty( $data->event_group_id ) ) ? $data->event_group_id : mc_group_id();
 	$title       = '';
@@ -360,7 +359,7 @@ function my_calendar_print_group_fields( $data, $mode, $event_id ) {
 				<div class="mc-controls">
 					<ul>
 						<li><span class='dashicons dashicons-calendar' aria-hidden='true'></span><a href="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-manage&groups=true' ) ); ?>"><?php esc_html_e( 'Manage groups', 'my-calendar' ); ?></a></li>
-						<li><input type="submit" name="save" class="button-primary" value="<?php esc_html_e( 'Update Event Group', 'my-calendar' ); ?>"/></li>
+						<li><input type="submit" name="save" class="button button-primary" value="<?php esc_html_e( 'Update Event Group', 'my-calendar' ); ?>"/></li>
 					</ul>
 				</div>
 				<p>
@@ -426,7 +425,7 @@ function my_calendar_print_group_fields( $data, $mode, $event_id ) {
 					$select       = mc_category_select( $data, true, false );
 					$add_category = current_user_can( 'mc_edit_cats' ) ? '<input class="mc-srt" type="checkbox" name="event_category_new" id="event_category_new" value="true" /> <label for="event_category_new" class="button"><span class="dashicons dashicons-plus" aria-hidden="true"></span>' . __( 'Add Categories', 'my-calendar' ) . '</label>' : '';
 					$addnew       = '<div class="new-event-category">
-					<p><label for="event_category_name">' . __( 'Category Name', 'my-calendar' ) . '</label> <input type="text" value="" id="event_category_name" name="event_category_name" disabled /> <button type="button" class="button add-category">' . __( 'Add Category', 'my-calendar' ) . '</button></p>
+					<p><label for="event_category_name">' . __( 'Category Name', 'my-calendar' ) . '</label> <input type="text" value="" class="regular-text" id="event_category_name" name="event_category_name" disabled /> <button type="button" class="button add-category">' . __( 'Add Category', 'my-calendar' ) . '</button></p>
 				</div>';
 					$return       = '<fieldset class="categories"><legend>' . __( 'Categories', 'my-calendar' ) . $match . '</legend><ul class="checkboxes">' . mc_category_select( $data, true, true ) . '<li class="event-new-category"> ' . $add_category . '</li></ul></fieldset>' . $addnew . '<p class="mc-primary-category"><label for="event_category">' . __( 'Primary Category', 'my-calendar' ) . '</label><select name="primary_category" id="e_category">' . $select . '</select></p>';
 					echo wp_kses( $return, mc_kses_elements() );
@@ -452,11 +451,11 @@ function my_calendar_print_group_fields( $data, $mode, $event_id ) {
 							<div class="image_fields">
 							<?php
 							mc_compare_group_members( $group_id, 'event_image' );
-							if ( $has_data && property_exists( $data, 'event_post' ) ) {
+							if ( property_exists( $data, 'event_post' ) ) {
 								$image    = ( has_post_thumbnail( $data->event_post ) ) ? get_the_post_thumbnail_url( $data->event_post ) : $data->event_image;
 								$image_id = ( has_post_thumbnail( $data->event_post ) ) ? get_post_thumbnail_id( $data->event_post ) : '';
 							} else {
-								$image    = ( $has_data && '' !== $data->event_image ) ? $data->event_image : '';
+								$image    = ( '' !== $data->event_image ) ? $data->event_image : '';
 								$image_id = '';
 							}
 							$button_text = __( 'Select Featured Image', 'my-calendar' );
@@ -488,7 +487,7 @@ function my_calendar_print_group_fields( $data, $mode, $event_id ) {
 					} else {
 						?>
 						<div>
-							<input type="hidden" name="event_image" value="<?php echo ( $has_data ) ? esc_attr( $data->event_image ) : ''; ?>" />
+							<input type="hidden" name="event_image" value="<?php echo ( ! empty( $data->event_image ) ? esc_attr( $data->event_image ) : '' ); ?>" />
 							<?php
 							if ( ! empty( $data->event_image ) ) {
 								echo '<div class="event_image"><img src="' . esc_attr( $data->event_image ) . '" alt="" /></div>';
@@ -546,7 +545,7 @@ function my_calendar_print_group_fields( $data, $mode, $event_id ) {
 							mc_compare_group_members( $group_id, 'event_link' );
 							?>
 							</label>
-							<input type="text" placeholder="https://" id="e_link" name="event_link" size="40" value="<?php echo ( is_object( $data ) ) ? esc_url( $data->event_link ) : ''; ?>" />
+							<input type="text" placeholder="https://" id="e_link" name="event_link" size="40" value="<?php echo esc_url( $data->event_link ); ?>" />
 							<input type="checkbox" value="1" id="e_link_expires" name="event_link_expires"<?php checked( true, $exp_checked ); ?> />
 							<label for="e_link_expires"><?php esc_html_e( 'Link will expire after event.', 'my-calendar' ); ?></label>
 						</p>
@@ -563,13 +562,13 @@ function my_calendar_print_group_fields( $data, $mode, $event_id ) {
 	 * @hook mc_event_registration
 	 *
 	 * @param string $event_registration_output HTML output. Default empty.
-	 * @param bool   $has_data Whether this event has data.
+	 * @param bool   $has_data Whether this event has data. Always true for this filter since it is being called from the edit form.
 	 * @param object $data Event data object.
 	 * @param string $context Indicates this is running in the admin.
 	 *
 	 * @return string
 	 */
-	$event_registration_output = apply_filters( 'mc_event_registration', '', $has_data, $data, 'admin' );
+	$event_registration_output = apply_filters( 'mc_event_registration', '', true, $data, 'admin' );
 	if ( mc_show_edit_block( 'event_open' ) && '' !== $event_registration_output ) {
 		?>
 		<div class="ui-sortable meta-box-sortables">
@@ -588,8 +587,8 @@ function my_calendar_print_group_fields( $data, $mode, $event_id ) {
 	} else {
 		?>
 	<div>
-		<input type="hidden" name="event_tickets" value="<?php echo ( $has_data ) ? esc_attr( $data->event_tickets ) : ''; ?>"/>
-		<input type="hidden" name="event_registration" value="<?php echo ( $has_data ) ? esc_attr( $data->event_registration ) : ''; ?>"/>
+		<input type="hidden" name="event_tickets" value="<?php echo esc_attr( $data->event_tickets ); ?>"/>
+		<input type="hidden" name="event_registration" value="<?php echo esc_attr( $data->event_registration ); ?>"/>
 	</div>
 		<?php
 	}
@@ -792,7 +791,9 @@ function mc_list_groups() {
 	?>
 	<div class='inside'>
 	<?php
-	$num_pages = ceil( $items / $items_per_page );
+	$num_pages  = ceil( $items / $items_per_page );
+	$nav_label  = __( 'Events Pagination', 'my-calendar' );
+	$page_links = '';
 	if ( $num_pages > 1 ) {
 		$page_links = paginate_links(
 			array(
@@ -805,7 +806,6 @@ function mc_list_groups() {
 				'mid_size'  => 1,
 			)
 		);
-		$nav_label  = __( 'Events Pagination', 'my-calendar' );
 		?>
 		<nav class='tablenav' aria-label='<?php echo esc_attr( $nav_label ); ?>'>
 			<div class='tablenav-pages'>
@@ -837,7 +837,7 @@ function mc_list_groups() {
 				<input type="hidden" name="event_action" value="group"/>
 			</div>
 			<p class="mc-group-buttons mc-actions">
-				<input type="submit" class="button-primary group" value="<?php esc_html_e( 'Group events', 'my-calendar' ); ?>" />
+				<input type="submit" class="button button-primary group" value="<?php esc_html_e( 'Group events', 'my-calendar' ); ?>" />
 			</p>
 			<table class="widefat wp-list-table mc-responsive-table mc-groups-table" id="my-calendar-admin-table">
 				<caption class="screen-reader-text"><?php esc_html_e( 'Grouped Events list. Use column headers to sort.', 'my-calendar' ); ?></caption>
@@ -880,13 +880,13 @@ function mc_list_groups() {
 					}
 					?>
 				<tr class="<?php echo esc_attr( "$class $spam" ); ?>" id="event<?php echo esc_attr( $event->event_id ); ?>">
-					<th scope="row">
+					<th scope="row" aria-label="<?php echo esc_attr( $event->event_title ); ?>">
 						<input type="checkbox" aria-describedby="event_<?php echo esc_attr( $event->event_id ); ?>" value="<?php echo esc_attr( $event->event_id ); ?>" name="group[]" id="mc<?php echo esc_attr( $event->event_id ); ?>" <?php echo ( $is_grouped ) ? ' disabled="disabled"' : ''; ?> />
 						<label for="mc<?php echo esc_attr( $event->event_id ); ?>"><span class="screen-reader-text"><?php esc_html_e( 'Group event', 'my-calendar' ); ?></span><?php echo esc_attr( $event->event_id ); ?></label>
 					</th>
-					<th scope="row">
+					<td>
 						<?php echo ( '0' === $event->event_group_id ) ? '-' : esc_html( $event->event_group_id ); ?>
-					</th>
+					</td>
 					<td>
 						<strong>
 						<?php
@@ -966,7 +966,7 @@ function mc_list_groups() {
 			</table>
 		<div class="mc-controls footer">
 			<p class="mc-actions mc-group-buttons">
-				<input type="submit" class="button-primary group" value="<?php esc_html_e( 'Group events', 'my-calendar' ); ?>"/>
+				<input type="submit" class="button button-primary group" value="<?php esc_html_e( 'Group events', 'my-calendar' ); ?>"/>
 			</p>
 		</div>
 		</form>
