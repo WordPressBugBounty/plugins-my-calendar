@@ -560,15 +560,16 @@ function mc_hcard( $event, $address = 'true', $map = 'true', $source = 'event' )
  *
  * @param object $event Event object.
  * @param string $context Context being executed in.
+ * @param bool   $override Whether to override cached tags. Default false.
  *
  * @return array event data
  */
-function mc_create_tags( $event, $context = 'filters' ) {
+function mc_create_tags( $event, $context = 'filters', $override = false ) {
 	if ( ! is_object( $event ) ) {
 		return array();
 	}
 	static $tag_cache = array();
-	if ( isset( $tag_cache[ $event->occur_id ] ) ) {
+	if ( ! $override && isset( $tag_cache[ $event->occur_id ] ) ) {
 		return $tag_cache[ $event->occur_id ];
 	}
 	$location = mc_get_event_location( $event, 'event' );
@@ -2395,7 +2396,7 @@ function mc_template_description( $data, $type = 'calendar' ) {
 	if ( mc_output_is_visible( 'description', $type, $event ) ) {
 		if ( '' !== trim( $event->event_desc ) ) {
 			$description = wpautop( wp_unslash( $event->event_desc ), 1 );
-			$description = "	<div class='longdesc description'>$description</div>";
+			$description = "<div class='longdesc description'>$description</div>";
 		}
 	}
 
@@ -2414,8 +2415,8 @@ function mc_template_registration( $data, $type = 'calendar', $text = '' ) {
 	$tickets = '';
 	$text    = ( $text ) ? $text : __( 'Buy Tickets', 'my-calendar' );
 	if ( mc_output_is_visible( 'tickets', $type, $event ) ) {
-		$info     = wpautop( wp_unslash( $event->event_registration ) );
-		$url      = esc_url( $event->event_tickets );
+		$info     = ( $event->event_registration ) ? wpautop( wp_unslash( $event->event_registration ) ) : '';
+		$url      = ( $event->event_tickets ) ? esc_url( $event->event_tickets ) : false;
 		$external = ( $url && mc_external_link( $url ) ) ? 'external' : '';
 		$text     = ( '' !== mc_get_option( 'buy_tickets', '' ) ) ? mc_get_option( 'buy_tickets' ) : $text;
 		$tickets  = ( $url ) ? "<a class='$external' href='" . $url . "'><span class='mc-icon' aria-hidden='true'></span>" . $text . '</a>' : '';
