@@ -765,9 +765,8 @@ function my_calendar_save( $action, $output, $event_id = false ) {
 					$event_error = mc_error_check( $event_ids[0]->occur_event_id );
 				}
 				$views           = mc_get_option( 'views' );
-				$upgrade_has_run = mc_get_option( 'upgrade_380' );
 				$has_single_view = true;
-				if ( 'true' === $upgrade_has_run && ! in_array( 'single', $views, true ) ) {
+				if ( ! in_array( 'single', $views, true ) ) {
 					$has_single_view = false;
 				}
 				if ( '' !== trim( $event_error ) ) {
@@ -2040,7 +2039,8 @@ function mc_form_fields( $data, $mode, $event_id ) {
 		</div>
 				<?php
 			}
-			if ( current_user_can( 'mc_edit_templates' ) || current_user_can( 'manage_options' ) ) {
+			$views = mc_get_option( 'views' );
+			if ( ( current_user_can( 'mc_edit_templates' ) || current_user_can( 'manage_options' ) ) && in_array( 'single', $views, true ) ) {
 				?>
 		<div class="postbox">
 			<h2><button type="button" class="button button-secondary has-disclosure" aria-expanded="false" aria-controls="template-tag-preview"><?php esc_html_e( 'Preview Template Output', 'my-calendar' ); ?></button></h2>
