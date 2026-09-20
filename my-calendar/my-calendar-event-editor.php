@@ -1425,7 +1425,7 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 					'<li class="event-new-category"> ' . $add_category . '</li>
 				</ul></fieldset>';
 				$return      .= '<div class="new-event-category">
-					<p><label for="event_category_name">' . __( 'Category Name', 'my-calendar' ) . '</label> <input type="text" class="regular-text" value="" id="event_category_name" name="event_category_name" disabled /></p><p><button type="button" class="button button-compact add-category">' . __( 'Add Category', 'my-calendar' ) . '</button></p>
+					<p><label for="event_category_name">' . __( 'Category Name', 'my-calendar' ) . '</label> <input type="text" class="regular-text" value="" id="event_category_name" name="event_category_name" disabled /></p><p><button type="button" class="button button-secondary add-category">' . __( 'Add Category', 'my-calendar' ) . '</button></p>
 				</div>';
 				$return      .= '
 					<p class="mc-primary-category">
@@ -1456,9 +1456,10 @@ function mc_show_block( $field, $has_data, $data, $display = true, $default_str 
 					$checked = ' checked="checked"';
 				}
 				$return = '
-					<p>
-						<label for="e_link">' . __( 'More Information', 'my-calendar' ) . '</label> <input type="url" placeholder="https://" id="e_link" name="event_link" size="40" value="' . $value . '" /> <input type="checkbox" value="1" id="e_link_expires" name="event_link_expires"' . $checked . ' /> <label for="e_link_expires">' . __( 'Link will expire after event', 'my-calendar' ) . '</label>
-					</p>';
+					<div>
+						<label for="e_link">' . __( 'More Information', 'my-calendar' ) . '</label>
+						<div class="mc-flex mc-fields"><input type="url" placeholder="https://" id="e_link" name="event_link" size="40" value="' . $value . '" /> <div class="mc-fields"><input type="checkbox" value="1" id="e_link_expires" name="event_link_expires"' . $checked . ' /> <label for="e_link_expires">' . __( 'Link will expire after event', 'my-calendar' ) . '</label></div></div>
+					</div>';
 			}
 			break;
 		case 'event_recurs':
@@ -1901,7 +1902,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 						}
 						?>
 					<p class="event_span">
-						<button type="button" class="add_field button button-secondary"><span class="dashicons dashicons-plus" aria-hidden="true"></span><?php esc_html_e( 'Add Copy', 'my-calendar' ); ?></button> <?php mc_help_link( __( 'Help', 'my-calendar' ), __( 'Copy an event', 'my-calendar' ), 'copy an event', 4 ); ?>
+						<button type="button" class="add_field button button-compact"><span class="dashicons dashicons-plus" aria-hidden="true"></span><?php esc_html_e( 'Add Copy', 'my-calendar' ); ?></button> <?php mc_help_link( __( 'Help', 'my-calendar' ), __( 'Copy an event', 'my-calendar' ), 'copy an event', 4 ); ?>
 					</p>
 					<ol class="mc-repeat-events">
 						<li id="event1" class="datetime-template enabled">
@@ -1917,7 +1918,7 @@ function mc_form_fields( $data, $mode, $event_id ) {
 							?>
 							</fieldset>
 							<div class="buttons">
-								<button type="button" class="add_field button button-secondary"><span class="dashicons dashicons-plus" aria-hidden="true"></span><?php esc_html_e( 'Add Copy', 'my-calendar' ); ?></button> <?php mc_help_link( __( 'Help', 'my-calendar' ), __( 'Copy an event', 'my-calendar' ), 'copy an event', '1' ); ?>
+								<button type="button" class="add_field button button-compact"><span class="dashicons dashicons-plus" aria-hidden="true"></span><?php esc_html_e( 'Add Copy', 'my-calendar' ); ?></button> <?php mc_help_link( __( 'Help', 'my-calendar' ), __( 'Copy an event', 'my-calendar' ), 'copy an event', '1' ); ?>
 							</div>
 						</li>
 					</ol>
@@ -2172,10 +2173,7 @@ function mc_event_location_dropdown_block( $data, $hide_extras = false ) {
 			</div>';
 		}
 	} else {
-		$fields .= '<input type="hidden" name="location_preset" value="none" />
-		<p>
-		<a href="' . admin_url( 'admin.php?page=my-calendar-locations' ) . '">' . __( 'Add a location', 'my-calendar' ) . '</a>
-		</p>';
+		$fields .= '<input type="hidden" name="location_preset" value="none" />';
 	}
 	if ( is_object( $data ) ) {
 		$differences = mc_event_location_diff( $data );
@@ -2509,10 +2507,22 @@ function mc_check_data( $action, $post, $i, $ignore_required = false ) {
 		$event_link   = ! empty( $post['event_link'] ) ? trim( $post['event_link'] ) : '';
 		$expires      = ! empty( $post['event_link_expires'] ) ? $post['event_link_expires'] : '0';
 		$approved     = ( current_user_can( 'mc_approve_events' ) ) ? 1 : 0;
+		/**
+		 * Filter whether the API can approve the event.
+		 *
+		 * @hook mc_api_can_approve_event
+		 *
+		 * @param bool  $api_approved Whether the API can approve the event. Default false.
+		 * @param int   $event_author Event author ID.
+		 * @param array $post Submitted query.
+		 *
+		 * @return bool
+		 */
+		$api_approved = apply_filters( 'mc_api_can_approve_event', false, $event_author, $post );
 		if ( isset( $post['event_approved'] ) && $post['event_approved'] !== $approved ) {
 			// mc_publish_events, mc_approve_events, and mc_manage_events all grant access to all published states.
 			$is_importing = false === get_transient( 'mcs-parsed-files' ) ? false : true;
-			if ( $is_importing || current_user_can( 'mc_publish_events' ) || current_user_can( 'mc_approve_events' ) || current_user_can( 'mc_manage_events' ) ) {
+			if ( $is_importing || $api_approved || current_user_can( 'mc_publish_events' ) || current_user_can( 'mc_approve_events' ) || current_user_can( 'mc_manage_events' ) ) {
 				$approved = absint( $post['event_approved'] );
 			}
 		}

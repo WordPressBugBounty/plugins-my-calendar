@@ -12,10 +12,8 @@
 
   'use strict';
 
-  var MODAL_JS_CLASS = 'mc-modal';
   var MODAL_ID_PREFIX = 'label_modal_';
   var MODAL_CLASS_SUFFIX = 'modal';
-  var MODAL_DATA_BACKGROUND_ATTR = 'data-modal-background-click';
   var MODAL_PREFIX_CLASS_ATTR = 'data-modal-prefix-class';
   var MODAL_TEXT_ATTR = 'data-modal-text';
   var MODAL_CONTENT_ID_ATTR = 'data-modal-content-id';
@@ -23,7 +21,6 @@
   var MODAL_TITLE_ATTR = 'data-modal-title';
   var MODAL_FOCUS_TO_ATTR = 'data-modal-focus-toid';
   var MODAL_CLOSE_TEXT_ATTR = 'data-modal-close-text';
-  var MODAL_ROLE = 'dialog';
 
   var MODAL_BUTTON_CLASS_SUFFIX = 'modal-close';
   var MODAL_BUTTON_JS_ID = 'mc-modal-close';
@@ -42,24 +39,13 @@
 
   var FOCUSABLE_ELEMENTS_STRING = "a[href], area[href], input:not([type='hidden']):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, *[tabindex], *[contenteditable]";
   var WRAPPER_PAGE_JS = 'mc-modal-page';
-
   var MODAL_JS_ID = 'mc-modal';
-
   var MODAL_OVERLAY_ID = 'mc-modal-overlay';
   var MODAL_OVERLAY_CLASS_SUFFIX = 'modal-overlay';
   var MODAL_OVERLAY_TXT = 'Close modal';
   var MODAL_OVERLAY_BG_ENABLED_ATTR = 'data-background-click';
-
-  var VISUALLY_HIDDEN_CLASS = 'invisible';
   var NO_SCROLL_CLASS = 'mc-no-scroll';
-
-  var ATTR_ROLE = 'role';
   var ATTR_OPEN = 'open';
-  var ATTR_LABELLEDBY = 'aria-labelledby';
-  var ATTR_DESCRIBEDBY = 'aria-describedby';
-  //const ATTR_MODAL = 'aria-modal="true"';
-  var ATTR_HASPOPUP = 'aria-haspopup';
-  var ATTR_HASPOPUP_VALUE = 'dialog';
 
   var findById = function findById(id) {
     return doc.getElementById(id);
@@ -67,32 +53,24 @@
 
   var addClass = function addClass(el, className) {
     if (el.classList) {
-      el.classList.add(className); // IE 10+
-    } else {
-        el.className += ' ' + className; // IE 8+
-      }
+      el.classList.add(className);
+    }
   };
 
   var removeClass = function removeClass(el, className) {
     if (el.classList) {
-      el.classList.remove(className); // IE 10+
-    } else {
-        el.className = el.className.replace(new RegExp('(^|\\b)' + className.split(' ').join('|') + '(\\b|$)', 'gi'), ' '); // IE 8+
-      }
+      el.classList.remove(className);
+    }
   };
 
   var hasClass = function hasClass(el, className) {
     if (el.classList) {
-      return el.classList.contains(className); // IE 10+
+      return el.classList.contains(className);
     } else {
-        return new RegExp('(^| )' + className + '( |$)', 'gi').test(el.className); // IE 8+ ?
-      }
+		return false;
+	}
   };
-  /*const wrapInner = (el, wrapper_el) => { // doesn't work on IE/Edge, f…
-      while (el.firstChild)
-          wrapper_el.append(el.firstChild);
-      el.append(wrapper_el);
-   }*/
+
   function wrapInner(parent, wrapper) {
     if (typeof wrapper === "string") wrapper = document.createElement(wrapper);
 
@@ -136,7 +114,7 @@
     var overlayClass = config.prefixClass + MODAL_OVERLAY_CLASS_SUFFIX;
     var overlayBackgroundEnabled = config.backgroundEnabled === 'disabled' ? 'disabled' : 'enabled';
 
-    return '<span\n                    id="' + id + '"\n                    class="' + overlayClass + '"\n                    ' + MODAL_OVERLAY_BG_ENABLED_ATTR + '="' + overlayBackgroundEnabled + '"\n                    title="' + overlayText + '"\n                    >\n                    <span class="' + VISUALLY_HIDDEN_CLASS + '">' + overlayText + '</span>\n                  </span>';
+    return '<span\n                    id="' + id + '"\n                    class="' + overlayClass + '"\n                    ' + MODAL_OVERLAY_BG_ENABLED_ATTR + '="' + overlayBackgroundEnabled + '"\n                    title="' + overlayText + '"\n                    >\n                    <span class="screen-reader-text">' + overlayText + '</span>\n                  </span>';
   };
 
   /**
@@ -187,9 +165,9 @@
 	}
 	dialog.setAttribute( 'id', id );
 	dialog.classList.add( modalClassName );
-	dialog.setAttribute( ATTR_ROLE, MODAL_ROLE );
-	dialog.setAttribute( ATTR_DESCRIBEDBY, config.modalDescribedById + ' ' + ATTR_OPEN );
-	dialog.setAttribute( ATTR_LABELLEDBY, MODAL_TITLE_ID );
+	dialog.setAttribute( 'role', 'dialog' );
+	dialog.setAttribute( 'aria-describedby', config.modalDescribedById + ' ' + ATTR_OPEN );
+	dialog.setAttribute( 'aria-labelledby', MODAL_TITLE_ID );
 	outerContent.setAttribute( 'role', 'document' );
 	outerContent.classList.add( modalClassWrapper );
 	titleContainer.insertAdjacentHTML( 'afterBegin', title );
@@ -207,7 +185,10 @@
     if (config.modalFocusBackId !== '') {
 		var modalReturn = findById( config.modalFocusBackId );
 		var modalReturnContainer = modalReturn.closest( '.mc-events' ); // only works when control is inside container.
-		if (modalReturnContainer ) {
+		if ( modalReturnContainer && modalReturnContainer.tagName === 'ARTICLE' ) {
+			modalReturnContainer.insertAdjacentElement( 'beforeEnd', config.modalContent.firstChild );
+		} else {
+			modalReturnContainer = modalReturn.closest( '.mc-main' );
 			modalReturnContainer.insertAdjacentElement( 'beforeEnd', config.modalContent.firstChild );
 		}
 	}
@@ -222,7 +203,7 @@
    */
   var $listModals = function $listModals() {
     var node = arguments.length <= 0 || arguments[0] === undefined ? doc : arguments[0];
-    return [].slice.call(node.querySelectorAll('.' + MODAL_JS_CLASS));
+    return [].slice.call(node.querySelectorAll('.mc-modal'));
   };
 
   /**
@@ -238,8 +219,11 @@
       var wrapperBody = findById(WRAPPER_PAGE_JS);
       var body = doc.querySelector('body');
 
-      modal_node.setAttribute('id', MODAL_ID_PREFIX + iLisible);
-      modal_node.setAttribute(ATTR_HASPOPUP, ATTR_HASPOPUP_VALUE);
+	  // Only generate an ID if node does not already have one.
+	  if ( modal_node.hasAttribute('id') === false ) {
+      	modal_node.setAttribute('id', MODAL_ID_PREFIX + iLisible);
+	  }
+      modal_node.setAttribute('aria-haspopup', 'dialog');
 
       if (wrapperBody === null || wrapperBody.length === 0) {
         var wrapper = doc.createElement('DIV');
@@ -257,8 +241,8 @@
         doc.body.addEventListener(eventName, function (e) {
 
           // click on link modal
-          var parentModalLauncher = searchParent(e.target, MODAL_JS_CLASS);
-          if ((hasClass(e.target, MODAL_JS_CLASS) === true || parentModalLauncher !== '') && eventName === 'click') {
+          var parentModalLauncher = searchParent(e.target, 'mc-modal');
+          if ((hasClass(e.target, 'mc-modal') === true || parentModalLauncher !== '') && eventName === 'click') {
             var body = doc.querySelector('body');
             var modalLauncher = parentModalLauncher !== '' ? findById(parentModalLauncher) : e.target;
             var modalPrefixClass = modalLauncher.hasAttribute(MODAL_PREFIX_CLASS_ATTR) === true ? modalLauncher.getAttribute(MODAL_PREFIX_CLASS_ATTR) + '-' : '';
@@ -267,7 +251,6 @@
             var modalDescribedById = modalLauncher.hasAttribute(MODAL_DESCRIBEDBY_ID_ATTR) === true ? modalLauncher.getAttribute(MODAL_DESCRIBEDBY_ID_ATTR) : '';
             var modalTitle = modalLauncher.hasAttribute(MODAL_TITLE_ATTR) === true ? modalLauncher.getAttribute(MODAL_TITLE_ATTR) : '';
             var modalCloseText = modalLauncher.hasAttribute(MODAL_CLOSE_TEXT_ATTR) === true ? modalLauncher.getAttribute(MODAL_CLOSE_TEXT_ATTR) : MODAL_OVERLAY_TXT;
-            var backgroundEnabled = modalLauncher.hasAttribute(MODAL_DATA_BACKGROUND_ATTR) === true ? modalLauncher.getAttribute(MODAL_DATA_BACKGROUND_ATTR) : '';
             var modalGiveFocusToId = modalLauncher.hasAttribute(MODAL_FOCUS_TO_ATTR) === true ? modalLauncher.getAttribute(MODAL_FOCUS_TO_ATTR) : '';
 
             var wrapperBody = findById(WRAPPER_PAGE_JS);
@@ -275,7 +258,7 @@
             // insert overlay
             body.insertAdjacentHTML('beforeEnd', createOverlay({
               text: modalCloseText,
-              backgroundEnabled: backgroundEnabled,
+              backgroundEnabled: '',
               prefixClass: modalPrefixClass
             }));
 
