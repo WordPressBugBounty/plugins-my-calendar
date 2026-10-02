@@ -6,7 +6,7 @@ Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.8.6
+Stable tag: 3.8.7
 License: GPL-2.0+
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -112,6 +112,14 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 4. Visit My Calendar -> Help for assistance with shortcode options or widget configuration.
 
 == Changelog ==
+
+= 3.8.7 =
+
+* Bug fix: Ensure plot boundaries are set in Google Maps when map generated from existing lat/lng.
+* Bug fix: Update heading ID selector to prevent duplicate IDs on multi-day events.
+* Bug fix: Search filters shouldn't be triggered by core URL parameters when permalinks disabled in core.
+* Bug fix: `data-clipboard-target` needed to be available in custom KSES filter for Pro.
+* Change: Move My Tickets promo banner from sidebar into event registration section of event editor.
 
 = 3.8.6 =
 

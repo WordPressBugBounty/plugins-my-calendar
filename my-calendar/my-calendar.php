@@ -16,7 +16,7 @@
  * Text Domain: my-calendar
  * License:     GPL-2.0+
  * License URI: http://www.gnu.org/license/gpl-2.0.txt
- * Version:     3.8.6
+ * Version:     3.8.7
  */
 
 /*
@@ -53,7 +53,7 @@ function mc_get_version( $version = true ) {
 	if ( ! $version ) {
 		return get_option( 'mc_version', '' );
 	}
-	return '3.8.6';
+	return '3.8.7';
 }
 
 define( 'MC_DEBUG', false );
@@ -393,25 +393,6 @@ function mc_show_sidebar( $show = '', $add = false, $remove = false ) {
 							echo wp_kses_post( sprintf( __( "Buy <a href='%s' rel='external'>My Calendar Pro</a> &mdash; a more powerful calendar for your site.", 'my-calendar' ), 'https://www.joedolson.com/my-calendar/pro/' ) );
 							?>
 							</p>
-						</div>
-					</div>
-				</div>
-				<?php
-			}
-			if ( ! function_exists( 'mt_update_check' ) ) {
-				?>
-				<div class="ui-sortable meta-box-sortables">
-					<div class="postbox sell my-tickets">
-						<h2 class='sales'><strong><?php esc_html_e( 'My Tickets', 'my-calendar' ); ?></strong></h2>
-
-						<div class="inside resources">
-							<p class="mcbuy">
-							<?php
-							// Translators: URL to view details about My Tickets.
-							echo wp_kses_post( sprintf( __( 'Do you sell tickets to your events? <a href="%s" class="thickbox open-plugin-details-modal" rel="external">Use My Tickets</a> and sell directly from My Calendar.', 'my-calendar' ), esc_url( admin_url( 'plugin-install.php?tab=plugin-information&plugin=my-tickets&TB_iframe=true&width=600&height=550' ) ) ) );
-							?>
-							</p>
-
 						</div>
 					</div>
 				</div>
