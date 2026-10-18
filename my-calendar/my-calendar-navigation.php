@@ -884,8 +884,7 @@ function my_calendar_categories_list( $show = 'list', $group = 'single', $target
 		}
 		foreach ( $qsa as $name => $argument ) {
 			if ( ! ( 'mcat' === $name || 'mc_id' === $name ) ) {
-				$argument = str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $argument );
-				$form    .= '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />' . "\n";
+				$form .= '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />' . "\n";
 			}
 		}
 	}
@@ -973,8 +972,7 @@ function mc_access_list( $show = 'list', $group = 'single', $target_url = '' ) {
 		}
 		foreach ( $qsa as $name => $argument ) {
 			if ( ! ( 'access' === $name || 'mc_id' === $name ) ) {
-				$argument = str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $argument );
-				$form    .= '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />' . "\n";
+				$form .= '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />' . "\n";
 			}
 		}
 	}
@@ -1067,7 +1065,6 @@ function mc_date_switcher( $type = 'calendar', $cid = 'all', $time = 'month', $d
 			$argument = '';
 		} else {
 			$argument = esc_attr( wp_strip_all_tags( $argument ) );
-			$argument = str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $argument );
 		}
 		$attribute_value = str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $argument );
 		if ( 'month' !== $name && 'yr' !== $name && 'dy' !== $name ) {

@@ -225,7 +225,7 @@ function my_calendar_manage_categories() {
 		} elseif ( isset( $_GET['mode'] ) && isset( $_GET['category_id'] ) && 'edit' === $_GET['mode'] && ! isset( $post['mode'] ) ) {
 			$cur_cat = (int) $_GET['category_id'];
 			mc_edit_category_form( 'edit', $cur_cat );
-		} elseif ( isset( $post['mode'] ) && isset( $post['category_id'] ) && isset( $post['category_name'] ) && isset( $post['category_color'] ) && 'edit' === $post['mode'] ) {
+		} elseif ( isset( $post['mode'] ) && isset( $post['category_id'] ) && isset( $post['category_name'] ) && 'edit' === $post['mode'] ) {
 			$append = array();
 			if ( isset( $post['mc_default_category'] ) && $default_category !== $post['category_id'] ) {
 				mc_update_option( 'default_category', (int) $post['category_id'] );
@@ -248,7 +248,7 @@ function my_calendar_manage_categories() {
 
 			$update  = array(
 				'category_name'    => $post['category_name'],
-				'category_color'   => $post['category_color'],
+				'category_color'   => $post['category_color'] ?? '',
 				'category_icon'    => $post['category_icon'],
 				'category_private' => ( ( isset( $post['category_private'] ) ) ? 1 : 0 ),
 			);
@@ -1249,7 +1249,7 @@ function mc_admin_category_list( $event ) {
 			if ( $category !== (int) $event->event_category ) {
 				$filter     = mc_admin_url( "admin.php?page=my-calendar-manage&amp;filter=$category&amp;restrict=category" );
 				$cat_object = mc_get_category( $category );
-				$color      = $cat_object->category_color;
+				$color      = ( is_object( $cat_object ) && property_exists( $cat_object, 'category_color' ) ) ? $cat_object->category_color : '';
 				$icon       = ( 'true' === mc_get_option( 'hide_icons' ) ) ? '' : mc_category_icon( $cat_object );
 				if ( ! $color ) {
 					$color = '<span class="category-color no-border">' . $icon . '</span>';

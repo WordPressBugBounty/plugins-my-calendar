@@ -6,7 +6,7 @@ Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
 Text domain: my-calendar
-Stable tag: 3.8.8
+Stable tag: 3.8.9
 License: GPL-2.0+
 
 Accessible WordPress event calendar plugin. Manage single or recurring events, event venues, and display your calendar anywhere on your site.
@@ -113,9 +113,18 @@ Translating my plugins is always appreciated. Visit <a href="https://translate.w
 
 == Changelog ==
 
+= 3.8.9
+
+* Bug fix: Full $data object passed to two legacy template paths instead of rendered tags. Props @gkmyt
+* Bug fix: If category colors disabled, editing categories failed due to expected field not existing. Props @christopherphillips
+* Bug fix: Clear PHP deprecated notice thrown when sanitizing string runs on empty output parameter in CSV output.
+* Usability: Add better visual affordances for exporting settings packages.
+* Accessibility: Mismatched aria-describedby/aria-labelledby with title ID. Props @mandersen77
+* Privacy: Only disclose host contact information in exported data if permission explicitly granted. Props anonymous reporter.
+
 = 3.8.8 =
 
-* Security: Fixes a severe unauthenticated privilege escalation flaw. Props @daroo and Wordfence for responsible disclosure.
+* Security: Fixes a severe unauthenticated privilege escalation flaw. Props @daroo and WordFence for responsible disclosure.
 
 = 3.8.7 =
 
@@ -454,6 +463,6 @@ My Calendar is developed on Github, and I welcome contribution. [Vist the My Cal
 7. Style editing
 8. Template editing
 
-== Upgrade Notice ==
+= Upgrade Notice =
 
 * Version 3.8.8 is a security update. Please update as soon as possible.
