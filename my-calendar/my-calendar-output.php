@@ -355,24 +355,24 @@ function mc_legacy_templates_enabled() {
 /**
  * Load a PHP template for an event.
  *
- * @param string $type Template type.
+ * @param string $template_type Template type.
  * @param array  $data Event and display data.
  * @param string $source Type of data this template is displaying. Default 'event'.
  *
  * @return string
  */
-function mc_load_template( $type, $data, $source = 'event' ) {
-	if ( 'calendar' === $type ) {
+function mc_load_template( $template_type, $data, $source = 'event' ) {
+	if ( 'calendar' === $template_type ) {
 		// Legacy.
-		$type = 'grid';
+		$template_type = 'grid';
 	}
 
 	$legacy_templates = mc_legacy_templates_enabled();
 	$details          = '';
 	if ( ! $legacy_templates ) {
 		// Check for nested template parts.
-		if ( false !== strpos( $type, '/' ) ) {
-			$parts         = explode( '/', $type );
+		if ( false !== strpos( $template_type, '/' ) ) {
+			$parts         = explode( '/', $template_type );
 			$source        = $parts[0];
 			$template_type = isset( $parts[1] ) ? $parts[1] : '';
 		}
@@ -559,7 +559,7 @@ function mc_wrap_event_details( $contents, $type, $time, $container_id, $data ) 
 	$gridtype      = mc_get_option( 'calendar_javascript' );
 	$listtype      = mc_get_option( 'list_javascript' );
 	if ( ( 'modal' === $gridtype && 'calendar' === $type ) || ( 'modal' === $listtype && 'list' === $type ) ) {
-		$wrapper_class .= ' uses-modal';
+		$wrapper_class .= ( 'day' === $time ) ? '' : ' uses-modal';
 	}
 	if ( 'list' === $type || 'calendar' === $type ) {
 		$wrapper_class .= ' single-details';
@@ -3046,7 +3046,7 @@ function my_calendar_locations_list( $show = 'list', $datatype = 'id', $group = 
 	$ltype       = '';
 	$current_url = ( '' !== $target_url && esc_url( $target_url ) ) ? $target_url : $current_url;
 	if ( current_user_can( 'manage_options' ) && count( $locations ) <= 1 ) {
-		return __( "No locations contain the field you're trying to filter. Update your locations to use this option.", 'my-calendar' );
+		return '';
 	}
 	if ( count( $locations ) > 1 ) {
 		if ( 'list' === $show ) {
