@@ -24,37 +24,31 @@ function my_calendar_manage_locations() {
 	// We do some checking to see what we're doing.
 	mc_mass_delete_locations();
 	mc_clean_duplicate_locations();
-	if ( ! empty( $_POST ) && ( ! isset( $_POST['mc_locations'] ) && ! isset( $_POST['mass_delete'] ) ) ) {
-		$nonce = $_REQUEST['_wpnonce'];
-		if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
-			wp_die( 'My Calendar: Security check failed' );
+
+	$verify = isset( $_GET['_mcnonce'] ) ? wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' ) : false;
+	if ( $verify ) {
+		// If we're deleting a location, check for confirmation and nonce.
+		if ( isset( $_GET['location_id'] ) && 'delete' === $_GET['mode'] ) {
+			$loc = absint( $_GET['location_id'] );
+			if ( isset( $_GET['confirm'] ) ) {
+				echo wp_kses_post( mc_delete_location( $loc ) );
+			} else {
+				$nonce = wp_create_nonce( 'mcnonce' );
+				$args  = array(
+					'location_id' => $loc,
+					'_mcnonce'    => $nonce,
+				);
+				// Translators: Delete link.
+				$notice = sprintf( __( 'Are you sure you want to delete this location? %s', 'my-calendar' ), '<a class="button button-compact delete" href="' . esc_url( add_query_arg( $args, admin_url( 'admin.php?page=my-calendar-location-manager&mode=delete&confirm=true' ) ) ) . '">' . __( 'Delete', 'my-calendar' ) . '</a>' );
+				mc_show_notice( $notice, true, false, 'warning' );
+			}
 		}
-	}
-	if ( isset( $_GET['location_id'] ) && 'delete' === $_GET['mode'] ) {
-		$verify = isset( $_GET['nonce'] ) ? wp_verify_nonce( $_GET['nonce'], 'my-calendar-delete-location' ) : false;
-		$loc    = absint( $_GET['location_id'] );
-		if ( isset( $_GET['confirm'] ) && $verify ) {
-			echo wp_kses_post( mc_delete_location( $loc ) );
-		} else {
-			$nonce = wp_create_nonce( 'my-calendar-delete-location' );
-			$args  = array(
-				'location_id' => $loc,
-				'nonce'       => $nonce,
-			);
-			// Translators: Delete link.
-			$notice = sprintf( __( 'Are you sure you want to delete this location? %s', 'my-calendar' ), '<a class="button delete" href="' . esc_url( add_query_arg( $args, admin_url( 'admin.php?page=my-calendar-location-manager&mode=delete&confirm=true' ) ) ) . '">' . __( 'Delete', 'my-calendar' ) . '</a>' );
-			mc_show_notice( $notice, true, false, 'warning' );
-		}
-	}
-	if ( isset( $_GET['default'] ) && is_numeric( $_GET['default'] ) ) {
-		$mcnonce = wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' );
-		if ( $mcnonce ) {
+		if ( isset( $_GET['default'] ) && is_numeric( $_GET['default'] ) ) {
 			mc_update_option( 'default_location', (int) $_GET['default'] );
 			mc_show_notice( __( 'Default Location Changed', 'my-calendar' ), true, false, 'success' );
-		} else {
-			mc_show_error( __( 'Invalid security check; please try again!', 'my-calendar' ) );
 		}
 	}
+
 	?>
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Locations', 'my-calendar' ); ?></h1>
 		<a href="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-locations' ) ); ?>" class="page-title-action"><?php esc_html_e( 'Add New', 'my-calendar' ); ?></a>
@@ -97,6 +91,7 @@ function mc_default_location() {
 		if ( ! $location ) {
 			return '';
 		}
+		$default = (int) $default;
 		$output  = mc_hcard( $location, 'true', false, 'location' );
 		$output .= '<p><a href="' . admin_url( "admin.php?page=my-calendar-locations&amp;mode=edit&amp;location_id=$default" ) . '">' . __( 'Edit Default Location', 'my-calendar' ) . '</a></p>';
 	}
@@ -117,64 +112,64 @@ function mc_clean_duplicate_locations() {
 	global $wpdb;
 	// Mass delete locations.
 	if ( ! empty( $_POST['mass_edit'] ) && isset( $_POST['mass_replace'] ) ) {
-		$nonce = $_REQUEST['_wpnonce'];
-		$post  = map_deep( $_POST, 'sanitize_text_field' );
-		if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
+		if ( isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'my-calendar-nonce' ) ) {
+			$post      = map_deep( $_POST, 'sanitize_text_field' );
+			$locations = $post['mass_edit'];
+			$replace   = absint( $post['mass_replace_id'] );
+			$location  = mc_get_location( $replace );
+			if ( ! $location ) {
+				// If this isn't a valid location, don't continue.
+				mc_show_error( esc_html__( 'An invalid ID was provided for the replacement location.', 'my-calendar' ) );
+				return;
+			}
+			$i       = 0;
+			$total   = 0;
+			$deleted = array();
+			$failed  = array();
+			foreach ( $locations as $value ) {
+				// If the replacement location is checked, ignore it.
+				if ( (int) $replace === (int) $value ) {
+					continue;
+				}
+				$total  = count( $locations );
+				$result = mc_delete_location( $value, 'bool' );
+				if ( ! $result ) {
+					$failed[] = absint( $value );
+				} else {
+					$deleted[] = absint( $value );
+				}
+				$wpdb->update(
+					my_calendar_table(),
+					array(
+						'event_location' => $replace,
+					),
+					array(
+						'event_location' => $value,
+					),
+					'%d',
+					'%d'
+				);
+				++$i;
+			}
+			if ( ! empty( $deleted ) ) {
+				/**
+				 * Run when action to clean up duplicate locations is run.
+				 *
+				 * @hook mc_clean_duplicate_locations
+				 *
+				 * @param array $deleted Array of location IDs successfully deleted.
+				 * @param array $failed Array of location IDs that were not successfully deleted.
+				 */
+				do_action( 'mc_clean_duplicate_locations', $deleted, $failed );
+				// Translators: Number of locations deleted, number selected.
+				$message = mc_show_notice( sprintf( __( '%1$d locations deleted successfully out of %2$d selected', 'my-calendar' ), count( $deleted ), $total ), false, false, 'success' );
+			} else {
+				$message = mc_show_error( __( 'Your locations have not been deleted. Please investigate.', 'my-calendar' ), false );
+			}
+			echo wp_kses_post( $message );
+		} else {
 			wp_die( 'My Calendar: Security check failed' );
 		}
-		$locations = $post['mass_edit'];
-		$replace   = absint( $post['mass_replace_id'] );
-		$location  = mc_get_location( $replace );
-		if ( ! $location ) {
-			// If this isn't a valid location, don't continue.
-			mc_show_error( esc_html__( 'An invalid ID was provided for the replacement location.', 'my-calendar' ) );
-			return;
-		}
-		$i       = 0;
-		$total   = 0;
-		$deleted = array();
-		$failed  = array();
-		foreach ( $locations as $value ) {
-			// If the replacement location is checked, ignore it.
-			if ( (int) $replace === (int) $value ) {
-				continue;
-			}
-			$total  = count( $locations );
-			$result = mc_delete_location( $value, 'bool' );
-			if ( ! $result ) {
-				$failed[] = absint( $value );
-			} else {
-				$deleted[] = absint( $value );
-			}
-			$wpdb->update(
-				my_calendar_table(),
-				array(
-					'event_location' => $replace,
-				),
-				array(
-					'event_location' => $value,
-				),
-				'%d',
-				'%d'
-			);
-			++$i;
-		}
-		if ( ! empty( $deleted ) ) {
-			/**
-			 * Run when action to clean up duplicate locations is run.
-			 *
-			 * @hook mc_clean_duplicate_locations
-			 *
-			 * @param array $deleted Array of location IDs successfully deleted.
-			 * @param array $failed Array of location IDs that were not successfully deleted.
-			 */
-			do_action( 'mc_clean_duplicate_locations', $deleted, $failed );
-			// Translators: Number of locations deleted, number selected.
-			$message = mc_show_notice( sprintf( __( '%1$d locations deleted successfully out of %2$d selected', 'my-calendar' ), count( $deleted ), $total ), false, false, 'success' );
-		} else {
-			$message = mc_show_error( __( 'Your locations have not been deleted. Please investigate.', 'my-calendar' ), false );
-		}
-		echo wp_kses_post( $message );
 	}
 }
 
@@ -187,42 +182,42 @@ function mc_mass_delete_locations() {
 	global $wpdb;
 	// Mass delete locations.
 	if ( ! empty( $_POST['mass_edit'] ) && isset( $_POST['mass_delete'] ) ) {
-		$post  = map_deep( $_POST, 'sanitize_text_field' );
-		$nonce = $_REQUEST['_wpnonce'];
-		if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
+		if ( isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'my-calendar-nonce' ) ) {
+			$post      = map_deep( $_POST, 'sanitize_text_field' );
+			$locations = $post['mass_edit'];
+			$i         = 0;
+			$total     = 0;
+			$deleted   = array();
+			$failed    = array();
+			foreach ( $locations as $value ) {
+				$total  = count( $locations );
+				$result = mc_delete_location( $value, 'bool' );
+				if ( ! $result ) {
+					$failed[] = absint( $value );
+				} else {
+					$deleted[] = absint( $value );
+				}
+				++$i;
+			}
+			if ( ! empty( $deleted ) ) {
+				/**
+				 * Run when multiple locations are deleted.
+				 *
+				 * @hook mc_mass_delete_locations
+				 *
+				 * @param array $deleted Array of location IDs successfully deleted.
+				 * @param array $failed Array of location IDs that were not successfully deleted.
+				 */
+				do_action( 'mc_mass_delete_locations', $deleted, $failed );
+				// Translators: Number of locations deleted, number selected.
+				$message = mc_show_notice( sprintf( __( '%1$d locations deleted successfully out of %2$d selected', 'my-calendar' ), count( $deleted ), $total ), false );
+			} else {
+				$message = mc_show_error( __( 'Your locations have not been deleted. Please investigate.', 'my-calendar' ), false );
+			}
+			echo wp_kses_post( $message );
+		} else {
 			wp_die( 'My Calendar: Security check failed' );
 		}
-		$locations = $post['mass_edit'];
-		$i         = 0;
-		$total     = 0;
-		$deleted   = array();
-		$failed    = array();
-		foreach ( $locations as $value ) {
-			$total  = count( $locations );
-			$result = mc_delete_location( $value, 'bool' );
-			if ( ! $result ) {
-				$failed[] = absint( $value );
-			} else {
-				$deleted[] = absint( $value );
-			}
-			++$i;
-		}
-		if ( ! empty( $deleted ) ) {
-			/**
-			 * Run when multiple locations are deleted.
-			 *
-			 * @hook mc_mass_delete_locations
-			 *
-			 * @param array $deleted Array of location IDs successfully deleted.
-			 * @param array $failed Array of location IDs that were not successfully deleted.
-			 */
-			do_action( 'mc_mass_delete_locations', $deleted, $failed );
-			// Translators: Number of locations deleted, number selected.
-			$message = mc_show_notice( sprintf( __( '%1$d locations deleted successfully out of %2$d selected', 'my-calendar' ), count( $deleted ), $total ), false );
-		} else {
-			$message = mc_show_error( __( 'Your locations have not been deleted. Please investigate.', 'my-calendar' ), false );
-		}
-		echo wp_kses_post( $message );
 	}
 }
 
@@ -232,47 +227,42 @@ function mc_mass_delete_locations() {
 function mc_manage_locations() {
 	global $wpdb;
 	$orderby = 'location_label';
-	$sortby  = 'location';
-
-	if ( isset( $_GET['orderby'] ) ) {
-		$sortby = $_GET['orderby'];
-		switch ( $sortby ) {
-			case 'city':
-				$orderby = 'location_city';
-				break;
-			case 'state':
-				$orderby = 'location_state';
-				break;
-			case 'id':
-				$orderby = 'location_id';
-				break;
-			default:
-				$orderby = 'location_label';
-		}
+	$sortby  = isset( $_GET['orderby'] ) ? sanitize_text_field( $_GET['orderby'] ) : 'location';
+	switch ( $sortby ) {
+		case 'city':
+			$orderby = 'location_city';
+			break;
+		case 'state':
+			$orderby = 'location_state';
+			break;
+		case 'id':
+			$orderby = 'location_id';
+			break;
+		default:
+			$orderby = 'location_label';
 	}
-	$order       = 'ASC';
+	$order       = isset( $_GET['order'] ) ? sanitize_text_field( $_GET['order'] ) : 'ASC'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$query_order = 'DESC';
-	if ( isset( $_GET['order'] ) ) {
-		switch ( $_GET['order'] ) {
-			case 'asc':
-				$order       = 'DESC';
-				$query_order = 'ASC';
-				break;
-			case 'desc':
-				$order       = 'ASC';
-				$query_order = 'DESC';
-				break;
-			default:
-				$order       = 'ASC';
-				$query_order = 'DESC';
-		}
+	switch ( strtolower( $order ) ) {
+		case 'asc':
+			$order       = 'DESC';
+			$query_order = 'ASC';
+			break;
+		case 'desc':
+			$order       = 'ASC';
+			$query_order = 'DESC';
+			break;
+		default:
+			$order       = 'ASC';
+			$query_order = 'DESC';
 	}
+
 	// Pull the locations from the database.
 	$items_per_page = 50;
 	$search         = '';
-	$current        = empty( $_GET['paged'] ) ? 1 : intval( $_GET['paged'] );
-	if ( isset( $_POST['mcl'] ) ) {
-		$query   = esc_sql( $_POST['mcl'] );
+	$current        = empty( $_GET['paged'] ) ? 1 : intval( $_GET['paged'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( isset( $_POST['mcl'] ) && isset( $_POST['_wpnonce'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'my-calendar-nonce' ) ) {
+		$query   = esc_sql( wp_unslash( $_POST['mcl'] ) );
 		$length  = strlen( $query );
 		$db_type = mc_get_db_type();
 		if ( '' !== $query ) {
@@ -329,7 +319,7 @@ function mc_manage_locations() {
 				</div>
 				<div>
 					<label for="mc_search" class='screen-reader-text'><?php esc_html_e( 'Search Locations', 'my-calendar' ); ?></label>
-					<input type='text' name='mcl' id='mc_search' value='<?php echo ( isset( $_POST['mcl'] ) ) ? esc_attr( $_POST['mcl'] ) : ''; ?>'/>
+					<input type='text' name='mcl' id='mc_search' value='<?php echo ( isset( $_POST['mcl'] ) ) ? esc_attr( wp_unslash( $_POST['mcl'] ) ) : ''; ?>'/>
 					<input type='submit' value='<?php esc_attr_e( 'Search', 'my-calendar' ); ?>' class='button button-secondary' />
 				</div>
 			</form>
@@ -403,7 +393,7 @@ function mc_manage_locations() {
 		</form>
 		<?php
 	} else {
-		if ( isset( $_POST['mcl'] ) ) {
+		if ( isset( $_POST['mcl'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			echo '<p>' . esc_html__( 'No results found for your search query.', 'my-calendar' ) . '</p>';
 		}
 		echo '<p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=my-calendar-locations' ) ) . '">' . esc_html__( 'Create a new location', 'my-calendar' ) . '</a></p>';
@@ -462,15 +452,15 @@ function mc_location_manager_row( $location ) {
 		return '';
 	}
 
+	$mcnonce = wp_create_nonce( 'mcnonce' );
 	if ( (int) mc_get_option( 'default_location' ) === (int) $location->location_id ) {
 		$card    = str_replace( '</strong>', ' ' . __( '(Default)', 'my-calendar' ) . '</strong>', $card );
 		$default = '<span class="mc_default">' . __( 'Default Location', 'my-calendar' ) . '</span>';
 	} else {
-		$mcnonce = wp_create_nonce( 'mcnonce' );
 		$url     = add_query_arg( '_mcnonce', $mcnonce, admin_url( "admin.php?page=my-calendar-location-manager&amp;default=$location->location_id" ) );
 		$default = '<a href="' . esc_url( $url ) . '">' . __( 'Set as Default', 'my-calendar' ) . '</a>';
 	}
-	$delete_url = admin_url( "admin.php?page=my-calendar-location-manager&amp;mode=delete&amp;location_id=$location->location_id" );
+	$delete_url = add_query_arg( '_mcnonce', $mcnonce, admin_url( "admin.php?page=my-calendar-location-manager&amp;mode=delete&amp;location_id=$location->location_id" ) );
 	$view_url   = get_the_permalink( mc_get_location_post( $location->location_id, false ) );
 	$edit_url   = admin_url( "admin.php?page=my-calendar-locations&amp;mode=edit&amp;location_id=$location->location_id" );
 	$view_link  = '';

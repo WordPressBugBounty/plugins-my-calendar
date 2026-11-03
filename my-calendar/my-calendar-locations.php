@@ -58,7 +58,7 @@ function mc_update_location_post( $where, $data, $post ) {
 	 * @param array $data Data for this location.
 	 * @param int   $location_id Location ID.
 	 */
-	$post_id = apply_filters( 'mc_update_location_post', $post_id, $_POST, $data, $location_id );
+	$post_id = apply_filters( 'mc_update_location_post', $post_id, $post, $data, $location_id );
 	if ( mc_switch_sites() ) {
 		restore_current_blog();
 	}
@@ -126,11 +126,10 @@ add_filter( 'mc_save_location', 'mc_create_location_post', 10, 3 );
  * @param int   $post_id Post ID associated with location.
  * @param array $post POST data.
  * @param array $data Saved location data.
- * @param int   $location_id Location ID in table.
  *
  * @return array Errors.
  */
-function mc_update_location_custom_fields( $post_id, $post, $data, $location_id ) {
+function mc_update_location_custom_fields( $post_id, $post, $data ) {
 	// Set featured image.
 	$attachment_id = ( isset( $post['location_image_id'] ) && is_numeric( $post['location_image_id'] ) ) ? $post['location_image_id'] : false;
 	$attachment_id = ( isset( $data['location_image_id'] ) && is_numeric( $data['location_image_id'] ) ) ? $data['location_image_id'] : $attachment_id;
@@ -160,8 +159,8 @@ function mc_update_location_custom_fields( $post_id, $post, $data, $location_id 
 
 	return $field_errors;
 }
-add_action( 'mc_update_location_post', 'mc_update_location_custom_fields', 10, 4 );
-add_action( 'mc_create_location_post', 'mc_update_location_custom_fields', 10, 4 );
+add_action( 'mc_update_location_post', 'mc_update_location_custom_fields', 10, 3 );
+add_action( 'mc_create_location_post', 'mc_update_location_custom_fields', 10, 3 );
 
 /**
  * Delete custom post type associated with event
@@ -257,12 +256,10 @@ function mc_update_location_field( $field, $data, $location ) {
 	$field = sanitize_key( $field );
 	if ( 'location_latitude' === $field || 'location_longitude' === $field ) {
 		$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . my_calendar_locations_table() . " SET $field = %f WHERE location_id=%d", $data, $location ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+	} elseif ( is_string( $data ) ) {
+		$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . my_calendar_locations_table() . " SET $field = %s WHERE location_id=%d", $data, $location ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 	} else {
-		if ( is_string( $data ) ) {
-			$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . my_calendar_locations_table() . " SET $field = %s WHERE location_id=%d", $data, $location ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
-		} else {
-			$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . my_calendar_locations_table() . " SET $field = %d WHERE location_id=%d", $data, $location ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
-		}
+		$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . my_calendar_locations_table() . " SET $field = %d WHERE location_id=%d", $data, $location ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	return $result;
@@ -434,7 +431,7 @@ function mc_update_location( $post ) {
 	 * @param array $update Array of location parameters to update.
 	 * @param array $post POST array.
 	 */
-	$results = apply_filters( 'mc_modify_location', $where, $update, $_POST );
+	$results = apply_filters( 'mc_modify_location', $where, $update, $post );
 
 	return $results;
 }
@@ -449,7 +446,7 @@ function mc_update_location( $post ) {
  */
 function mc_delete_location( $location, $type = 'string' ) {
 	global $wpdb;
-	$location = (int) ( ( isset( $_GET['location_id'] ) ) ? $_GET['location_id'] : $location );
+	$location = (int) $location;
 	$results  = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . my_calendar_locations_table() . ' WHERE location_id=%d', $location ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	/**
 	 * Executed an action when a location is deleted.
@@ -487,70 +484,68 @@ function my_calendar_add_locations() {
 	my_calendar_check_db();
 	// We do some checking to see what we're doing.
 	mc_mass_delete_locations();
-	if ( ! empty( $_POST ) && ( ! isset( $_POST['mc_locations'] ) && ! isset( $_POST['mass_delete'] ) ) ) {
-		$nonce = $_REQUEST['_wpnonce'];
-		if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
-			wp_die( 'My Calendar: Security check failed' );
+	$mode    = 'add';
+	$cur_loc = false;
+	if ( ! empty( $_POST ) && ! isset( $_POST['mc_locations'] ) && ! isset( $_POST['mass_delete'] ) ) {
+		if ( isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'my-calendar-nonce' ) ) {
+			$post = map_deep( $_POST, 'wp_kses_post' );
+			// Add location mode.
+			if ( isset( $post['mode'] ) && 'add' === $post['mode'] ) {
+				delete_transient( 'mc_location_count' );
+
+				$results     = mc_insert_location( $post );
+				$location_id = $results['location_id'];
+				// If this is being generated from an event/location merge, update the event to the new location ID.
+				if ( isset( $_GET['event_source'] ) ) {
+					$source = absint( $_GET['event_source'] );
+					mc_update_data( $source, 'event_location', $location_id );
+				}
+
+				if ( $location_id ) {
+					$args     = array(
+						'mode'        => 'edit',
+						'location_id' => $location_id,
+					);
+					$edit_url = add_query_arg( $args, admin_url( 'admin.php?page=my-calendar-locations' ) );
+					// Translators: Link to edit new location.
+					mc_show_notice( sprintf( __( 'Location added successfully. <a href="%s">Edit location.</a>', 'my-calendar' ), $edit_url ), true, false, 'success' );
+				} else {
+					mc_show_error( __( 'Location could not be added to database', 'my-calendar' ) );
+				}
+				if ( isset( $post['mc_default_location'] ) ) {
+					mc_update_option( 'default_location', (int) $location_id );
+				}
+			}
+			// Edit location mode.
+			if ( isset( $post['location_id'] ) && isset( $post['location_label'] ) && 'edit' === $post['mode'] ) {
+				$location_id = mc_update_location( $post );
+				$mode        = 'edit';
+
+				if ( isset( $post['mc_default_location'] ) ) {
+					mc_update_option( 'default_location', (int) $post['location_id'] );
+				}
+				$default_location = mc_get_option( 'default_location' );
+				if ( (int) $post['location_id'] === (int) $default_location && ! isset( $post['mc_default_location'] ) ) {
+					mc_update_option( 'default_location', '' );
+				}
+				if ( false === $location_id ) {
+					mc_show_error( __( 'Location could not be edited.', 'my-calendar' ) );
+				} elseif ( 0 === $location_id ) {
+					mc_show_error( __( 'Location was not changed.', 'my-calendar' ) );
+				} else {
+					mc_show_notice( __( 'Location edited successfully', 'my-calendar' ), true, false, 'success' );
+				}
+				$cur_loc = (int) $post['location_id'];
+			}
 		}
 	}
-	$post = map_deep( $_POST, 'wp_kses_post' );
 
-	if ( isset( $post['mode'] ) && 'add' === $post['mode'] ) {
-		delete_transient( 'mc_location_count' );
-
-		$results     = mc_insert_location( $post );
-		$location_id = $results['location_id'];
-		// If this is being generated from an event/location merge, update the event to the new location ID.
-		if ( isset( $_GET['event_source'] ) ) {
-			$source = absint( $_GET['event_source'] );
-			mc_update_data( $source, 'event_location', $location_id );
-		}
-
-		if ( $location_id ) {
-			$args     = array(
-				'mode'        => 'edit',
-				'location_id' => $location_id,
-			);
-			$edit_url = add_query_arg( $args, admin_url( 'admin.php?page=my-calendar-locations' ) );
-			// Translators: Link to edit new location.
-			mc_show_notice( sprintf( __( 'Location added successfully. <a href="%s">Edit location.</a>', 'my-calendar' ), $edit_url ), true, false, 'success' );
-		} else {
-			mc_show_error( __( 'Location could not be added to database', 'my-calendar' ) );
-		}
-		if ( isset( $post['mc_default_location'] ) ) {
-			mc_update_option( 'default_location', (int) $location_id );
-		}
-	} elseif ( isset( $_GET['location_id'] ) && 'delete' === $_GET['mode'] ) {
-		delete_transient( 'mc_location_count' );
-		$loc = absint( $_GET['location_id'] );
-		echo wp_kses_post( mc_delete_location( $loc ) );
-	} elseif ( isset( $_GET['mode'] ) && isset( $_GET['location_id'] ) && 'edit' === $_GET['mode'] && ! isset( $post['mode'] ) ) {
-		$cur_loc = (int) $_GET['location_id'];
-		mc_show_location_form( 'edit', $cur_loc );
-	} elseif ( isset( $post['location_id'] ) && isset( $post['location_label'] ) && 'edit' === $post['mode'] ) {
-		$location_id = mc_update_location( $post );
-
-		if ( isset( $post['mc_default_location'] ) ) {
-			mc_update_option( 'default_location', (int) $post['location_id'] );
-		}
-		$default_location = mc_get_option( 'default_location' );
-		if ( (int) $post['location_id'] === (int) $default_location && ! isset( $post['mc_default_location'] ) ) {
-			mc_update_option( 'default_location', '' );
-		}
-		if ( false === $location_id ) {
-			mc_show_error( __( 'Location could not be edited.', 'my-calendar' ) );
-		} elseif ( 0 === $location_id ) {
-			mc_show_error( __( 'Location was not changed.', 'my-calendar' ) );
-		} else {
-			mc_show_notice( __( 'Location edited successfully', 'my-calendar' ), true, false, 'success' );
-		}
-		$cur_loc = (int) $_POST['location_id'];
-		mc_show_location_form( 'edit', $cur_loc );
+	if ( isset( $_GET['mode'] ) && 'edit' === $_GET['mode'] && isset( $_GET['location_id'] ) ) {
+		$mode    = 'edit';
+		$cur_loc = absint( $_GET['location_id'] );
 	}
 
-	if ( isset( $_GET['mode'] ) && 'edit' !== $_GET['mode'] || isset( $_POST['mode'] ) && 'edit' !== $_POST['mode'] || ! isset( $_GET['mode'] ) && ! isset( $_POST['mode'] ) ) {
-		mc_show_location_form( 'add' );
-	}
+	mc_show_location_form( $mode, $cur_loc );
 }
 
 /**
@@ -570,22 +565,26 @@ function mc_show_location_form( $view = 'add', $loc_id = false ) {
 	}
 	// If creating from event, get data from event & location and merge.
 	if ( isset( $_GET['event_source'] ) ) {
-		$source   = absint( $_GET['event_source'] );
-		$event    = mc_get_event_core( $source );
-		$location = mc_get_location( $event->event_location );
-		$diff     = mc_event_location_diff( $event );
-		foreach ( $diff as $key => $val ) {
-			$location->$key = $val[1];
+		if ( isset( $_GET['_wpnonce'] ) && wp_verify_nonce( $_GET['_wpnonce'], 'mc_add_location' ) ) {
+			$source   = absint( $_GET['event_source'] );
+			$event    = mc_get_event_core( $source );
+			$location = mc_get_location( $event->event_location );
+			$diff     = mc_event_location_diff( $event );
+			foreach ( $diff as $key => $val ) {
+				$location->$key = $val[1];
+			}
+			$cur_loc = $location;
 		}
-		$cur_loc = $location;
 	}
 	// If updating from event, merge event data into this location.
 	if ( isset( $_GET['merge_source'] ) ) {
-		$source = absint( $_GET['merge_source'] );
-		$event  = mc_get_event_core( $source );
-		$diff   = mc_event_location_diff( $event );
-		foreach ( $diff as $key => $val ) {
-			$cur_loc->$key = $val[1];
+		if ( isset( $_GET['_wpnonce'] ) && wp_verify_nonce( $_GET['_wpnonce'], 'mc_merge_location' ) ) {
+			$source = absint( $_GET['merge_source'] );
+			$event  = mc_get_event_core( $source );
+			$diff   = mc_event_location_diff( $event );
+			foreach ( $diff as $key => $val ) {
+				$cur_loc->$key = $val[1];
+			}
 		}
 	}
 	$has_data = ( is_object( $cur_loc ) ) ? true : false;
@@ -907,9 +906,14 @@ function mc_location_controller( $fieldname, $selected, $context = 'location' ) 
  * @return string HTML form fields
  */
 function mc_locations_fields( $has_data, $data, $context = 'location', $group_id = false ) {
-	$return = '<div class="mc-locations" id="location-fields">';
-	if ( current_user_can( 'mc_edit_settings' ) && isset( $_GET['page'] ) && 'my-calendar-locations' === $_GET['page'] ) {
-		$checked = ( isset( $_GET['location_id'] ) && (int) mc_get_option( 'default_location' ) === (int) $_GET['location_id'] ) ? 'checked="checked"' : '';
+	$return      = '<div class="mc-locations" id="location-fields">';
+	$location_id = false;
+	if ( $has_data ) {
+		$location_id = ( 'location' === $context ) ? (int) $data->location_id : (int) $data->event_location;
+	}
+	$screen = get_current_screen();
+	if ( current_user_can( 'mc_edit_settings' ) && $screen && 'my-calendar_page_my-calendar-locations' === $screen->id ) {
+		$checked = ( (int) mc_get_option( 'default_location' ) === (int) $location_id ) ? 'checked="checked"' : '';
 		$return .= '<p class="checkbox">';
 		$return .= '<input type="checkbox" name="mc_default_location" id="mc_default_location"' . $checked . ' /> <label for="mc_default_location">' . __( 'Default Location', 'my-calendar' ) . '</label>';
 		$return .= '</p>';
@@ -932,7 +936,6 @@ function mc_locations_fields( $has_data, $data, $context = 'location', $group_id
 	$return         .= '</p>';
 	$image_field     = '';
 	if ( 'location' === $context ) {
-		$location_id = ( isset( $_GET['location_id'] ) ) ? (int) $_GET['location_id'] : false;
 		$post_id     = ( $location_id ) ? mc_get_location_post( $location_id ) : false;
 		$image_field = mc_location_featured_image_field( $post_id );
 	}
@@ -1096,11 +1099,9 @@ function mc_locations_fields( $has_data, $data, $context = 'location', $group_id
 
 			$return .= ( '' === $map ) ? __( 'Not enough information to generate a map', 'my-calendar' ) : $map;
 		}
-	} else {
-		if ( ! $api_key ) {
-			// Translators: URL to settings page to add key.
-			$return .= sprintf( __( 'Add a <a href="%s">Google Maps API Key</a> to generate a location map.', 'my-calendar' ), admin_url( 'admin.php?page=my-calendar-config#mc-output' ) );
-		}
+	} elseif ( ! $api_key ) {
+		// Translators: URL to settings page to add key.
+		$return .= sprintf( __( 'Add a <a href="%s">Google Maps API Key</a> to generate a location map.', 'my-calendar' ), admin_url( 'admin.php?page=my-calendar-config#mc-output' ) );
 	}
 
 	return $return;
@@ -1142,13 +1143,13 @@ function mc_location_fields() {
 /**
  * Get custom data for a location.
  *
- * @param int|false    $location_id Location ID.
+ * @param int|false    $location_id Location ID. Required; pass false if there is no location yet.
  * @param int|false    $location_post Location Post ID.
  * @param string|false $field Custom field name.
  *
  * @return mixed
  */
-function mc_location_custom_data( $location_id = false, $location_post = false, $field = false ) {
+function mc_location_custom_data( $location_id, $location_post = false, $field = false ) {
 	if ( ! $field ) {
 		return;
 	}
@@ -1156,14 +1157,10 @@ function mc_location_custom_data( $location_id = false, $location_post = false, 
 	if ( ! in_array( $field, array_keys( $fields ), true ) ) {
 		return '';
 	}
-	$location_id = ( isset( $_GET['location_id'] ) ) ? (int) $_GET['location_id'] : $location_id;
-	$value       = '';
+	$value = '';
 	// Quick exit when location post is known.
 	if ( $location_post ) {
 		return get_post_meta( $location_post, $field, true );
-	}
-	if ( ! $location_id ) {
-		$location_id = ( isset( $_POST['location_id'] ) ) ? (int) $_POST['location_id'] : false;
 	}
 	if ( $location_id ) {
 		$post_id = mc_get_location_post( $location_id, false );
@@ -1211,7 +1208,7 @@ add_filter( 'mc_filter_shortcodes', 'mc_template_location_fields', 10, 2 );
 /**
  * Output location featured image field.
  *
- * @param int $post_id Post ID for the currently edited post.
+ * @param int|false $post_id Post ID for the currently edited post.
  *
  * @return string
  */
@@ -1263,7 +1260,7 @@ function mc_display_location_fields( $fields, $data, $context ) {
 		$location_id = ( property_exists( $data, 'event_location' ) ) ? $data->event_location : $location_id;
 	}
 	if ( is_object( $data ) && 'location' === $context ) {
-		$location_id = ( property_exists( $data, 'event_location' ) ) ? $data->location_id : $location_id;
+		$location_id = ( property_exists( $data, 'location_id' ) ) ? $data->location_id : $location_id;
 	}
 
 	/**

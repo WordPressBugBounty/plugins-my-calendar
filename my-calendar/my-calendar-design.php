@@ -23,9 +23,10 @@ function my_calendar_design() {
 		<h1><?php esc_html_e( 'Design', 'my-calendar' ); ?></h1>
 		<div class="mc-tabs">
 			<div class="tabs" role="tablist" data-default="my-calendar-style">
-				<button type="button" role="tab" aria-selected="false"  id="tab_style" aria-controls="my-calendar-style"><?php esc_html_e( 'Style Editor', 'my-calendar' ); ?></button>
-				<button type="button" role="tab" aria-selected="false"  id="tab_templates" aria-controls="my-calendar-templates"><?php esc_html_e( 'Templates', 'my-calendar' ); ?></button>
-				<button type="button" role="tab" aria-selected="false"  id="tab_scripts" aria-controls="my-calendar-scripts"><?php esc_html_e( 'Scripts', 'my-calendar' ); ?></button>
+				<button type="button" role="tab" aria-selected="false" id="tab_style" aria-controls="my-calendar-style"><?php esc_html_e( 'Style Editor', 'my-calendar' ); ?></button>
+				<button type="button" role="tab" aria-selected="false" id="tab_templates" aria-controls="my-calendar-templates"><?php esc_html_e( 'Templates', 'my-calendar' ); ?></button>
+				<button type="button" role="tab" aria-selected="false" id="tab_list_templates" aria-controls="my-calendar-list"><?php esc_html_e( 'List Templates', 'my-calendar' ); ?></button>
+				<button type="button" role="tab" aria-selected="false" id="tab_scripts" aria-controls="my-calendar-scripts"><?php esc_html_e( 'Scripts', 'my-calendar' ); ?></button>
 			</div>
 			<div class="postbox-container jcd-wide">
 				<div class="metabox-holder">
@@ -59,6 +60,22 @@ function my_calendar_design() {
 							echo '</span></p>';
 						}
 						?>
+						<div class="inside mc-template-layout<?php echo esc_attr( $class ); ?>">
+							<div class="php-template-settings">
+							<?php
+							echo '<h3 class="mc-flex">' . esc_html__( 'PHP Templates', 'my-calendar' ) . '</h3>';
+							echo '<p>';
+							// translators: URL for the PHP templating docs.
+							printf( wp_kses_post( __( 'Learn about the <a href="%s">PHP templating system in My Calendar</a>.', 'my-calendar' ) ), 'https://docs.joedolson.com/my-calendar/php-templates/' );
+							echo '</p>';
+							mc_templates_edit();
+							?>
+							</div>
+						</div>
+					</div>
+					<div class="ui-sortable meta-box-sortables" id="list-templates">
+						<div class="wptab postbox" aria-labelledby="tab_list_templates" role="tabpanel" id="my-calendar-list">
+							<h2><?php esc_html_e( 'List Templates', 'my-calendar' ); ?></h2>
 							<div class="inside mc-template-layout<?php echo esc_attr( $class ); ?>">
 								<div class="list-template-settings">
 									<h3><?php esc_html_e( 'Default List Template', 'my-calendar' ); ?></h3>
@@ -67,15 +84,15 @@ function my_calendar_design() {
 											<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>" />
 										<?php
 										if ( ! empty( $_POST ) && isset( $_POST['mc_list_template'] ) ) {
-											$nonce = $_REQUEST['_wpnonce'];
-											if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
+											if ( isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'my-calendar-nonce' ) ) {
+												// Custom sanitizing.
+												$post = map_deep( $_POST, 'sanitize_textarea_field' );
+												if ( isset( $post['mc_list_template'] ) ) {
+													mc_update_option( 'list_template', $post['mc_list_template'] );
+													mc_show_notice( __( 'My Calendar List Template Updated', 'my-calendar' ), true, false, 'success' );
+												}
+											} else {
 												wp_die( 'My Calendar: Security check failed' );
-											}
-											// Custom sanitizing.
-											$post = map_deep( $_POST, 'sanitize_textarea_field' );
-											if ( isset( $post['mc_list_template'] ) ) {
-												mc_update_option( 'list_template', $post['mc_list_template'] );
-												mc_show_notice( __( 'My Calendar List Template Updated', 'my-calendar' ), true, false, 'success' );
 											}
 										}
 										$template_options = mc_select_preset_templates();
@@ -114,20 +131,9 @@ function my_calendar_design() {
 										?>
 									</div>
 								</div>
-								<div class="php-template-settings">
-								<?php
-								echo '<h3 class="mc-flex">' . esc_html__( 'PHP Templates', 'my-calendar' ) . '</h3>';
-								echo '<p>';
-								// translators: URL for the PHP templating docs.
-								printf( wp_kses_post( __( 'Learn about the <a href="%s">PHP templating system in My Calendar</a>.', 'my-calendar' ) ), 'https://docs.joedolson.com/my-calendar/php-templates/' );
-								echo '</p>';
-								mc_templates_edit();
-								?>
-								</div>
 							</div>
 						</div>
 					</div>
-
 					<div class="ui-sortable meta-box-sortables" id="scripts">
 						<div class="wptab postbox" aria-labelledby="tab_scripts" role="tabpanel" id="my-calendar-scripts">
 							<h2><?php esc_html_e( 'Script Manager', 'my-calendar' ); ?></h2>

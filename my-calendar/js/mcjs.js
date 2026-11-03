@@ -16,17 +16,20 @@
 		}
 	}
 
-	const loadmore = document.querySelectorAll( '.mc-loader' );
-	if ( loadmore ) {
-		loadmore.forEach( (el) => {
-			const parent = el.closest( 'ul' );
-			parent.setAttribute( 'tabindex', '-1' );
-			parent.addEventListener( 'click', function( e ) {
-				let targetParent = e.target.closest( 'button' );
-				if ( targetParent && targetParent.classList.contains( 'mc-loader' ) ) {
-					loadUpcoming( targetParent, parent );
-				}
-			});
+	const upcomingEvents = document.querySelectorAll( '.upcoming-events' );
+	if ( upcomingEvents ) {
+		upcomingEvents.forEach( (el) => {
+			if ( ! el.querySelector( 'button.mc-loader' ) ) {
+				return;
+			} else {
+				el.setAttribute( 'tabindex', '-1' );
+				el.addEventListener( 'click', function( e ) {
+					let targetParent = e.target.closest( 'button' );
+					if ( targetParent && targetParent.classList.contains( 'mc-loader' ) && 'true' !== targetParent.getAttribute( 'aria-disabled' ) ) {
+						loadUpcoming( targetParent, el );
+					}
+				});
+			}
 		});
 	}
 
@@ -58,7 +61,7 @@
 		let args = el.getAttribute( 'data-value' );
 		type = ( 'dates' === time ) ? 'dates' : 'time';
 
-		request.send('action=' + my_calendar.action + '&behavior=loadupcoming&' + type + '=' + time + '&args=' + args );
+		request.send('action=' + my_calendar.action + '&_wpnonce=' + my_calendar.security + '&behavior=loadupcoming&' + type + '=' + time + '&args=' + args );
 	}
 
 	my_calendar_external_links();

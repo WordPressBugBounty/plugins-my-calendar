@@ -156,7 +156,7 @@ function my_calendar_help() {
 					</p>
 				</div>
 				<?php
-				if ( current_user_can( 'administrator' ) ) {
+				if ( current_user_can( 'manage_options' ) ) {
 					mc_get_support_form();
 				} else {
 					esc_html_e( 'My Calendar support requests can only be sent by administrators.', 'my-calendar' );
@@ -186,12 +186,12 @@ function my_calendar_help() {
  * @return string
  */
 function mc_help_link( $link_text, $modal_title, $query, $id, $display = true ) {
-	$url  = esc_url( admin_url( 'admin.php?help=' . (int) $id . '&query=' . urlencode( $query ) . '&page=mc-contextual-help&TB_iframe=true&width=600&height=550&modal_window=true' ) );
+	$url  = admin_url( 'admin.php?help=' . (int) $id . '&query=' . rawurlencode( (string) $query ) . '&page=mc-contextual-help&TB_iframe=true&width=600&height=550&modal_window=true' );
 	$link = sprintf(
 		'<a href="%1$s" class="thickbox my-calendar-contextual-help" data-title="%2$s"><span class="dashicons dashicons-editor-help" aria-hidden="true"></span><span class="help-label-text">%3$s</span></a>',
-		$url,
-		$modal_title,
-		$link_text
+		esc_url( $url ),
+		esc_attr( $modal_title ),
+		esc_html( $link_text )
 	);
 
 	if ( $display ) {
@@ -210,7 +210,8 @@ function mc_enqueue_modal_assets() {
 		$version .= wp_rand( 10000, 100000 );
 	}
 	// Load only for My Calendar admin pages.
-	if ( false !== stripos( get_current_screen()->id, 'my-calendar' ) || 'widgets' === get_current_screen()->id || isset( $_GET['post'] ) && mc_get_option( 'uri_id' ) === $_GET['post'] ) {
+	global $post_ID;
+	if ( ( false !== stripos( get_current_screen()->id, 'my-calendar' ) || 'widgets' === get_current_screen()->id ) || ( 'page' === get_current_screen()->id && mc_get_option( 'uri_id' ) === $post_ID ) ) {
 		// Enqueue assets from WordPress.
 		wp_enqueue_style( 'thickbox' );
 		wp_enqueue_script( 'help-modal', plugins_url( 'js/help-modal.js', __FILE__ ), array( 'thickbox' ), $version, true );
@@ -222,8 +223,8 @@ add_action( 'admin_enqueue_scripts', 'mc_enqueue_modal_assets' );
  * Print the contents displayed within the modal window
  */
 function mc_print_contextual_help() {
-	$id    = isset( $_REQUEST['help'] ) ? (int) $_REQUEST['help'] : false;
-	$query = isset( $_REQUEST['query'] ) ? sanitize_text_field( $_REQUEST['query'] ) : '';
+	$id    = isset( $_REQUEST['help'] ) ? (int) $_REQUEST['help'] : false; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$query = isset( $_REQUEST['query'] ) ? sanitize_text_field( $_REQUEST['query'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	?>
 	<div class="modal-window-container">
 	<?php

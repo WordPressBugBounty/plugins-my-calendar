@@ -17,30 +17,49 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Add custom fields to permalinks settings page.
  */
 function mc_load_permalinks() {
-	if ( isset( $_POST['mc_cpt_base'] ) ) {
-		mc_update_option( 'cpt_base', sanitize_key( $_POST['mc_cpt_base'] ) );
-	}
 	$opts = array( 'label_for' => 'mc_cpt_base' );
 	// Add a settings field to the permalink page.
 	add_settings_field( 'mc_cpt_base', __( 'My Calendar Events base', 'my-calendar' ), 'mc_field_callback', 'permalink', 'optional', $opts );
 
-	if ( isset( $_POST['mc_location_cpt_base'] ) ) {
-		mc_update_option( 'location_cpt_base', sanitize_key( $_POST['mc_location_cpt_base'] ) );
-	}
 	$opts = array( 'label_for' => 'mc_location_cpt_base' );
 	// Add a settings field to the permalink page.
 	add_settings_field( 'mc_location_cpt_base', __( 'My Calendar Locations base', 'my-calendar' ), 'mc_location_field_callback', 'permalink', 'optional', $opts );
 
 	if ( function_exists( 'mcs_submissions' ) && 'true' === get_option( 'mcs_custom_hosts' ) ) {
-		if ( isset( $_POST['mc_hosts_cpt_base'] ) ) {
-			mc_update_option( 'hosts_cpt_base', sanitize_key( $_POST['mc_hosts_cpt_base'] ) );
-		}
 		$opts = array( 'label_for' => 'mc_cpt_base' );
 		// Add a settings field to the permalink page.
 		add_settings_field( 'mc_hosts_cpt_base', __( 'My Calendar Hosts base', 'my-calendar' ), 'mc_hosts_callback', 'permalink', 'optional', $opts );
 	}
 }
 add_action( 'load-options-permalink.php', 'mc_load_permalinks' );
+
+
+/**
+ * Save custom fields to permalinks settings page.
+ */
+function mc_save_permalinks() {
+	if ( ! isset( $_POST['mc_cpt_base'] ) && ! isset( $_POST['mc_location_cpt_base'] ) && ! isset( $_POST['mc_hosts_cpt_base'] ) ) {
+		return;
+	}
+	if ( ! ( current_user_can( 'manage_options' ) ) ) {
+		wp_die( esc_html__( 'You do not have sufficient permissions to access this page.', 'my-calendar' ) );
+	}
+	check_admin_referer( 'update-permalink' );
+
+	if ( isset( $_POST['mc_cpt_base'] ) ) {
+		mc_update_option( 'cpt_base', sanitize_key( $_POST['mc_cpt_base'] ) );
+	}
+	if ( isset( $_POST['mc_location_cpt_base'] ) ) {
+		mc_update_option( 'location_cpt_base', sanitize_key( $_POST['mc_location_cpt_base'] ) );
+	}
+
+	if ( function_exists( 'mcs_submissions' ) && 'true' === get_option( 'mcs_custom_hosts' ) ) {
+		if ( isset( $_POST['mc_hosts_cpt_base'] ) ) {
+			mc_update_option( 'hosts_cpt_base', sanitize_key( $_POST['mc_hosts_cpt_base'] ) );
+		}
+	}
+}
+add_action( 'admin_init', 'mc_save_permalinks' );
 
 /**
  * Prevent error if hosts callback doesn't exist.
@@ -467,7 +486,7 @@ function mc_posttypes_messages( $messages ) {
 				3  => __( 'Custom field deleted.', 'my-calendar' ),
 				4  => __( 'Event updated.', 'my-calendar' ),
 				// Translators: %s: date and time of the revision.
-				5  => isset( $_GET['revision'] ) ? sprintf( __( 'Event restored to revision from %s', 'my-calendar' ), wp_post_revision_title( (int) $_GET['revision'], false ) ) : false,
+				5  => isset( $_GET['revision'] ) ? sprintf( __( 'Event restored to revision from %s', 'my-calendar' ), wp_post_revision_title( (int) $_GET['revision'], false ) ) : false, // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				// Translators: URL to view event.
 				6  => sprintf( __( 'Event published. <a href="%s">View event</a>', 'my-calendar' ), esc_url( get_permalink( $post_ID ) ) ),
 				7  => sprintf( __( 'Event saved.', 'my-calendar' ) ),
@@ -488,7 +507,7 @@ function mc_posttypes_messages( $messages ) {
 				3  => __( 'Custom field deleted.', 'my-calendar' ),
 				4  => __( 'Location updated.', 'my-calendar' ),
 				// Translators: %s: date and time of the revision.
-				5  => isset( $_GET['revision'] ) ? sprintf( __( 'Location restored to revision from %s', 'my-calendar' ), wp_post_revision_title( (int) $_GET['revision'], false ) ) : false,
+				5  => isset( $_GET['revision'] ) ? sprintf( __( 'Location restored to revision from %s', 'my-calendar' ), wp_post_revision_title( (int) $_GET['revision'], false ) ) : false, // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				// Translators: URL to view event.
 				6  => sprintf( __( 'Location published. <a href="%s">View event</a>', 'my-calendar' ), esc_url( get_permalink( $post_ID ) ) ),
 				7  => sprintf( __( 'Location saved.', 'my-calendar' ) ),
@@ -509,7 +528,7 @@ function mc_posttypes_messages( $messages ) {
 				3  => __( 'Custom field deleted.', 'my-calendar' ),
 				4  => __( 'Host updated.', 'my-calendar' ),
 				// Translators: %s: date and time of the revision.
-				5  => isset( $_GET['revision'] ) ? sprintf( __( 'Host restored to revision from %s', 'my-calendar' ), wp_post_revision_title( (int) $_GET['revision'], false ) ) : false,
+				5  => isset( $_GET['revision'] ) ? sprintf( __( 'Host restored to revision from %s', 'my-calendar' ), wp_post_revision_title( (int) $_GET['revision'], false ) ) : false, // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 				// Translators: URL to view event.
 				6  => sprintf( __( 'Host published. <a href="%s">View event</a>', 'my-calendar' ), esc_url( get_permalink( $post_ID ) ) ),
 				7  => sprintf( __( 'Host saved.', 'my-calendar' ) ),
@@ -535,11 +554,15 @@ function mc_posttypes_messages( $messages ) {
  * @return int Post ID.
  */
 function mc_save_post( $post_id, $post ) {
-	if ( empty( $_POST ) || ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || wp_is_post_revision( $post_id ) || isset( $_POST['_inline_edit'] ) || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ! ( 'mc-events' === get_post_type( $post_id ) ) ) {
+	$autosave   = ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE );
+	$doing_ajax = ( defined( 'DOING_AJAX' ) && DOING_AJAX );
+	$is_event   = ( 'mc-events' === get_post_type( $post_id ) );
+	if ( empty( $_POST ) || $autosave || wp_is_post_revision( $post_id ) || isset( $_POST['_inline_edit'] ) || $doing_ajax || ! $is_event ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 		return $post_id;
 	}
 	// Don't run this when editing in the event editor.
-	if ( isset( $_GET['page'] ) && 'my-calendar' === $_GET['page'] ) {
+	$current_screen = get_current_screen();
+	if ( $current_screen && 'toplevel_page_my-calendar' === $current_screen->id ) {
 		return $post_id;
 	}
 	// Copy post content to event.

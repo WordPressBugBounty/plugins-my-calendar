@@ -44,14 +44,11 @@ function mc_build_url( $add, $subtract, $root = '' ) {
 			$home = '';
 			// An empty string seems to work best; leaving it open.
 		} else {
-			wp_reset_query();
-
-			// Break out of alternate loop. If theme uses query_posts to fetch, this causes problems. But themes should *never* use query_posts to replace the loop, so screw that.
-			$home = get_permalink();
+			$home = get_permalink( get_queried_object_id() );
 		}
 	}
 
-	$variables = map_deep( $_GET, 'sanitize_text_field' );
+	$variables = map_deep( $_GET, 'sanitize_text_field' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$subtract  = array_merge( (array) $subtract, array( 'from', 'to', 'my-calendar-api', 's', 'embed' ) );
 	foreach ( $subtract as $value ) {
 		unset( $variables[ $value ] );
@@ -95,11 +92,10 @@ function mc_url_in_loop( $url ) {
  * @param int   $category current category.
  * @param array $events array of event objects.
  * @param array $args calendar view parameters.
- * @param array $date view date.
  *
  * @return string|false URL
  */
-function mc_build_mini_url( $start, $category, $events, $args, $date ) {
+function mc_build_mini_url( $start, $category, $events, $args ) {
 	$open_day_uri = mc_get_option( 'open_day_uri' );
 	if ( 'false' === $open_day_uri ) {
 		return false;
@@ -169,19 +165,15 @@ add_filter( 'mc_build_url', 'mc_translate_url' );
  * Filter Polylang translation URL in translation menu.
  *
  * @param string $url Translation URL.
- * @param string $lang Language of translation.
  *
  * @return string
  */
-function mc_pll_translation_url( $url, $lang ) {
+function mc_pll_translation_url( $url ) {
 	if ( is_singular( 'mc-events' ) ) {
-		$mc_id = '';
-		if ( isset( $_GET['mc_id'] ) ) {
-			$mc_id = (int) $_GET['mc_id'];
-		}
-		$url = add_query_arg( 'mc_id', $mc_id, $url );
+		$mc_id = mc_get_mc_id();
+		$url   = add_query_arg( 'mc_id', $mc_id, $url );
 	}
 
 	return $url;
 }
-add_filter( 'pll_translation_url', 'mc_pll_translation_url', 10, 2 );
+add_filter( 'pll_translation_url', 'mc_pll_translation_url', 10, 1 );

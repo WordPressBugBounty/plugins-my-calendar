@@ -135,7 +135,7 @@ function mc_legacy_template_draw_event( $event, $type, $process_date, $time, $te
 				$show_map = ( 'true' === $display_map || mc_output_is_visible( 'gmap_link', $type, $event ) ) ? 'true' : 'false';
 				$address  = mc_hcard( $event, $show_add, $show_map );
 			}
-			$time_html = mc_time_html( $event, $type );
+			$time_html = mc_time_html( $event );
 			if ( 'list' === $type ) {
 				if ( 'false' === mc_get_option( 'list_link_titles' ) ) {
 					$event_title  = mc_draw_event_title( $event, $tags, 'list', $image );
@@ -150,7 +150,7 @@ function mc_legacy_template_draw_event( $event, $type, $process_date, $time, $te
 				$host = mc_template_user_card( $event, 'host' );
 			}
 			$event_title = mc_draw_event_title( $event, $tags, $type, $image );
-			if ( ( 'true' === $display_more && ! isset( $_GET['mc_id'] ) ) || mc_output_is_visible( 'more', $type, $event ) ) {
+			if ( ( 'true' === $display_more && ! mc_is_single_event() ) || mc_output_is_visible( 'more', $type, $event ) ) {
 				$details_label = mc_get_details_label( $event, $data['tags'] );
 				$permalink     = mc_get_permalink( $event );
 				$aria          = '';

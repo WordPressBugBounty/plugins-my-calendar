@@ -91,40 +91,38 @@ function mc_draw_template( $data, $template, $type = 'list', $event = false ) {
 	}
 	foreach ( $data as $key => $value ) {
 		if ( is_object( $value ) ) {
-			// If a value is an object, ignore it.
-		} else {
-			if ( strpos( $template, '{' . $key ) !== false ) {
-				if ( 'list' !== $meta_type ) {
-					if ( 'link' === $key && '' === $value ) {
-						$value = mc_get_uri( false, $data );
-					}
-					if ( 'guid' !== $key ) {
-						$value = htmlentities( $value );
-					}
+			_doing_it_wrong( 'mc_draw_template', esc_html__( 'Passing an object to mc_draw_template() is not supported. Pass an array instead.', 'my-calendar' ), '3.8.12' );
+		} elseif ( strpos( $template, '{' . $key ) !== false ) {
+			if ( 'list' !== $meta_type ) {
+				if ( 'link' === $key && '' === $value ) {
+					$value = mc_get_uri( false, $data );
 				}
-				if ( strpos( $template, '{' . $key . ' ' ) !== false ) {
-					// only do preg_match if appropriate.
-					preg_match_all( '/{' . $key . '\b(?>\s+(?:before="([^"]*)"|after="([^"]*)"|format="([^"]*)")|[^\s]+|\s+){0,3}}/', $template, $matches, PREG_PATTERN_ORDER );
-					if ( $matches ) {
-						$number = count( $matches[0] );
-						for ( $i = 0; $i < $number; $i++ ) {
-							$orig   = $value;
-							$before = $matches[1][ $i ];
-							$after  = $matches[2][ $i ];
-							$format = $matches[3][ $i ];
-							if ( '' !== $format ) {
-								$value = date_i18n( wp_unslash( $format ), strtotime( wp_unslash( $value ) ) );
-							}
-							$value    = ( '' === (string) trim( $value ) ) ? '' : $before . $value . $after;
-							$search   = $matches[0][ $i ];
-							$template = str_replace( $search, $value, $template );
-							$value    = $orig;
+				if ( 'guid' !== $key ) {
+					$value = htmlentities( $value );
+				}
+			}
+			if ( strpos( $template, '{' . $key . ' ' ) !== false ) {
+				// only do preg_match if appropriate.
+				preg_match_all( '/{' . $key . '\b(?>\s+(?:before="([^"]*)"|after="([^"]*)"|format="([^"]*)")|[^\s}]+|\s+){0,3}}/', $template, $matches, PREG_PATTERN_ORDER );
+				if ( $matches ) {
+					$number = count( $matches[0] );
+					for ( $i = 0; $i < $number; $i++ ) {
+						$orig   = $value;
+						$before = $matches[1][ $i ];
+						$after  = $matches[2][ $i ];
+						$format = $matches[3][ $i ];
+						if ( '' !== $format ) {
+							$value = date_i18n( wp_unslash( $format ), strtotime( wp_unslash( $value ) ) );
 						}
+						$value    = ( '' === (string) trim( $value ) ) ? '' : $before . $value . $after;
+						$search   = $matches[0][ $i ];
+						$template = str_replace( $search, $value, $template );
+						$value    = $orig;
 					}
-				} else {
-					// don't do preg match for simple templates.
-					$template = wp_unslash( str_replace( '{' . $key . '}', $value, $template ) );
 				}
+			} else {
+				// don't do preg match for simple templates.
+				$template = wp_unslash( str_replace( '{' . $key . '}', $value, $template ) );
 			}
 			// End {$key check.
 		}
@@ -156,7 +154,7 @@ function mc_draw_template( $data, $template, $type = 'list', $event = false ) {
 function mc_get_preset_template( $type ) {
 	switch ( $type ) {
 		case 'list_preset_1':
-			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2">{linking_title}<br />{timerange}<br /><strong>{location}</strong>{city before=", "} {state}</div><div class="mc-group-3">{thumbnail}</div>';
+			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2">{linking_title after="<br>"}{timerange after="<br>"}<strong>{location}</strong>{city before=", "} {state}</div><div class="mc-group-3">{thumbnail}</div>';
 			break;
 		case 'list_preset_2':
 			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2"><a href="{permalink}">{timerange after="<br>"}<strong>{title}</strong><br />{location}{city before="<br>"} {state}</a></div><div class="mc-group-3">{thumbnail}</div>';
@@ -168,7 +166,7 @@ function mc_get_preset_template( $type ) {
 			$template = '<div class="mc-group-1">{image}</div><div class="list-card-contents"><div class="mc-group-2">{linking_title}<div class="mc-date-group">{daterange before="<strong>" after="</strong>"}{timerange before="<br>"}</div></div><div class="location mc-group-3">{city after=", "} {state}</div></div>';
 			break;
 		default:
-			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2"><a href="{permalink}">{title}</a><br />{timerange}<br />{hcard}</div><div class="mc-group-3">{image}</div>';
+			$template = '<div class="mc-group-1">{datebadge}</div><div class="mc-group-2"><a href="{permalink}">{title}</a><br />{timerange after="<br>"}{hcard}</div><div class="mc-group-3">{image}</div>';
 	}
 
 	/**
@@ -335,7 +333,7 @@ function mc_google_cal( $dtstart, $dtend, $url, $title, $location, $description 
 	$source = 'https://www.google.com/calendar/render?action=TEMPLATE';
 	$base   = "&dates=$dtstart/$dtend";
 	$base  .= '&sprop=website:' . $url;
-	$base  .= '&text=' . urlencode( $title );
+	$base  .= '&text=' . rawurlencode( $title );
 	/**
 	 * Filter `location` parameter added to Google Calendar link. Default `&location=$location`. Return value needs to be URL encoded.
 	 *
@@ -346,8 +344,8 @@ function mc_google_cal( $dtstart, $dtend, $url, $title, $location, $description 
 	 *
 	 * @return string Encoded parameter.
 	 */
-	$base .= apply_filters( 'mc_gcal_location', '&location=' . urlencode( trim( $location ) ), $location );
-	$base .= '&sprop=name:' . urlencode( get_bloginfo( 'name' ) );
+	$base .= apply_filters( 'mc_gcal_location', '&location=' . rawurlencode( trim( $location ) ), $location );
+	$base .= '&sprop=name:' . rawurlencode( get_bloginfo( 'name' ) );
 	/**
 	 * Filter `details` parameter added to Google Calendar link. Default `&details=$description`. Return value needs to be URL encoded.
 	 *
@@ -358,7 +356,7 @@ function mc_google_cal( $dtstart, $dtend, $url, $title, $location, $description 
 	 *
 	 * @return string Encoded parameter.
 	 */
-	$base .= apply_filters( 'mc_gcal_description', '&details=' . urlencode( wp_unslash( trim( $description ) ) ), $description );
+	$base .= apply_filters( 'mc_gcal_description', '&details=' . rawurlencode( wp_unslash( trim( $description ) ) ), $description );
 	$base .= '&sf=true&output=xml';
 
 	return $source . $base;
@@ -389,9 +387,9 @@ function mc_outlook_cal( $dtstart, $dtend, $url, $title, $location, $description
 		'allday'   => $allday,
 		'startdt'  => $start,
 		'enddt'    => $end,
-		'subject'  => urlencode( $title ),
-		'location' => urlencode( wp_unslash( trim( $location ) ) ),
-		'body'     => urlencode( wp_unslash( trim( $description . ' ' . $location . ' ' . $url ) ) ),
+		'subject'  => rawurlencode( $title ),
+		'location' => rawurlencode( wp_unslash( trim( $location ) ) ),
+		'body'     => rawurlencode( wp_unslash( trim( $description . ' ' . $location . ' ' . $url ) ) ),
 	);
 
 	return add_query_arg( $args, $source );
@@ -476,7 +474,8 @@ function mc_hcard( $event, $address = 'true', $map = 'true', $source = 'event' )
 		$dist     = round( $dist, 1 ) . $unit;
 		$distance = ' (' . $dist . ')';
 	}
-	if ( is_admin() && isset( $_GET['page'] ) && 'my-calendar-location-manager' === $_GET['page'] ) {
+	global $current_screen;
+	if ( is_admin() && $current_screen && 'my-calendar_page_my-calendar-location-manager' === $current_screen->id ) {
 		$link = "<a href='" . add_query_arg( 'location_id', $loc_id, admin_url( 'admin.php?page=my-calendar-locations&mode=edit' ) ) . "' class='location-link org edit p-name p-org u-url'><span class='dashicons dashicons-edit' aria-hidden='true'></span> <span id='location$event->location_id'>$label</span></a>";
 	} else {
 		$link = ( '' !== $url ) ? "<a href='$url' class='location-link external org p-name p-org u-url'><span class='mc-icon' aria-hidden='true'></span>$label</a>" : '<span class="location-link org edit p-name p-org">' . $label . '</span>';
@@ -532,7 +531,7 @@ function mc_hcard( $event, $address = 'true', $map = 'true', $source = 'event' )
 			$hcard .= '</div>';
 		}
 		if ( 'true' === $map && false !== $maplink ) {
-			$the_link = "<a href='$maplink' class='url external'><span class='mc-icon' aria-hidden='true'></span>" . __( 'Map', 'my-calendar' ) . "<span class='screen-reader-text fn'> $label</span></a>";
+			$the_link = "<a href='" . esc_url( $maplink ) . "' class='url external'><span class='mc-icon' aria-hidden='true'></span>" . __( 'Map', 'my-calendar' ) . "<span class='screen-reader-text fn'> $label</span></a>";
 			$hcard   .= ( '' !== $maplink ) ? "<div class='map'>$the_link</div>" : '';
 		}
 		$hcard .= '</div>';
@@ -707,7 +706,7 @@ function mc_create_tags( $event, $context = 'filters', $override = false, $type 
 	} else {
 		$dates = array();
 	}
-	$e['datetime']  = mc_time_html( $event, 'grid' );
+	$e['datetime']  = mc_time_html( $event );
 	$e['date']      = ( '1' !== $event->event_span ) ? $date : mc_format_date_span( $dates, 'simple', $date );
 	$e['enddate']   = $date_end;
 	$e['daterange'] = ( $date === $date_end ) ? "<span class='mc_db'>$date</span>" : "<span class='mc_db'>$date</span> <span>&ndash;</span> <span class='mc_de'>$date_end</span>";
@@ -742,7 +741,7 @@ function mc_create_tags( $event, $context = 'filters', $override = false, $type 
 	// Special.
 	$e['skip_holiday'] = ( 0 === (int) $event->event_holiday ) ? 'false' : 'true';
 	$e['event_status'] = mc_event_states_label( $event->event_approved );
-	$cancelled         = ( 3 === (int) $event->event_approved ) ? '<span class="mc-event-cancelled">' . trim( mc_get_option( 'cancel_text', mc_event_states_label( 3 ) . ':' ) ) . ' ' . '</span>' : '';
+	$cancelled         = ( 3 === (int) $event->event_approved ) ? '<span class="mc-event-cancelled">' . trim( mc_get_option( 'cancel_text', mc_event_states_label( 3 ) . ':' ) ) . ' </span>' : '';
 
 	// General text fields.
 	$title                     = mc_search_highlight( $event->event_title );
@@ -829,18 +828,7 @@ function mc_create_tags( $event, $context = 'filters', $override = false, $type 
 	}
 
 	if ( 'recurring' !== $context && ( mc_is_single_event() ) ) {
-		/**
-		 * HTML format for displaying recurring events on a single event view. Default `{date}, {time}`.
-		 *
-		 * @hook mc_recurring_template
-		 *
-		 * @param string $template Template to use to draw a recurring event.
-		 * @param object $event Event object.
-		 *
-		 * @return string Unparsed template.
-		 */
-		$recurring_template = apply_filters( 'mc_recurring_template', '{date}, {time}', $event );
-		$e['recurring']     = '<ul class="recurring-events">' . mc_list_recurring( $event->event_id, $recurring_template ) . '</ul>';
+		$e['recurring'] = '<ul class="recurring-events">' . mc_list_recurring( $event->event_id ) . '</ul>';
 	} else {
 		$e['recurring'] = current_user_can( 'manage_options' ) ? __( 'Admin note: the recurring events list only renders on single event views.', 'my-calendar' ) : '';
 	}
@@ -1021,7 +1009,7 @@ function mc_notime_label( $event ) {
 }
 
 /**
- * Get link to event's details page. Alias for `mt_get_details_link`.
+ * Get link to event's details page. Alias for `mc_get_details_link`.
  *
  * @param object|int $event Full event object or event occurrence ID.
  *
@@ -1078,30 +1066,28 @@ function mc_get_details_link( $event ) {
 		if ( mc_is_recurring( $event ) ) {
 			$permalink = add_query_arg( 'mc_id', $event->occur_id, $permalink );
 		}
-	} else {
-		if ( mc_get_uri( 'boolean' ) ) {
-			$permalink = mc_build_url(
-				array( 'mc_id' => $event->occur_id ),
-				array(
-					'month',
-					'dy',
-					'yr',
-					'ltype',
-					'loc',
-					'mcat',
-					'format',
-					'feed',
-					'page_id',
-					'p',
-					'mcs',
-					'time',
-					'page',
-					'mode',
-					'event_id',
-				),
-				$uri
-			);
-		}
+	} elseif ( mc_get_uri( 'boolean' ) ) {
+		$permalink = mc_build_url(
+			array( 'mc_id' => $event->occur_id ),
+			array(
+				'month',
+				'dy',
+				'yr',
+				'ltype',
+				'loc',
+				'mcat',
+				'format',
+				'feed',
+				'page_id',
+				'p',
+				'mcs',
+				'time',
+				'page',
+				'mode',
+				'event_id',
+			),
+			$uri
+		);
 	}
 	/**
 	 * URL to an event's permalink page.
@@ -1297,22 +1283,20 @@ function mc_event_link( $event ) {
 	$expired = mc_event_expired( $event );
 	if ( 0 === (int) $event->event_link_expires ) {
 		$link = esc_url( $event->event_link );
+	} elseif ( $expired ) {
+		/**
+		 * Link to return if an event's link has expired. Default empty string.
+		 *
+		 * @hook mc_event_expired_link
+		 *
+		 * @param string $link String to return if event link is expired.
+		 * @param object $event Event object.
+		 *
+		 * @return string Link or empty string.
+		 */
+		$link = apply_filters( 'mc_event_expired_link', '', $event );
 	} else {
-		if ( $expired ) {
-			/**
-			 * Link to return if an event's link has expired. Default empty string.
-			 *
-			 * @hook mc_event_expired_link
-			 *
-			 * @param string $link String to return if event link is expired.
-			 * @param object $event Event object.
-			 *
-			 * @return string Link or empty string.
-			 */
-			$link = apply_filters( 'mc_event_expired_link', '', $event );
-		} else {
-			$link = esc_url( $event->event_link );
-		}
+		$link = esc_url( $event->event_link );
 	}
 
 	return $link;
@@ -1500,10 +1484,8 @@ function mc_generate_map( $event, $source = 'event', $multiple = false, $geoloca
 			$locs    = ( $loc_list ) ? '<div class="mc-gmap-location-list"><h2 class="screen-reader-text">' . __( 'Locations', 'my-calendar' ) . '</h2>' . $loc_list . '</div>' : '';
 			$out     = '<div class="mc-maps">' . $map . $locs . '</div>';
 		}
-	} else {
-		if ( current_user_can( 'manage_options' ) ) {
-			$out = wpautop( __( 'You need a Google Maps API key to display the location map.', 'my-calendar' ) );
-		}
+	} elseif ( current_user_can( 'manage_options' ) ) {
+		$out = wpautop( __( 'You need a Google Maps API key to display the location map.', 'my-calendar' ) );
 	}
 
 	return $out;
@@ -1656,16 +1638,15 @@ function mc_author_data( $e, $event ) {
 	return $e;
 }
 
-add_filter( 'mc_filter_shortcodes', 'mc_auto_excerpt', 10, 2 );
+add_filter( 'mc_filter_shortcodes', 'mc_auto_excerpt', 10, 1 );
 /**
  * Custom excerpt for use in templates.
  *
- * @param array  $e Array of event details.
- * @param object $event Event object.
+ * @param array $e Array of event details.
  *
  * @return array $e
  */
-function mc_auto_excerpt( $e, $event ) {
+function mc_auto_excerpt( $e ) {
 	$description = $e['description'];
 	$shortdesc   = $e['shortdesc'];
 	$excerpt     = $shortdesc;
@@ -1706,11 +1687,14 @@ function mc_auto_excerpt( $e, $event ) {
  */
 function mc_search_highlight( $string1, $string2 = '', $term = '' ) {
 	$append = '';
+	$term   = str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $term );
+
 	if ( '' !== $term ) {
 		$append = ' ' . trim( $term );
 	}
-	if ( isset( $_REQUEST['mcs'] ) ) {
-		$term = sanitize_text_field( trim( $_REQUEST['mcs'] ) ) . $append;
+	if ( isset( $_REQUEST['mcs'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$term = str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $_REQUEST['mcs'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$term = sanitize_text_field( trim( $term ) ) . $append;
 	} else {
 		return $string1;
 	}
@@ -1775,9 +1759,12 @@ function mc_search_highlight( $string1, $string2 = '', $term = '' ) {
  * @return string
  */
 function mc_str_replace_word_i( $needle, $haystack ) {
-	$needle   = str_replace( '/', '\\/', preg_quote( $needle ) ); // allow '/' in keywords.
-	$pattern  = "/\b$needle(?!([^<]+)?>)\b/i";
-	$haystack = preg_replace_callback(
+	if ( '' === trim( (string) $needle ) ) {
+		return $haystack;
+	}
+	$needle  = preg_quote( $needle, '/' ); // Also escapes '/' so it is allowed in keywords.
+	$pattern = "/\b$needle(?!([^<]+)?>)\b/iu";
+	$result  = preg_replace_callback(
 		$pattern,
 		function ( $m ) {
 			return '<strong class="mc_search_term">' . $m[0] . '</strong>';
@@ -1785,7 +1772,8 @@ function mc_str_replace_word_i( $needle, $haystack ) {
 		$haystack
 	);
 
-	return $haystack;
+	// The /u flag returns null on invalid UTF-8; leave the text unchanged in that case.
+	return ( null === $result ) ? $haystack : $result;
 }
 
 /**
@@ -2145,11 +2133,10 @@ function mc_template_tag( $data, $key = 'calendar' ) {
  * Print time in PHP templates. Backwards compatible with display settings.
  *
  * @param object $data Calendar view data.
- * @param string $type View type.
  */
-function mc_template_time( $data, $type = 'calendar' ) {
+function mc_template_time( $data ) {
 	$event = $data->event;
-	echo wp_kses( mc_time_html( $event, $type ), 'mycalendar' );
+	echo wp_kses( mc_time_html( $event ), 'mycalendar' );
 }
 
 /**
@@ -2336,7 +2323,7 @@ function mc_template_share( $data, $type = 'calendar', $text = '' ) {
 	$more  = '';
 	$gcal  = '';
 	$vcal  = '';
-	if ( ( ! isset( $_GET['mc_id'] ) ) && mc_output_is_visible( 'more', $type, $event ) ) {
+	if ( mc_output_is_visible( 'more', $type, $event ) ) {
 		$details_label = ( $text ) ? $text : mc_get_details_label( $event, $data->tags );
 		$permalink     = mc_get_permalink( $event );
 		$event_title   = mc_draw_event_title( $event, $data->tags, $type, '' );

@@ -43,9 +43,10 @@ function mc_switch_sites() {
  * @return void
  */
 function mc_tweet_approval( $previous_status, $new_status ) {
-	if ( function_exists( 'wpt_post_to_service' ) && isset( $_POST['mc_twitter'] ) ) {
+	// Runs in a context that is already checked by a nonce.
+	if ( function_exists( 'wpt_post_to_service' ) && isset( $_POST['mc_twitter'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 		if ( ( 0 === (int) $previous_status || 2 === (int) $previous_status ) && 1 === (int) $new_status ) {
-			wpt_post_to_service( sanitize_textarea_field( wp_unslash( $_POST['mc_twitter'] ) ) );
+			wpt_post_to_service( sanitize_textarea_field( wp_unslash( $_POST['mc_twitter'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 		}
 	}
 }
@@ -365,34 +366,6 @@ function reverse_array( $input_array, $boolean, $order ) {
 		return array_reverse( $input_array, $boolean );
 	}
 	return $input_array;
-}
-
-/**
- * Debugging handler shortcut
- *
- * @param string $subject Text for email subject.
- * @param string $body Text for email body.
- * @param string $email target email (if sending via email).
- */
-function mc_debug( $subject, $body, $email = '' ) {
-	if ( defined( 'MC_DEBUG' ) && true === MC_DEBUG ) {
-		if ( ! $email ) {
-			$email = get_option( 'admin_email' );
-		}
-		if ( defined( 'MC_DEBUG_METHOD' ) && 'email' === MC_DEBUG_METHOD ) {
-			wp_mail( get_option( 'admin_email' ), $subject, print_r( $body, 1 ) );
-		} else {
-			/**
-			 * Execute a custom debug action during an mc_debug call. Runs if MC_DEBUG_METHOD is not 'email'.
-			 *
-			 * @hook mc_debug
-			 *
-			 * @param string $subject Subject line of email debugging message.
-			 * @param string $body Body of email debugging message.
-			 */
-			do_action( 'mc_debug', $subject, $body );
-		}
-	}
 }
 
 /**

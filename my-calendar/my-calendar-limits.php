@@ -204,20 +204,18 @@ function mc_author_select_ids( $author ) {
 				$return[] = $add;
 			}
 		}
+	} elseif ( is_numeric( $author ) ) {
+		$return[] = absint( $author );
 	} else {
-		if ( is_numeric( $author ) ) {
-			$return[] = absint( $author );
+		$author = trim( $author );
+		if ( 'current' === $author ) {
+			$author   = wp_get_current_user();
+			$return[] = $author->ID;
 		} else {
-			$author = trim( $author );
-			if ( 'current' === $author ) {
-				$author   = wp_get_current_user();
-				$return[] = $author->ID;
-			} else {
-				$author = get_user_by( 'login', $author ); // Get author by username.
+			$author = get_user_by( 'login', $author ); // Get author by username.
 
-				if ( is_object( $author ) ) {
-					$return[] = $author->ID;
-				}
+			if ( is_object( $author ) ) {
+				$return[] = $author->ID;
 			}
 		}
 	}
@@ -256,11 +254,9 @@ function mc_select_location( $ltype = '', $lvalue = '' ) {
 	$location      = '';
 	if ( ! $ltype || ! $lvalue ) {
 		return '';
-	} else {
+	} elseif ( is_string( $lvalue ) && false !== stripos( $lvalue, ',' ) ) {
 		// If value passed is a string of comma separated values, turn into array.
-		if ( is_string( $lvalue ) && false !== stripos( $lvalue, ',' ) ) {
-			$lvalue = array_map( 'trim', explode( ',', $lvalue ) );
-		}
+		$lvalue = array_map( 'trim', explode( ',', $lvalue ) );
 	}
 	if ( ! is_array( $lvalue ) ) {
 		$lvalue = array( $lvalue );
@@ -326,13 +322,16 @@ function mc_select_location( $ltype = '', $lvalue = '' ) {
 /**
  * Get events based on accessibility features available
  *
- * @param string $access type of accessibility feature.
+ * @param int $access Term ID for type of accessibility feature.
  *
  * @return string limits to add to query
  */
 function mc_access_limit( $access ) {
 	global $wpdb;
-	$limit_string = ' JOIN ' . $wpdb->term_relationships . ' AS tr ON (tr.object_id=e.event_post) WHERE tr.term_taxonomy_id = ' . absint( $access ) . ' AND ';
+	$limit_string = '';
+	if ( $access && is_numeric( $access ) ) {
+		$limit_string = ' JOIN ' . $wpdb->term_relationships . ' AS tr ON (tr.object_id=e.event_post) WHERE tr.term_taxonomy_id = ' . absint( $access ) . ' AND ';
+	}
 
 	return $limit_string;
 }

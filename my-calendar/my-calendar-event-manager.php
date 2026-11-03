@@ -17,13 +17,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Handle a bulk action.
  *
  * @param string $action type of action.
- * @param array  $events Optional. Array of event IDs to act on.
+ * @param array  $events Array of event IDs to act on.
  *
  * @return string bulk action details.
  */
 function mc_bulk_action( $action, $events = array() ) {
 	global $wpdb;
-	$events  = ( empty( $events ) ) ? $_POST['mass_edit'] : $events;
 	$i       = 0;
 	$total   = 0;
 	$ids     = array();
@@ -231,43 +230,46 @@ function my_calendar_manage() {
 	my_calendar_check();
 	global $wpdb;
 	if ( isset( $_GET['mode'] ) && 'delete' === $_GET['mode'] ) {
-		$event_id = ( isset( $_GET['event_id'] ) ) ? absint( $_GET['event_id'] ) : false;
-		$result   = $wpdb->get_results( $wpdb->prepare( 'SELECT event_title, event_author FROM ' . my_calendar_table() . ' WHERE event_id=%d', $event_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		if ( mc_can_edit_event( $event_id ) ) {
-			if ( isset( $_GET['date'] ) ) {
-				$event_instance = (int) $_GET['date'];
-				$inst           = $wpdb->get_var( $wpdb->prepare( 'SELECT occur_begin FROM ' . my_calendar_event_table() . ' WHERE occur_id=%d', $event_instance ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-				$instance_date  = '(' . mc_date( 'Y-m-d', mc_strtotime( $inst ), false ) . ')';
-			} else {
-				$instance_date = '';
-			} ?>
-			<div class="notice notice-error">
-				<form action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-manage' ) ); ?>" method="post">
-					<p><strong><?php esc_html_e( 'Delete Event', 'my-calendar' ); ?>:</strong> <?php esc_html_e( 'Are you sure you want to delete this event?', 'my-calendar' ); ?>
-						<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/>
-						<input type="hidden" value="delete" name="event_action" />
-						<?php
-						if ( ! empty( $_GET['date'] ) ) {
-							?>
-						<input type="hidden" name="event_instance" value="<?php echo (int) $_GET['date']; ?>"/>
+		$verified = isset( $_GET['_mcnonce'] ) && wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' );
+		if ( $verified ) {
+			$event_id = ( isset( $_GET['event_id'] ) ) ? absint( $_GET['event_id'] ) : false;
+			$result   = $wpdb->get_results( $wpdb->prepare( 'SELECT event_title, event_author FROM ' . my_calendar_table() . ' WHERE event_id=%d', $event_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			if ( mc_can_edit_event( $event_id ) ) {
+				if ( isset( $_GET['date'] ) ) {
+					$event_instance = (int) $_GET['date'];
+					$inst           = $wpdb->get_var( $wpdb->prepare( 'SELECT occur_begin FROM ' . my_calendar_event_table() . ' WHERE occur_id=%d', $event_instance ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+					$instance_date  = '(' . mc_date( 'Y-m-d', mc_strtotime( $inst ), false ) . ')';
+				} else {
+					$instance_date = '';
+				} ?>
+				<div class="notice notice-error">
+					<form action="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar-manage' ) ); ?>" method="post">
+						<p><strong><?php esc_html_e( 'Delete Event', 'my-calendar' ); ?>:</strong> <?php esc_html_e( 'Are you sure you want to delete this event?', 'my-calendar' ); ?>
+							<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/>
+							<input type="hidden" value="delete" name="event_action" />
 							<?php
-						}
-						if ( isset( $_GET['ref'] ) ) {
+							if ( ! empty( $_GET['date'] ) ) {
+								?>
+							<input type="hidden" name="event_instance" value="<?php echo (int) $_GET['date']; ?>"/>
+								<?php
+							}
+							if ( isset( $_GET['ref'] ) ) {
+								?>
+							<input type="hidden" name="ref" value="<?php echo esc_url( $_GET['ref'] ); ?>" />
+								<?php
+							}
 							?>
-						<input type="hidden" name="ref" value="<?php echo esc_url( $_GET['ref'] ); ?>" />
+							<input type="hidden" name="event_id" value="<?php echo esc_attr( $event_id ); ?>"/>
 							<?php
-						}
-						?>
-						<input type="hidden" name="event_id" value="<?php echo esc_attr( $event_id ); ?>"/>
-						<?php
-							$event_info = ' &quot;' . wp_unslash( $result[0]['event_title'] ) . "&quot; $instance_date";
-							// Translators: Title & date of event to delete.
-							$delete_text = sprintf( __( 'Delete %s', 'my-calendar' ), $event_info );
-						?>
-						<input type="submit" name="submit" class="button button-secondary delete" value="<?php echo esc_attr( $delete_text ); ?>"/>
-				</form>
-			</div>
-			<?php
+								$event_info = ' &quot;' . wp_unslash( $result[0]['event_title'] ) . "&quot; $instance_date";
+								// Translators: Title & date of event to delete.
+								$delete_text = sprintf( __( 'Delete %s', 'my-calendar' ), $event_info );
+							?>
+							&nbsp;<input type="submit" name="submit" class="button button-compact delete" value="<?php echo esc_attr( $delete_text ); ?>"/>
+					</form>
+				</div>
+				<?php
+			}
 		} else {
 			mc_show_error( __( 'You do not have permission to delete that event.', 'my-calendar' ) );
 		}
@@ -275,7 +277,7 @@ function my_calendar_manage() {
 
 	// Approve and show an Event ...originally by Roland.
 	if ( isset( $_GET['mode'] ) && 'publish' === $_GET['mode'] ) {
-		$mcnonce = wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' );
+		$mcnonce = isset( $_GET['_mcnonce'] ) && wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' );
 		if ( $mcnonce ) {
 			if ( current_user_can( 'mc_approve_events' ) ) {
 				$event_id = absint( $_GET['event_id'] );
@@ -297,7 +299,7 @@ function my_calendar_manage() {
 
 	// Reject and hide an Event ...by Roland.
 	if ( isset( $_GET['mode'] ) && 'reject' === $_GET['mode'] ) {
-		$mcnonce = wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' );
+		$mcnonce = isset( $_GET['_mcnonce'] ) && wp_verify_nonce( $_GET['_mcnonce'], 'mcnonce' );
 		if ( $mcnonce ) {
 			if ( current_user_can( 'mc_approve_events' ) ) {
 				$event_id = absint( $_GET['event_id'] );
@@ -321,37 +323,38 @@ function my_calendar_manage() {
 		}
 		if ( isset( $_POST['mc_bulk_actions'] ) ) {
 			$action  = sanitize_text_field( wp_unslash( $_POST['mc_bulk_actions'] ) );
+			$events  = map_deep( $_POST['mass_edit'], 'intval' );
 			$results = '';
 			switch ( $action ) {
 				case 'mass_delete':
-					mc_bulk_action( 'delete' );
+					mc_bulk_action( 'delete', $events );
 					break;
 				case 'mass_trash':
-					mc_bulk_action( 'trash' );
+					mc_bulk_action( 'trash', $events );
 					break;
 				case 'mass_publish':
-					mc_bulk_action( 'approve' );
+					mc_bulk_action( 'approve', $events );
 					break;
 				case 'mass_draft':
-					mc_bulk_action( 'draft' );
+					mc_bulk_action( 'draft', $events );
 					break;
 				case 'mass_archive':
-					mc_bulk_action( 'archive' );
+					mc_bulk_action( 'archive', $events );
 					break;
 				case 'mass_undo_archive':
-					mc_bulk_action( 'unarchive' );
+					mc_bulk_action( 'unarchive', $events );
 					break;
 				case 'mass_private':
-					mc_bulk_action( 'private' );
+					mc_bulk_action( 'private', $events );
 					break;
 				case 'mass_personal':
-					mc_bulk_action( 'personal' );
+					mc_bulk_action( 'personal', $events );
 					break;
 				case 'mass_cancel':
-					mc_bulk_action( 'cancel' );
+					mc_bulk_action( 'cancel', $events );
 					break;
 				case 'mass_not_spam':
-					mc_bulk_action( 'unspam' );
+					mc_bulk_action( 'unspam', $events );
 					break;
 			}
 
@@ -432,7 +435,7 @@ function my_calendar_manage() {
  * Generate screens for editing and managing events & event groups.
  */
 function my_calendar_manage_screen() {
-	if ( ! isset( $_GET['groups'] ) ) {
+	if ( ! isset( $_GET['groups'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		my_calendar_manage();
 	} else {
 		my_calendar_group_edit();
@@ -456,21 +459,24 @@ function mc_show_bulk_actions() {
 		'mass_delete'       => __( 'Delete', 'my-calendar' ),
 	);
 
-	if ( ! current_user_can( 'mc_approve_events' ) || isset( $_GET['limit'] ) && 'published' === $_GET['limit'] ) {
+	$limit    = ( isset( $_GET['limit'] ) ) ? sanitize_text_field( wp_unslash( $_GET['limit'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$restrict = ( isset( $_GET['restrict'] ) ) ? sanitize_text_field( wp_unslash( $_GET['restrict'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+	if ( ! current_user_can( 'mc_approve_events' ) || 'published' === $limit ) {
 		unset( $bulk_actions['mass_publish'] );
 	}
-	if ( ! current_user_can( 'mc_manage_events' ) || isset( $_GET['limit'] ) && 'trashed' === $_GET['limit'] ) {
+	if ( ! current_user_can( 'mc_manage_events' ) || 'trashed' === $limit ) {
 		unset( $bulk_actions['mass_trash'] );
 	}
-	if ( isset( $_GET['limit'] ) && 'draft' === $_GET['limit'] ) {
+	if ( 'draft' === $limit ) {
 		unset( $bulk_actions['mass_draft'] );
 	}
-	if ( isset( $_GET['restrict'] ) && 'archived' === $_GET['restrict'] ) {
+	if ( 'archived' === $restrict ) {
 		unset( $bulk_actions['mass_archive'] );
 	} else {
 		unset( $bulk_actions['mass_undo_archive'] );
 	}
-	if ( ! ( isset( $_GET['restrict'] ) && 'flagged' === $_GET['restrict'] ) ) {
+	if ( ! ( 'flagged' === $restrict ) ) {
 		unset( $bulk_actions['mass_not_spam'] );
 	}
 
@@ -495,16 +501,17 @@ function mc_show_bulk_actions() {
  * @return void
  */
 function mc_handle_post() {
-	$action   = ! empty( $_POST['event_action'] ) ? $_POST['event_action'] : '';
-	$event_id = ! empty( $_POST['event_id'] ) ? $_POST['event_id'] : '';
-	if ( 'delete' === $action ) {
-		$verify = wp_verify_nonce( $_POST['_wpnonce'], 'my-calendar-nonce' );
-		if ( ! $verify ) {
-			wp_die( 'My Calendar: Could not verify your request.', 'my-calendar' );
-		} else {
-			$message = mc_delete_event( $event_id );
+	$verify = isset( $_POST['_wpnonce'] ) && wp_verify_nonce( $_POST['_wpnonce'], 'my-calendar-nonce' );
+	if ( $verify ) {
+		$action = ! empty( $_POST['event_action'] ) ? sanitize_text_field( wp_unslash( $_POST['event_action'] ) ) : '';
+		if ( 'delete' === $action ) {
+			$event_id       = ! empty( $_POST['event_id'] ) ? (int) $_POST['event_id'] : '';
+			$event_instance = ! empty( $_POST['event_instance'] ) ? (int) $_POST['event_instance'] : 0;
+			$message        = mc_delete_event( $event_id, $event_instance );
 			echo wp_kses_post( $message );
 		}
+	} else {
+		return;
 	}
 }
 
@@ -519,16 +526,16 @@ function mc_get_event_list_sorting() {
 	$user_sort         = get_user_meta( wp_get_current_user()->ID, '_mc_default_sort', true );
 	$default_sort      = ( '' !== $user_sort ) ? $user_sort : mc_get_option( 'default_sort' );
 
-	if ( isset( $_GET['order'] ) ) {
-		$sortbydirection = ( isset( $_GET['order'] ) && 'ASC' === $_GET['order'] ) ? 'ASC' : $default_direction;
-		$sortbydirection = ( isset( $_GET['order'] ) && 'DESC' === $_GET['order'] ) ? 'DESC' : $sortbydirection;
+	if ( isset( $_GET['order'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$sortbydirection = ( isset( $_GET['order'] ) && 'ASC' === $_GET['order'] ) ? 'ASC' : $default_direction; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$sortbydirection = ( isset( $_GET['order'] ) && 'DESC' === $_GET['order'] ) ? 'DESC' : $sortbydirection; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		update_user_meta( wp_get_current_user()->ID, '_mc_default_direction', $sortbydirection );
 	} else {
 		$sortbydirection = $default_direction;
 	}
-	if ( isset( $_GET['sort'] ) ) {
-		$sortby = absint( $_GET['sort'] );
+	if ( isset( $_GET['sort'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$sortby = absint( $_GET['sort'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		update_user_meta( wp_get_current_user()->ID, '_mc_default_sort', $sortby );
 	} else {
@@ -577,7 +584,7 @@ function mc_get_event_list_sorting() {
  * @return string
  */
 function mc_get_event_status_limit() {
-	$status    = ( isset( $_GET['limit'] ) ) ? sanitize_text_field( $_GET['limit'] ) : '';
+	$status    = ( isset( $_GET['limit'] ) ) ? sanitize_text_field( $_GET['limit'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$published = implode( ',', mc_event_states_by_type( 'public' ) );
 
 	// Filter by status.
@@ -616,19 +623,22 @@ function mc_get_event_status_limit() {
  * @param string $context String to differentiate for/ID attributes if on page twice.
  */
 function mc_admin_event_search( $context = '' ) {
-	$search_text = ( isset( $_POST['mcs'] ) ) ? sanitize_text_field( wp_unslash( $_POST['mcs'] ) ) : '';
-	$args        = map_deep( $_GET, 'sanitize_text_field' );
+	$search_text = ( isset( $_REQUEST['mcs'] ) ) ? sanitize_text_field( wp_unslash( $_REQUEST['mcs'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$args        = map_deep( $_GET, 'sanitize_text_field' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( isset( $args['mcs'] ) ) {
+		unset( $args['mcs'] );
+	}
 	?>
 	<div class='mc-search'>
-	<form action="<?php echo esc_url( add_query_arg( $args, admin_url( 'admin.php' ) ) ); ?>" method="post" role='search'>
-		<div><input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/>
-		</div>
-		<div class="mc-flex">
-			<label for="mc_search<?php echo esc_attr( $context ); ?>" class='screen-reader-text'><?php esc_html_e( 'Search Events', 'my-calendar' ); ?></label>
-			<input type='text' name='mcs' id='mc_search<?php echo esc_attr( $context ); ?>' value='<?php echo esc_attr( $search_text ); ?>' />
-			<input type='submit' value='<?php echo esc_attr( __( 'Search', 'my-calendar' ) ); ?>' class='button button-compact button-secondary'/>
-		</div>
-	</form>
+		<form action="<?php echo esc_url( add_query_arg( $args, admin_url( 'admin.php?page=my-calendar-manage' ) ) ); ?>" method="post" role='search'>
+			<div><input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>"/>
+			</div>
+			<div class="mc-flex">
+				<label for="mc_search<?php echo esc_attr( $context ); ?>" class='screen-reader-text'><?php esc_html_e( 'Search Events', 'my-calendar' ); ?></label>
+				<input type='text' name='mcs' id='mc_search<?php echo esc_attr( $context ); ?>' value='<?php echo esc_attr( $search_text ); ?>' />
+				<input type='submit' value='<?php echo esc_attr( __( 'Search', 'my-calendar' ) ); ?>' class='button button-compact button-secondary'/>
+			</div>
+		</form>
 	</div>
 	<?php
 }
@@ -637,7 +647,7 @@ function mc_admin_event_search( $context = '' ) {
  * Get query limit pagination values for DB query.
  */
 function mc_get_query_limit() {
-	$current        = empty( $_GET['paged'] ) ? 1 : intval( $_GET['paged'] );
+	$current        = empty( $_GET['paged'] ) ? 1 : intval( $_GET['paged'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$user           = get_current_user_id();
 	$screen         = get_current_screen();
 	$option         = $screen->get_option( 'per_page', 'option' );
@@ -660,30 +670,24 @@ function mc_get_query_limit() {
  * @return array
  */
 function mc_get_filter() {
-	$restrict = ( isset( $_GET['restrict'] ) ) ? sanitize_text_field( wp_unslash( $_GET['restrict'] ) ) : 'all';
+	$restrict = ( isset( $_GET['restrict'] ) ) ? sanitize_text_field( wp_unslash( $_GET['restrict'] ) ) : 'all'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$filter   = ( isset( $_GET['filter'] ) && 'all' !== $_GET['filter'] ) ? absint( $_GET['filter'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 	switch ( $restrict ) {
-		case 'all':
-			$filter = '';
-			break;
 		case 'where':
-			$filter   = ( isset( $_GET['filter'] ) ) ? absint( $_GET['filter'] ) : '';
 			$restrict = 'event_location';
 			break;
 		case 'author':
-			$filter   = ( isset( $_GET['filter'] ) ) ? absint( $_GET['filter'] ) : '';
 			$restrict = 'event_author';
 			break;
 		case 'category':
-			$filter   = ( isset( $_GET['filter'] ) ) ? absint( $_GET['filter'] ) : '';
 			$restrict = 'event_category';
 			break;
 		case 'flagged':
-			$filter   = ( isset( $_GET['filter'] ) ) ? absint( $_GET['filter'] ) : '';
 			$restrict = 'event_flagged';
 			break;
 		default:
-			$filter = '';
+			$restrict = 'all';
 	}
 
 	return array(
@@ -742,8 +746,8 @@ function mc_list_events() {
 			$limit .= ( 'event_flagged' !== $restrict ) ? ' AND event_flagged = 0' : '';
 		}
 		// Define search query parameters.
-		if ( isset( $_POST['mcs'] ) || isset( $_GET['mcs'] ) ) {
-			$query  = sanitize_text_field( wp_unslash( $_REQUEST['mcs'] ) );
+		if ( isset( $_REQUEST['mcs'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$query  = sanitize_text_field( wp_unslash( $_REQUEST['mcs'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$limit .= mc_prepare_search_query( $query );
 		}
 		// Get page and pagination values.
@@ -803,8 +807,9 @@ function mc_list_events() {
 		</nav>
 		<?php
 		if ( ! empty( $events ) ) {
+			$get = map_deep( $_GET, 'sanitize_text_field' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			?>
-			<form action="<?php echo esc_url( add_query_arg( $_GET, admin_url( 'admin.php' ) ) ); ?>" method="post">
+			<form action="<?php echo esc_url( add_query_arg( $get, admin_url( 'admin.php' ) ) ); ?>" method="post">
 				<input type="hidden" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'my-calendar-nonce' ) ); ?>" />
 				<div class='mc-actions'>
 					<label for="mc_bulk_actions" class="screen-reader-text"><?php esc_html_e( 'Bulk actions', 'my-calendar' ); ?></label>
@@ -822,7 +827,7 @@ function mc_list_events() {
 					<tr>
 					<?php
 					$admin_url = admin_url( "admin.php?page=my-calendar-manage&order=$sortbydirection&paged=" . $query['current'] );
-					$admin_url = isset( $_GET['limit'] ) ? add_query_arg( 'limit', sanitize_text_field( $_GET['limit'] ), $admin_url ) : $admin_url;
+					$admin_url = isset( $_GET['limit'] ) ? add_query_arg( 'limit', sanitize_text_field( $_GET['limit'] ), $admin_url ) : $admin_url; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 					$url       = add_query_arg( 'sort', '1', $admin_url );
 					$col_head  = mc_table_header( __( 'ID', 'my-calendar' ), $sortbydirection, $sortby, '1', $url );
 					$url       = add_query_arg( 'sort', '2', $admin_url );
@@ -881,18 +886,13 @@ function mc_list_events() {
 		</div>
 			<?php
 		} else {
-			if ( isset( $_POST['mcs'] ) ) {
+			// If no events, and a search was performed, display a message.
+			if ( isset( $_POST['mcs'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
 				echo '<p>' . esc_html__( 'No results found for your search query.', 'my-calendar' ) . '</p>';
 			}
-			if ( ! isset( $_GET['restrict'] ) && ( ! isset( $_GET['limit'] ) || isset( $_GET['limit'] ) && 'all' === $_GET['limit'] ) ) {
-				?>
-				<p class='mc-create-event'><a href="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar' ) ); ?>" class="button button-hero"><?php esc_html_e( 'Create an event', 'my-calendar' ); ?></a></p>
-				<?php
-			} else {
-				?>
-				<p class='mc-none'><?php esc_html_e( 'No events found.', 'my-calendar' ); ?></p>
-				<?php
-			}
+			?>
+			<p class='mc-create-event'><a href="<?php echo esc_url( admin_url( 'admin.php?page=my-calendar' ) ); ?>" class="button button-hero"><?php esc_html_e( 'Create an event', 'my-calendar' ); ?></a></p>
+			<?php
 		}
 	}
 }
@@ -923,6 +923,7 @@ function mc_admin_events_table( $events ) {
 		$future    = ( 6 === (int) $event->event_approved ) ? 'future' : '';
 		$author    = ( 0 !== (int) $event->event_author ) ? get_userdata( $event->event_author ) : 'Public Submitter';
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( 1 === (int) $event->event_flagged && ( isset( $_GET['restrict'] ) && 'flagged' === $_GET['restrict'] ) ) {
 			$spam    = 'spam';
 			$pending = '';
@@ -934,7 +935,7 @@ function mc_admin_events_table( $events ) {
 		$draft    = ( '' !== $pending ) ? ' - ' . __( 'Draft', 'my-calendar' ) : '';
 		$cancel   = ( '' !== $cancelled ) ? ' - ' . __( 'Cancelled', 'my-calendar' ) : '';
 		$inv      = ( $invalid ) ? ' - ' . __( 'Invalid Event', 'my-calendar' ) : '';
-		$limit    = ( isset( $_GET['limit'] ) ) ? sanitize_text_field( $_GET['limit'] ) : 'all';
+		$limit    = ( isset( $_GET['limit'] ) ) ? sanitize_text_field( $_GET['limit'] ) : 'all'; // // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$private  = ( ! $draft && ! $future && mc_private_event( $event, false ) ) ? ' - ' . __( 'Private', 'my-calendar' ) : '';
 		$future   = ( 6 === (int) $event->event_approved ) ? ' - ' . __( 'Scheduled', 'my-calendar' ) : '';
 		$check    = mc_test_occurrence_overlap( $event, true );
@@ -1055,7 +1056,7 @@ function mc_admin_events_table( $events ) {
 						}
 						if ( '' !== $elabel ) {
 							?>
-						<a class='mc_filter' href='<?php echo esc_url( mc_admin_url( 'admin.php?page=my-calendar-manage&amp;filter=' . urlencode( $filter ) . '&amp;restrict=where' ) ); ?>'><span class="screen-reader-text"><?php esc_html_e( 'Show only: ', 'my-calendar' ); ?></span><?php echo esc_html( wp_unslash( $elabel ) ); ?></a>
+						<a class='mc_filter' href='<?php echo esc_url( mc_admin_url( 'admin.php?page=my-calendar-manage&amp;filter=' . rawurlencode( $filter ) . '&amp;restrict=where' ) ); ?>'><span class="screen-reader-text"><?php esc_html_e( 'Show only: ', 'my-calendar' ); ?></span><?php echo esc_html( wp_unslash( $elabel ) ); ?></a>
 							<?php
 						}
 						?>

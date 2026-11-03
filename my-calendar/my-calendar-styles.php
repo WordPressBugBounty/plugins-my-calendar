@@ -19,113 +19,110 @@ if ( ! defined( 'ABSPATH' ) ) {
 function my_calendar_update_styles() {
 	$message = '';
 	if ( isset( $_POST['mc_edit_style'] ) ) {
-		$nonce = $_REQUEST['_wpnonce'];
-		if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
-			wp_die( 'My Calendar: Security check failed' );
-		}
+		if ( isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'my-calendar-nonce' ) ) {
+			$mc_show_css = ( empty( $_POST['mc_show_css'] ) ) ? '' : wp_unslash( sanitize_text_field( $_POST['mc_show_css'] ) );
+			mc_update_option( 'show_css', $mc_show_css );
+			$use_styles = ( empty( $_POST['use_styles'] ) ) ? '' : 'true';
+			mc_update_option( 'use_styles', $use_styles );
 
-		$mc_show_css = ( empty( $_POST['mc_show_css'] ) ) ? '' : wp_unslash( sanitize_text_field( $_POST['mc_show_css'] ) );
-		mc_update_option( 'show_css', $mc_show_css );
-		$use_styles = ( empty( $_POST['use_styles'] ) ) ? '' : 'true';
-		mc_update_option( 'use_styles', $use_styles );
-
-		if ( ! empty( $_POST['style_vars'] ) ) {
-			$styles = mc_get_option( 'style_vars' );
-			if ( isset( $_POST['new_style_var'] ) ) {
-				$key = sanitize_text_field( $_POST['new_style_var']['key'] );
-				$val = sanitize_text_field( $_POST['new_style_var']['val'] );
-				if ( $key && $val ) {
-					if ( 0 !== strpos( $key, '--' ) ) {
-						$key = '--' . $key;
-					}
-					$styles[ $key ] = $val;
-				}
-			}
-			if ( isset( $_POST['new_style_var_text'] ) ) {
-				$key = sanitize_text_field( $_POST['new_style_var_text']['key'] );
-				$val = sanitize_text_field( $_POST['new_style_var_text']['val'] );
-				if ( $key && $val ) {
-					if ( 0 !== strpos( $key, '--' ) ) {
-						$key = '--' . $key;
-					}
-					$styles['text'][ $key ] = $val;
-				}
-			}
-			if ( isset( $_POST['new_style_var_sizing'] ) ) {
-				$key = sanitize_text_field( $_POST['new_style_var_sizing']['key'] );
-				$val = sanitize_text_field( $_POST['new_style_var_sizing']['val'] );
-				if ( $key && $val ) {
-					if ( 0 !== strpos( $key, '--' ) ) {
-						$key = '--' . $key;
-					}
-					$styles['sizing'][ $key ] = $val;
-				}
-			}
-			if ( isset( $_POST['new_style_var_list_presets'] ) ) {
-				$key = sanitize_text_field( $_POST['new_style_var_list_presets']['key'] );
-				$val = sanitize_text_field( $_POST['new_style_var_list_presets']['val'] );
-				if ( $key && $val ) {
-					if ( 0 !== strpos( $key, '--' ) ) {
-						$key = '--' . $key;
-					}
-					$styles['list-presets'][ $key ] = $val;
-				}
-			}
-			foreach ( $_POST['style_vars'] as $key => $value ) {
-				if ( 'text' === $key || 'sizing' === $key || 'list-presets' === $key ) {
-					foreach ( $value as $var => $text ) {
-						if ( '' !== trim( $text ) ) {
-							$styles[ $key ][ $var ] = sanitize_text_field( $text );
+			if ( ! empty( $_POST['style_vars'] ) ) {
+				$styles = mc_get_option( 'style_vars' );
+				if ( isset( $_POST['new_style_var'] ) ) {
+					$key = sanitize_text_field( $_POST['new_style_var']['key'] );
+					$val = sanitize_text_field( $_POST['new_style_var']['val'] );
+					if ( $key && $val ) {
+						if ( 0 !== strpos( $key, '--' ) ) {
+							$key = '--' . $key;
 						}
+						$styles[ $key ] = $val;
 					}
-				} else {
-					if ( '' !== trim( $value ) ) {
+				}
+				if ( isset( $_POST['new_style_var_text'] ) ) {
+					$key = sanitize_text_field( $_POST['new_style_var_text']['key'] );
+					$val = sanitize_text_field( $_POST['new_style_var_text']['val'] );
+					if ( $key && $val ) {
+						if ( 0 !== strpos( $key, '--' ) ) {
+							$key = '--' . $key;
+						}
+						$styles['text'][ $key ] = $val;
+					}
+				}
+				if ( isset( $_POST['new_style_var_sizing'] ) ) {
+					$key = sanitize_text_field( $_POST['new_style_var_sizing']['key'] );
+					$val = sanitize_text_field( $_POST['new_style_var_sizing']['val'] );
+					if ( $key && $val ) {
+						if ( 0 !== strpos( $key, '--' ) ) {
+							$key = '--' . $key;
+						}
+						$styles['sizing'][ $key ] = $val;
+					}
+				}
+				if ( isset( $_POST['new_style_var_list_presets'] ) ) {
+					$key = sanitize_text_field( $_POST['new_style_var_list_presets']['key'] );
+					$val = sanitize_text_field( $_POST['new_style_var_list_presets']['val'] );
+					if ( $key && $val ) {
+						if ( 0 !== strpos( $key, '--' ) ) {
+							$key = '--' . $key;
+						}
+						$styles['list-presets'][ $key ] = $val;
+					}
+				}
+				foreach ( $_POST['style_vars'] as $key => $value ) {
+					if ( 'text' === $key || 'sizing' === $key || 'list-presets' === $key ) {
+						foreach ( $value as $var => $text ) {
+							if ( '' !== trim( $text ) ) {
+								$styles[ $key ][ $var ] = sanitize_text_field( $text );
+							}
+						}
+					} elseif ( '' !== trim( $value ) ) {
 						$styles[ $key ] = sanitize_text_field( $value );
 					}
 				}
-			}
-			if ( isset( $_POST['delete_var'] ) ) {
-				$delete = map_deep( $_POST['delete_var'], 'sanitize_text_field' );
-				foreach ( $delete as $del ) {
-					unset( $styles[ $del ] );
+				if ( isset( $_POST['delete_var'] ) ) {
+					$delete = map_deep( $_POST['delete_var'], 'sanitize_text_field' );
+					foreach ( $delete as $del ) {
+						unset( $styles[ $del ] );
+					}
 				}
-			}
-			if ( isset( $_POST['delete_var_text'] ) ) {
-				$delete = map_deep( $_POST['delete_var_text'], 'sanitize_text_field' );
-				foreach ( $delete as $del ) {
-					unset( $styles['text'][ $del ] );
+				if ( isset( $_POST['delete_var_text'] ) ) {
+					$delete = map_deep( $_POST['delete_var_text'], 'sanitize_text_field' );
+					foreach ( $delete as $del ) {
+						unset( $styles['text'][ $del ] );
+					}
 				}
-			}
-			if ( isset( $_POST['delete_var_sizing'] ) ) {
-				$delete = map_deep( $_POST['delete_var_sizing'], 'sanitize_text_field' );
-				foreach ( $delete as $del ) {
-					unset( $styles['sizing'][ $del ] );
+				if ( isset( $_POST['delete_var_sizing'] ) ) {
+					$delete = map_deep( $_POST['delete_var_sizing'], 'sanitize_text_field' );
+					foreach ( $delete as $del ) {
+						unset( $styles['sizing'][ $del ] );
+					}
 				}
-			}
-			if ( isset( $_POST['delete_var_list_presets'] ) ) {
-				$delete = map_deep( $_POST['delete_var_list_presets'], 'sanitize_text_field' );
-				foreach ( $delete as $del ) {
-					unset( $styles['list-presets'][ $del ] );
+				if ( isset( $_POST['delete_var_list_presets'] ) ) {
+					$delete = map_deep( $_POST['delete_var_list_presets'], 'sanitize_text_field' );
+					foreach ( $delete as $del ) {
+						unset( $styles['list-presets'][ $del ] );
+					}
 				}
+				mc_update_option( 'style_vars', $styles );
 			}
-			mc_update_option( 'style_vars', $styles );
-		}
 
-		$message .= ' ' . __( 'Style Settings Saved', 'my-calendar' ) . '.';
+			$message .= ' ' . __( 'Style Settings Saved', 'my-calendar' ) . '.';
 
-		$message = mc_show_notice( $message, false, false, 'success' );
-		set_transient( 'mc_styles_updated', $message, 10 );
-	}
-	if ( isset( $_POST['mc_choose_style'] ) ) {
-		$nonce = $_REQUEST['_wpnonce'];
-		if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
+			$message = mc_show_notice( $message, false, false, 'success' );
+			set_transient( 'mc_styles_updated', $message, 10 );
+		} else {
 			wp_die( 'My Calendar: Security check failed' );
 		}
-		$mc_css_file = wp_unslash( sanitize_file_name( $_POST['mc_css_file'] ) );
-		mc_update_option( 'css_file', $mc_css_file );
-		$message = __( 'New theme selected.', 'my-calendar' );
-		$message = mc_show_notice( $message, false, false, 'success' );
-		set_transient( 'mc_styles_updated', $message, 10 );
+	}
+	if ( isset( $_POST['mc_choose_style'] ) ) {
+		if ( isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'my-calendar-nonce' ) ) {
+			$mc_css_file = wp_unslash( sanitize_file_name( $_POST['mc_css_file'] ) );
+			mc_update_option( 'css_file', $mc_css_file );
+			$message = __( 'New theme selected.', 'my-calendar' );
+			$message = mc_show_notice( $message, false, false, 'success' );
+			set_transient( 'mc_styles_updated', $message, 10 );
+		} else {
+			wp_die( 'My Calendar: Security check failed' );
+		}
 	}
 }
 add_action( 'admin_init', 'my_calendar_update_styles' );
@@ -343,9 +340,9 @@ function mc_display_contrast_variables() {
 	$comp = $styles;
 	$body = '';
 	$head = '<th>' . __( 'Variable', 'my-calendar' ) . '</th>';
-	foreach ( $styles as $var => $color ) {
-		$head .= '<th scope="col">' . str_replace( '--', '', $var ) . '</th>';
-		$row   = '<tr><th scope="row">' . str_replace( '--', '', $var ) . '</th>';
+	foreach ( $styles as $variable => $color ) {
+		$head .= '<th scope="col">' . str_replace( '--', '', $variable ) . '</th>';
+		$row   = '<tr><th scope="row">' . str_replace( '--', '', $variable ) . '</th>';
 		foreach ( $comp as $var => $c ) {
 			$compare = ( $color === $c ) ? '' : mc_test_contrast( $color, $c );
 			// Translators: variable name.
@@ -455,7 +452,7 @@ function mc_stylesheet_selector() {
 	</form>
 	<?php
 	$file = ( mc_get_option( 'css_file' ) ) ? mc_get_option( 'css_file' ) : 'none';
-	$link = add_query_arg( 'mcpreview', $file, mc_get_uri() );
+	$link = wp_nonce_url( add_query_arg( 'mcpreview', $file, mc_get_uri() ), 'mc-preview' );
 	?>
 	<a href="<?php echo esc_url( $link ); ?>" class="preview-link" data-css="<?php echo esc_attr( $file ); ?>"><?php esc_html_e( 'Preview Stylesheet', 'my-calendar' ); ?></a>
 </div>
@@ -571,7 +568,7 @@ function mc_luminosity( $r, $r2, $g, $g2, $b, $b2 ) {
  * @return string Hexadecimal color equivalent of passed RGB value.
  */
 function mc_rgb2hex( $r, $g = - 1, $b = - 1 ) {
-	if ( is_array( $r ) && sizeof( $r ) === 3 ) {
+	if ( is_array( $r ) && count( $r ) === 3 ) {
 		list( $r, $g, $b ) = $r;
 	}
 	$r = intval( $r );

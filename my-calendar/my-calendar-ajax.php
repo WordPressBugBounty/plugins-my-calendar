@@ -19,8 +19,28 @@ add_action( 'wp_ajax_mc_core_autocomplete_search_pages', 'mc_core_autocomplete_s
  */
 function mc_core_autocomplete_search_pages() {
 	if ( isset( $_REQUEST['action'] ) && 'mc_core_autocomplete_search_pages' === $_REQUEST['action'] ) {
-		$security = $_REQUEST['security'];
-		if ( ! wp_verify_nonce( $security, 'mc-search-pages' ) ) {
+		if ( isset( $_REQUEST['security'] ) && wp_verify_nonce( $_REQUEST['security'], 'mc-search-pages' ) ) {
+			$query    = sanitize_text_field( $_REQUEST['data'] );
+			$args     = array(
+				's'         => $query,
+				'post_type' => 'any',
+				'orderby'   => 'relevance',
+			);
+			$posts    = get_posts( $args );
+			$response = array();
+			foreach ( $posts as $post ) {
+				$response[] = array(
+					'post_id'    => absint( $post->ID ),
+					'post_title' => esc_html( html_entity_decode( wp_strip_all_tags( $post->post_title ) ) ),
+				);
+			}
+			wp_send_json(
+				array(
+					'success'  => 1,
+					'response' => $response,
+				)
+			);
+		} else {
 			wp_send_json(
 				array(
 					'success'  => 0,
@@ -28,26 +48,6 @@ function mc_core_autocomplete_search_pages() {
 				)
 			);
 		}
-		$query    = sanitize_text_field( $_REQUEST['data'] );
-		$args     = array(
-			's'         => $query,
-			'post_type' => 'any',
-			'orderby'   => 'relevance',
-		);
-		$posts    = get_posts( $args );
-		$response = array();
-		foreach ( $posts as $post ) {
-			$response[] = array(
-				'post_id'    => absint( $post->ID ),
-				'post_title' => esc_html( html_entity_decode( wp_strip_all_tags( $post->post_title ) ) ),
-			);
-		}
-		wp_send_json(
-			array(
-				'success'  => 1,
-				'response' => $response,
-			)
-		);
 	}
 }
 
@@ -58,8 +58,48 @@ add_action( 'wp_ajax_mc_core_autocomplete_search_icons', 'mc_core_autocomplete_s
 function mc_core_autocomplete_search_icons() {
 	$icons = array();
 	if ( isset( $_REQUEST['action'] ) && 'mc_core_autocomplete_search_icons' === $_REQUEST['action'] ) {
-		$security = $_REQUEST['security'];
-		if ( ! wp_verify_nonce( $security, 'mc-search-icons' ) ) {
+		if ( isset( $_REQUEST['security'] ) && wp_verify_nonce( $_REQUEST['security'], 'mc-search-icons' ) ) {
+			$query = sanitize_text_field( $_REQUEST['data'] );
+			$dir   = plugin_dir_path( __FILE__ );
+			if ( mc_is_custom_icon() ) {
+				$is_custom = true;
+				if ( str_contains( $dir, 'my-calendar/src' ) ) {
+					$directory = trailingslashit( str_replace( '/my-calendar/src', '', $dir ) ) . 'my-calendar-custom/icons/';
+				} else {
+					$directory = trailingslashit( str_replace( '/my-calendar', '', $dir ) ) . 'my-calendar-custom/icons/';
+				}
+				$iconlist = mc_directory_list( $directory );
+			} else {
+				$is_custom = false;
+				$icons     = mc_get_core_icons();
+				$iconlist  = mc_get_core_icon_index();
+			}
+			$results  = array_filter(
+				$iconlist,
+				function ( $el ) use ( $query ) {
+					return ( false !== stripos( $el, $query ) );
+				}
+			);
+			$response = array();
+			foreach ( $results as $result ) {
+				if ( $is_custom ) {
+					$icon   = $result;
+					$result = '';
+				} else {
+					$icon = $icons[ $result ];
+				}
+				$response[] = array(
+					'filename' => ( $is_custom ) ? esc_attr( $icon ) : esc_attr( $result ),
+					'svg'      => mc_get_img( $icon, $is_custom, $result ),
+				);
+			}
+			wp_send_json(
+				array(
+					'success'  => 1,
+					'response' => $response,
+				)
+			);
+		} else {
 			wp_send_json(
 				array(
 					'success'  => 0,
@@ -67,47 +107,6 @@ function mc_core_autocomplete_search_icons() {
 				)
 			);
 		}
-
-		$query = sanitize_text_field( $_REQUEST['data'] );
-		$dir   = plugin_dir_path( __FILE__ );
-		if ( mc_is_custom_icon() ) {
-			$is_custom = true;
-			if ( str_contains( $dir, 'my-calendar/src' ) ) {
-				$directory = trailingslashit( str_replace( '/my-calendar/src', '', $dir ) ) . 'my-calendar-custom/icons/';
-			} else {
-				$directory = trailingslashit( str_replace( '/my-calendar', '', $dir ) ) . 'my-calendar-custom/icons/';
-			}
-			$iconlist = mc_directory_list( $directory );
-		} else {
-			$is_custom = false;
-			$icons     = mc_get_core_icons();
-			$iconlist  = mc_get_core_icon_index();
-		}
-		$results  = array_filter(
-			$iconlist,
-			function ( $el ) use ( $query ) {
-				return ( false !== stripos( $el, $query ) );
-			}
-		);
-		$response = array();
-		foreach ( $results as $result ) {
-			if ( $is_custom ) {
-				$icon   = $result;
-				$result = '';
-			} else {
-				$icon = $icons[ $result ];
-			}
-			$response[] = array(
-				'filename' => esc_attr( $result ),
-				'svg'      => mc_get_img( $icon, $is_custom, $result ),
-			);
-		}
-		wp_send_json(
-			array(
-				'success'  => 1,
-				'response' => $response,
-			)
-		);
 	}
 }
 
@@ -117,8 +116,24 @@ add_action( 'wp_ajax_mc_core_autocomplete_search_countries', 'mc_core_autocomple
  */
 function mc_core_autocomplete_search_countries() {
 	if ( isset( $_REQUEST['action'] ) && 'mc_core_autocomplete_search_countries' === $_REQUEST['action'] ) {
-		$security = $_REQUEST['security'];
-		if ( ! wp_verify_nonce( $security, 'mc-search-countries' ) ) {
+		if ( isset( $_REQUEST['security'] ) && wp_verify_nonce( $_REQUEST['security'], 'mc-search-countries' ) ) {
+			$query     = sanitize_text_field( $_REQUEST['data'] );
+			$db        = mc_get_countries( $query );
+			$countries = mc_default_countries( $query );
+			$results   = array_unique( array_merge( $db, $countries ) );
+			$response  = array();
+			foreach ( $results as $result ) {
+				$response[] = array(
+					'country' => esc_attr( $result ),
+				);
+			}
+			wp_send_json(
+				array(
+					'success'  => 1,
+					'response' => $response,
+				)
+			);
+		} else {
 			wp_send_json(
 				array(
 					'success'  => 0,
@@ -126,23 +141,6 @@ function mc_core_autocomplete_search_countries() {
 				)
 			);
 		}
-
-		$query     = sanitize_text_field( $_REQUEST['data'] );
-		$db        = mc_get_countries( $query );
-		$countries = mc_default_countries( $query );
-		$results   = array_unique( array_merge( $db, $countries ) );
-		$response  = array();
-		foreach ( $results as $result ) {
-			$response[] = array(
-				'country' => esc_attr( $result ),
-			);
-		}
-		wp_send_json(
-			array(
-				'success'  => 1,
-				'response' => $response,
-			)
-		);
 	}
 }
 
@@ -151,48 +149,47 @@ add_action( 'wp_ajax_add_category', 'mc_ajax_add_category' );
  * Delete a single occurrence of an event from the event manager.
  */
 function mc_ajax_add_category() {
-	if ( ! check_ajax_referer( 'mc-add-category-nonce', 'security', false ) ) {
-		wp_send_json(
-			array(
-				'success'  => 0,
-				'response' => __( 'My Calendar: invalid security check.', 'my-calendar' ),
-			)
-		);
-	}
-
-	if ( current_user_can( 'mc_edit_cats' ) ) {
-		global $wpdb;
-		$category_name = sanitize_text_field( $_REQUEST['category_name'] );
-		if ( '' === trim( $category_name ) ) {
-			wp_send_json(
+	if ( check_ajax_referer( 'mc-add-category-nonce', 'security', false ) ) {
+		if ( current_user_can( 'mc_edit_cats' ) ) {
+			$category_name = sanitize_text_field( $_REQUEST['category_name'] );
+			if ( '' === trim( $category_name ) ) {
+				wp_send_json(
+					array(
+						'success'  => 0,
+						'response' => esc_html__( 'Empty category name.', 'my-calendar' ),
+					)
+				);
+			}
+			$category_id = mc_create_category(
 				array(
-					'success'  => 0,
-					'response' => esc_html__( 'Empty category name.', 'my-calendar' ),
+					'category_name'  => $category_name,
+					'category_color' => '',
+					'category_icon'  => '',
 				)
 			);
-		}
-		$category_id = mc_create_category(
-			array(
-				'category_name'  => $category_name,
-				'category_color' => '',
-				'category_icon'  => '',
-			)
-		);
 
-		if ( $category_id ) {
-			wp_send_json(
-				array(
-					'success'     => 1,
-					'response'    => esc_html__( 'New Category Created.', 'my-calendar' ),
-					'category_id' => $category_id,
-				)
-			);
+			if ( $category_id ) {
+				wp_send_json(
+					array(
+						'success'     => 1,
+						'response'    => esc_html__( 'New Category Created.', 'my-calendar' ),
+						'category_id' => $category_id,
+					)
+				);
+			} else {
+				wp_send_json(
+					array(
+						'success'     => 0,
+						'response'    => esc_html__( 'Category not created.', 'my-calendar' ),
+						'category_id' => $category_id,
+					)
+				);
+			}
 		} else {
 			wp_send_json(
 				array(
-					'success'     => 0,
-					'response'    => esc_html__( 'Category not created.', 'my-calendar' ),
-					'category_id' => $category_id,
+					'success'  => 0,
+					'response' => esc_html__( 'You are not authorized to perform this action', 'my-calendar' ),
 				)
 			);
 		}
@@ -200,7 +197,7 @@ function mc_ajax_add_category() {
 		wp_send_json(
 			array(
 				'success'  => 0,
-				'response' => esc_html__( 'You are not authorized to perform this action', 'my-calendar' ),
+				'response' => esc_html__( 'My Calendar: invalid security check.', 'my-calendar' ),
 			)
 		);
 	}
@@ -209,64 +206,83 @@ function mc_ajax_add_category() {
 add_action( 'wp_ajax_mcjs_action', 'mc_ajax_mcjs_action' );
 add_action( 'wp_ajax_nopriv_mcjs_action', 'mc_ajax_mcjs_action' );
 /**
- * Display the recurring settings in human-readable format.
+ * Load upcoming events via AJAX.
  */
 function mc_ajax_mcjs_action() {
-	$behavior = isset( $_REQUEST['behavior'] ) ? sanitize_text_field( $_REQUEST['behavior'] ) : '';
-	$response = array();
-	$args     = array();
-	switch ( $behavior ) {
-		case 'loadupcoming':
-			add_filter( 'mc_upcoming_events_header', 'mc_ajax_clear_wrappers' );
-			add_filter( 'mc_upcoming_events_footer', 'mc_ajax_clear_wrappers' );
-			$request = isset( $_REQUEST['args'] ) ? wp_unslash( sanitize_text_field( $_REQUEST['args'] ) ) : array();
-			$request = str_replace( '|', '&', $request );
-			// List keys allowed in request arguments.
-			$allowed = array( 'before', 'after', 'offset', 'time', 'ref' );
-			parse_str( $request, $args );
-			foreach ( $args as $key => $value ) {
-				if ( ! in_array( $key, $allowed, true ) ) {
-					unset( $args[ $key ] );
-				} else {
-					$args[ $key ] = sanitize_text_field( $value );
+	if ( check_ajax_referer( 'mcjs-action', 'security', false ) ) {
+		$behavior = isset( $_REQUEST['behavior'] ) ? sanitize_text_field( $_REQUEST['behavior'] ) : '';
+		$response = array();
+		$args     = array();
+		switch ( $behavior ) {
+			case 'loadupcoming':
+				add_filter( 'mc_upcoming_events_header', 'mc_ajax_clear_wrappers' );
+				add_filter( 'mc_upcoming_events_footer', 'mc_ajax_clear_wrappers' );
+				$request = isset( $_REQUEST['args'] ) ? wp_unslash( sanitize_text_field( $_REQUEST['args'] ) ) : array();
+				$request = str_replace( '|', '&', $request );
+				// List keys allowed in request arguments.
+				$allowed = array( 'before', 'after', 'offset', 'time', 'ref', 'until', 'from', 'to' );
+				parse_str( $request, $args );
+				$request_args = $args;
+				foreach ( $args as $key => $value ) {
+					if ( ! in_array( $key, $allowed, true ) ) {
+						unset( $args[ $key ] );
+					} else {
+						$args[ $key ] = sanitize_text_field( $value );
+					}
 				}
-			}
-			if ( isset( $_REQUEST['time'] ) ) {
-				$args['time'] = sanitize_text_field( $_REQUEST['time'] );
-			}
-			$hash = sanitize_text_field( $args['ref'] );
-			unset( $args['ref'] );
-			$original = get_transient( 'mc_upcoming_' . $hash );
-			$args     = array_merge( $original, $args );
-			$response = my_calendar_upcoming_events( $args, $hash );
-			remove_filter( 'mc_upcoming_events_header', 'mc_ajax_clear_wrappers' );
-			remove_filter( 'mc_upcoming_events_footer', 'mc_ajax_clear_wrappers' );
-	}
-	if ( $response ) {
+				if ( isset( $_REQUEST['time'] ) ) {
+					$args['time'] = sanitize_text_field( $_REQUEST['time'] );
+				}
+				$hash = isset( $args['ref'] ) ? sanitize_text_field( $args['ref'] ) : '';
+				unset( $args['ref'] );
+				$original = get_transient( 'mc_upcoming_' . $hash );
+				if ( ! is_array( $original ) ) {
+					wp_send_json(
+						array(
+							'success'  => 0,
+							'response' => __( 'No upcoming events found.', 'my-calendar' ),
+						)
+					);
+				}
+				$args = array_merge( $original, $args );
+				if ( isset( $request_args['from'] ) ) {
+					$args['navigated'] = true;
+				}
+				$response = my_calendar_upcoming_events( $args, $hash );
+				remove_filter( 'mc_upcoming_events_header', 'mc_ajax_clear_wrappers' );
+				remove_filter( 'mc_upcoming_events_footer', 'mc_ajax_clear_wrappers' );
+		}
+		if ( $response ) {
+			wp_send_json(
+				array(
+					'success'  => 1,
+					'args'     => $args,
+					'response' => $response,
+				)
+			);
+		}
 		wp_send_json(
 			array(
-				'success'  => 1,
-				'args'     => $args,
-				'response' => $response,
+				'success'  => 0,
+				'response' => __( 'No upcoming events found.', 'my-calendar' ),
+			)
+		);
+	} else {
+		wp_send_json(
+			array(
+				'success'  => 0,
+				'response' => __( 'Query expired. Please refresh the page.', 'my-calendar' ),
 			)
 		);
 	}
-	wp_send_json(
-		array(
-			'success'  => 0,
-			'response' => __( 'No upcoming events found.', 'my-calendar' ),
-		)
-	);
 }
 
 /**
  * Clear the content from upcoming events header and footer for use in AJAX queries.
  *
- * @param string $output Default content.
- *
- * @return string
+ * @return string empty string.
  */
-function mc_ajax_clear_wrappers( $output ) {
+function mc_ajax_clear_wrappers() {
 	return '';
 }
 
@@ -275,7 +291,25 @@ add_action( 'wp_ajax_display_recurrence', 'mc_ajax_display_recurrence' );
  * Display the recurring settings in human-readable format.
  */
 function mc_ajax_display_recurrence() {
-	if ( ! check_ajax_referer( 'mc-recurrence-nonce', 'security', false ) ) {
+	if ( check_ajax_referer( 'mc-recurrence-nonce', 'security', false ) ) {
+		$recur  = sanitize_text_field( $_REQUEST['recur'] );
+		$every  = (int) $_REQUEST['every'];
+		$until  = sanitize_text_field( $_REQUEST['until'] );
+		$args   = array(
+			'recur' => $recur,
+			'every' => $every,
+			'until' => $until,
+		);
+		$output = mc_recur_string( false, $args );
+
+		wp_send_json(
+			array(
+				'success'  => 1,
+				'args'     => $args,
+				'response' => $output,
+			)
+		);
+	} else {
 		wp_send_json(
 			array(
 				'success'  => 0,
@@ -283,24 +317,6 @@ function mc_ajax_display_recurrence() {
 			)
 		);
 	}
-
-	$recur  = sanitize_text_field( $_REQUEST['recur'] );
-	$every  = (int) $_REQUEST['every'];
-	$until  = sanitize_text_field( $_REQUEST['until'] );
-	$args   = array(
-		'recur' => $recur,
-		'every' => $every,
-		'until' => $until,
-	);
-	$output = mc_recur_string( false, $args );
-
-	wp_send_json(
-		array(
-			'success'  => 1,
-			'args'     => $args,
-			'response' => $output,
-		)
-	);
 }
 
 add_action( 'wp_ajax_delete_occurrence', 'mc_ajax_delete_occurrence' );
@@ -308,34 +324,35 @@ add_action( 'wp_ajax_delete_occurrence', 'mc_ajax_delete_occurrence' );
  * Delete a single occurrence of an event from the event manager.
  */
 function mc_ajax_delete_occurrence() {
-	if ( ! check_ajax_referer( 'mc-delete-nonce', 'security', false ) ) {
-		wp_send_json(
-			array(
-				'success'  => 0,
-				'response' => __( 'My Calendar: invalid security check.', 'my-calendar' ),
-			)
-		);
-	}
+	if ( check_ajax_referer( 'mc-delete-nonce', 'security', false ) ) {
 
-	if ( current_user_can( 'mc_manage_events' ) ) {
-		$occur_id = (int) $_REQUEST['occur_id'];
-		$event_id = (int) $_REQUEST['event_id'];
-		$begin    = sanitize_text_field( $_REQUEST['occur_begin'] );
-		$end      = sanitize_text_field( $_REQUEST['occur_end'] );
-		$result   = mc_delete_instance( $occur_id, $event_id, $begin, $end );
+		if ( current_user_can( 'mc_manage_events' ) ) {
+			$occur_id = (int) $_REQUEST['occur_id'];
+			$event_id = (int) $_REQUEST['event_id'];
+			$begin    = sanitize_text_field( $_REQUEST['occur_begin'] );
+			$end      = sanitize_text_field( $_REQUEST['occur_end'] );
+			$result   = mc_delete_instance( $occur_id, $event_id, $begin, $end );
 
-		if ( $result ) {
-			wp_send_json(
-				array(
-					'success'  => 1,
-					'response' => esc_html__( 'Event instance has been deleted.', 'my-calendar' ),
-				)
-			);
+			if ( $result ) {
+				wp_send_json(
+					array(
+						'success'  => 1,
+						'response' => esc_html__( 'Event instance has been deleted.', 'my-calendar' ),
+					)
+				);
+			} else {
+				wp_send_json(
+					array(
+						'success'  => 0,
+						'response' => esc_html__( 'Event instance was not deleted.', 'my-calendar' ),
+					)
+				);
+			}
 		} else {
 			wp_send_json(
 				array(
 					'success'  => 0,
-					'response' => esc_html__( 'Event instance was not deleted.', 'my-calendar' ),
+					'response' => esc_html__( 'You are not authorized to perform this action', 'my-calendar' ),
 				)
 			);
 		}
@@ -343,7 +360,7 @@ function mc_ajax_delete_occurrence() {
 		wp_send_json(
 			array(
 				'success'  => 0,
-				'response' => esc_html__( 'You are not authorized to perform this action', 'my-calendar' ),
+				'response' => esc_html__( 'My Calendar: invalid security check.', 'my-calendar' ),
 			)
 		);
 	}
@@ -354,74 +371,75 @@ add_action( 'wp_ajax_add_date', 'mc_ajax_add_date' );
  * Add a single additional date for an event from the event manager.
  */
 function mc_ajax_add_date() {
-	if ( ! check_ajax_referer( 'mc-delete-nonce', 'security', false ) ) {
-		wp_send_json(
-			array(
-				'success'  => 0,
-				'response' => __( 'My Calendar: invalid security check.', 'my-calendar' ),
-			)
-		);
-	}
-	if ( current_user_can( 'mc_manage_events' ) ) {
-		$event_id = (int) $_REQUEST['event_id'];
+	if ( check_ajax_referer( 'mc-delete-nonce', 'security', false ) ) {
+		if ( current_user_can( 'mc_manage_events' ) ) {
+			$event_id = (int) $_REQUEST['event_id'];
 
-		if ( 0 === $event_id ) {
-			wp_send_json(
-				array(
-					'success'  => 0,
-					'response' => __( 'No event ID in that request.', 'my-calendar' ),
-				)
-			);
-		}
-
-		$event_date    = sanitize_text_field( $_REQUEST['event_date'] );
-		$event_end     = isset( $_REQUEST['event_end'] ) ? sanitize_text_field( $_REQUEST['event_end'] ) : $event_date;
-		$event_time    = sanitize_text_field( $_REQUEST['event_time'] );
-		$event_endtime = isset( $_REQUEST['event_endtime'] ) ? sanitize_text_field( $_REQUEST['event_endtime'] ) : '';
-		$group_id      = (int) $_REQUEST['group_id'];
-		$update        = false;
-
-		if ( isset( $_REQUEST['event_instance'] ) && ! empty( $_REQUEST['event_instance'] ) ) {
-			$instance = absint( $_REQUEST['event_instance'] );
-			$args     = array(
-				'event_begin'    => $event_date,
-				'event_time'     => $event_time,
-				'event_end'      => $event_end,
-				'event_endtime'  => $event_endtime,
-				'event_group_id' => $group_id,
-			);
-			$id       = mc_update_instance( $instance, $event_id, $args );
-			$update   = true;
-		} else {
-			$args = array(
-				'id'            => $event_id,
-				'event_date'    => $event_date,
-				'event_end'     => $event_end,
-				'event_time'    => $event_time,
-				'event_endtime' => $event_endtime,
-				'group'         => $group_id,
-			);
-			$id   = mc_insert_instance( $args );
-		}
-
-		if ( $id ) {
-			if ( $update ) {
-				$message = esc_html__( 'The date of your occurrence has been changed.', 'my-calendar' );
-			} else {
-				$message = esc_html__( 'A new date has been added to this event.', 'my-calendar' );
+			if ( 0 === $event_id ) {
+				wp_send_json(
+					array(
+						'success'  => 0,
+						'response' => __( 'No event ID in that request.', 'my-calendar' ),
+					)
+				);
 			}
-			wp_send_json(
-				array(
-					'success'  => 1,
-					'id'       => (int) $id,
-					'response' => $message,
-				)
-			);
+
+			$event_date    = sanitize_text_field( $_REQUEST['event_date'] );
+			$event_end     = isset( $_REQUEST['event_end'] ) ? sanitize_text_field( $_REQUEST['event_end'] ) : $event_date;
+			$event_time    = sanitize_text_field( $_REQUEST['event_time'] );
+			$event_endtime = isset( $_REQUEST['event_endtime'] ) ? sanitize_text_field( $_REQUEST['event_endtime'] ) : '';
+			$group_id      = (int) $_REQUEST['group_id'];
+			$update        = false;
+
+			if ( isset( $_REQUEST['event_instance'] ) && ! empty( $_REQUEST['event_instance'] ) ) {
+				$instance = absint( $_REQUEST['event_instance'] );
+				$args     = array(
+					'event_begin'    => $event_date,
+					'event_time'     => $event_time,
+					'event_end'      => $event_end,
+					'event_endtime'  => $event_endtime,
+					'event_group_id' => $group_id,
+				);
+				$id       = mc_update_instance( $instance, $event_id, $args );
+				$update   = true;
+			} else {
+				$args = array(
+					'id'            => $event_id,
+					'event_date'    => $event_date,
+					'event_end'     => $event_end,
+					'event_time'    => $event_time,
+					'event_endtime' => $event_endtime,
+					'group'         => $group_id,
+				);
+				$id   = mc_insert_instance( $args );
+			}
+
+			if ( $id ) {
+				if ( $update ) {
+					$message = esc_html__( 'The date of your occurrence has been changed.', 'my-calendar' );
+				} else {
+					$message = esc_html__( 'A new date has been added to this event.', 'my-calendar' );
+				}
+				wp_send_json(
+					array(
+						'success'  => 1,
+						'id'       => (int) $id,
+						'response' => $message,
+					)
+				);
+			} else {
+				wp_send_json(
+					array(
+						'success'  => 0,
+						'response' => esc_html__( "Sorry! I wasn't able to update your event.", 'my-calendar' ),
+					)
+				);
+			}
 		} else {
 			wp_send_json(
 				array(
 					'success'  => 0,
-					'response' => esc_html__( "Sorry! I wasn't able to update your event.", 'my-calendar' ),
+					'response' => esc_html__( 'You are not authorized to perform this action', 'my-calendar' ),
 				)
 			);
 		}
@@ -429,7 +447,7 @@ function mc_ajax_add_date() {
 		wp_send_json(
 			array(
 				'success'  => 0,
-				'response' => esc_html__( 'You are not authorized to perform this action', 'my-calendar' ),
+				'response' => esc_html__( 'My Calendar: invalid security check.', 'my-calendar' ),
 			)
 		);
 	}
@@ -440,8 +458,23 @@ function mc_ajax_add_date() {
  */
 function mc_core_autocomplete_search_locations() {
 	if ( isset( $_REQUEST['action'] ) && 'mc_core_autocomplete_search_locations' === $_REQUEST['action'] ) {
-		$security = $_REQUEST['security'];
-		if ( ! wp_verify_nonce( $security, 'mc-search-locations' ) ) {
+		if ( isset( $_REQUEST['security'] ) && wp_verify_nonce( $_REQUEST['security'], 'mc-search-locations' ) ) {
+			$query     = sanitize_text_field( $_REQUEST['data'] );
+			$locations = mc_core_search_locations( $query );
+			$response  = array();
+			foreach ( $locations as $location ) {
+				$response[] = array(
+					'location_id'    => (int) $location->location_id,
+					'location_label' => esc_html( wp_strip_all_tags( $location->location_label ) ),
+				);
+			}
+			wp_send_json(
+				array(
+					'success'  => 1,
+					'response' => $response,
+				)
+			);
+		} else {
 			wp_send_json(
 				array(
 					'success'  => 0,
@@ -449,22 +482,6 @@ function mc_core_autocomplete_search_locations() {
 				)
 			);
 		}
-		$query = sanitize_text_field( $_REQUEST['data'] );
-
-		$locations = mc_core_search_locations( $query );
-		$response  = array();
-		foreach ( $locations as $location ) {
-			$response[] = array(
-				'location_id'    => (int) $location->location_id,
-				'location_label' => esc_html( wp_strip_all_tags( $location->location_label ) ),
-			);
-		}
-		wp_send_json(
-			array(
-				'success'  => 1,
-				'response' => $response,
-			)
-		);
 	}
 }
 add_action( 'wp_ajax_mc_core_autocomplete_search_locations', 'mc_core_autocomplete_search_locations' );

@@ -64,19 +64,17 @@ function mc_is_custom_icon() {
 	$return = false;
 	if ( $on && $custom ) {
 		$return = true;
-	} else {
-		if ( $custom ) {
-			$results = mc_directory_list( str_replace( $base, '', $dir ) . 'my-calendar-custom/icons' );
+	} elseif ( $custom ) {
+		$results = mc_directory_list( str_replace( $base, '', $dir ) . 'my-calendar-custom/icons' );
+		if ( empty( $results ) ) {
+			$results = mc_directory_list( str_replace( $base, '', $dir ) . 'my-calendar-custom' );
 			if ( empty( $results ) ) {
-				$results = mc_directory_list( str_replace( $base, '', $dir ) . 'my-calendar-custom' );
-				if ( empty( $results ) ) {
-					$return = false;
-				}
-			} else {
-				$return = true;
+				$return = false;
 			}
-			set_transient( 'mc_custom_icons', true, HOUR_IN_SECONDS );
+		} else {
+			$return = true;
 		}
+		set_transient( 'mc_custom_icons', true, HOUR_IN_SECONDS );
 	}
 
 	return $return;
@@ -129,7 +127,8 @@ function mc_is_tablet() {
  * @return boolean
  */
 function mc_is_preview() {
-	if ( isset( $_GET['mc_id'] ) && isset( $_GET['preview'] ) && 'true' === $_GET['preview'] && current_user_can( 'mc_manage_events' ) ) {
+	$mc_id = mc_get_mc_id();
+	if ( $mc_id && isset( $_GET['preview'] ) && 'true' === $_GET['preview'] && current_user_can( 'mc_manage_events' ) ) {
 		$nonce = sanitize_text_field( wp_unslash( $_GET['mcpreviewnonce'] ) );
 		if ( ! wp_verify_nonce( $nonce, 'mcpreviewnonce' ) ) {
 			return false;
@@ -166,12 +165,12 @@ function mc_has_category( $event, $category ) {
 }
 
 /**
- * Check whether this event is targeted for an iFrame.
+ * Check whether this event is targeted for an iframe.
  *
  * @return boolean
  */
 function mc_is_iframe() {
-	if ( isset( $_GET['iframe'] ) && 'true' === $_GET['iframe'] && isset( $_GET['mc_id'] ) ) {
+	if ( isset( $_GET['iframe'] ) && 'true' === $_GET['iframe'] && mc_get_mc_id() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return true;
 	}
 
@@ -184,10 +183,12 @@ function mc_is_iframe() {
  * @return boolean
  */
 function mc_is_tag_view() {
-	if ( isset( $_GET['showtags'] ) && 'true' === $_GET['showtags'] && current_user_can( 'mc_add_events' ) ) {
-		return true;
+	if ( isset( $_GET['mcpreviewnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['mcpreviewnonce'] ) ), 'mcpreviewnonce' ) ) {
+		$showtags = ( isset( $_GET['showtags'] ) && 'true' === $_GET['showtags'] ) ? true : false;
+		if ( $showtags && current_user_can( 'mc_add_events' ) ) {
+			return true;
+		}
 	}
-
 	return false;
 }
 
@@ -238,7 +239,8 @@ function mc_is_single_event() {
 	if ( is_singular( 'mc-events' ) ) {
 		return true;
 	}
-	if ( isset( $_GET['mc_id'] ) && mc_valid_id( $_GET['mc_id'] ) ) {
+	// this case cannot use mc_get_mc_id(), which would create circular logic.
+	if ( isset( $_GET['mc_id'] ) && mc_valid_id( $_GET['mc_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return true;
 	}
 
@@ -254,7 +256,7 @@ function mc_is_single_event() {
  */
 function mc_event_published( $event ) {
 	$state = mc_event_states_type( $event->event_approved );
-	if ( 'public' === $state || is_user_logged_in() && 'private' === $state ) {
+	if ( 'public' === $state || ( is_user_logged_in() && 'private' === $state ) ) {
 		return true;
 	}
 

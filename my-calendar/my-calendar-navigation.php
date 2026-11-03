@@ -49,7 +49,7 @@ function mc_generate_calendar_nav( $params, $cat, $start_of_week, $show_months, 
 		);
 	}
 
-	$filter_params = array_keys( $_GET );
+	$filter_params = array_keys( $_GET ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$clear_button  = '';
 	foreach ( $filter_params as $key => $value ) {
 		// Remove GET parameters that are the view, not the filters.
@@ -142,7 +142,7 @@ function mc_generate_calendar_nav( $params, $cat, $start_of_week, $show_months, 
 		'yr'     => $date['year'],
 		'month'  => $date['month'],
 		'dy'     => $date['day'],
-		'href'   => ( isset( $params['self'] ) && esc_url( $params['self'] ) ) ? urlencode( $params['self'] ) : urlencode( mc_get_current_url() ),
+		'href'   => ( isset( $params['self'] ) && esc_url( $params['self'] ) ) ? rawurlencode( $params['self'] ) : rawurlencode( mc_get_current_url() ),
 	);
 
 	if ( 'list' === $format ) {
@@ -211,7 +211,7 @@ function mc_generate_calendar_nav( $params, $cat, $start_of_week, $show_months, 
 	$search = ( in_array( 'search', $used, true ) ) ? my_calendar_searchform( 'simple', mc_get_current_url(), $id ) : '';
 	// Set up navigation links.
 	if ( in_array( 'nav', $used, true ) ) {
-		$nav = mc_nav( $date, $format, $time, $show_months, $id, $site );
+		$nav = mc_nav( $date, $format, $time, $show_months, $id );
 	}
 
 	// Set up subscription feeds.
@@ -221,8 +221,8 @@ function mc_generate_calendar_nav( $params, $cat, $start_of_week, $show_months, 
 
 	// Set up exports.
 	if ( in_array( 'exports', $used, true ) ) {
-		$ical_m    = ( isset( $_GET['month'] ) ) ? (int) $_GET['month'] : mc_date( 'n' );
-		$ical_y    = ( isset( $_GET['yr'] ) ) ? (int) $_GET['yr'] : mc_date( 'Y' );
+		$ical_m    = ( isset( $_GET['month'] ) ) ? (int) $_GET['month'] : mc_date( 'n' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$ical_y    = ( isset( $_GET['yr'] ) ) ? (int) $_GET['yr'] : mc_date( 'Y' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$next_link = my_calendar_next_link( $date, $format, $time, $show_months );
 		$exports   = mc_export_links( $ical_y, $ical_m, $next_link, $add, $subtract );
 	}
@@ -271,16 +271,15 @@ function mc_generate_calendar_nav( $params, $cat, $start_of_week, $show_months, 
 /**
  * Generate calendar navigation
  *
- * @param string    $date Current date.
- * @param string    $format Current format.
- * @param string    $time Current time view.
- * @param int       $show_months Num months to show.
- * @param string    $id view ID.
- * @param int|false $site Optional. Site ID if not main site.
+ * @param string $date Current date.
+ * @param string $format Current format.
+ * @param string $time Current time view.
+ * @param int    $show_months Num months to show.
+ * @param string $id view ID.
  *
  * @return string prev/next nav.
  */
-function mc_nav( $date, $format, $time, $show_months, $id, $site = false ) {
+function mc_nav( $date, $format, $time, $show_months, $id ) {
 	$prev      = my_calendar_prev_link( $date, $format, $time, $show_months );
 	$next      = my_calendar_next_link( $date, $format, $time, $show_months );
 	$prev_link = '';
@@ -337,7 +336,7 @@ function mc_nav( $date, $format, $time, $show_months, $id, $site = false ) {
 
 	$active  = '';
 	$current = '';
-	if ( ! ( isset( $_GET['month'] ) || isset( $_GET['yr'] ) || isset( $_GET['dy'] ) ) ) {
+	if ( ! ( isset( $_GET['month'] ) || isset( $_GET['yr'] ) || isset( $_GET['dy'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$active  = ' mc-active';
 		$current = ' aria-current="true"';
 	}
@@ -414,7 +413,7 @@ function mc_category_key( $category, $position, $id = '' ) {
 		$hex   = ( 0 !== strpos( $cat->category_color, '#' ) ) ? '#' : '';
 		$class = mc_category_class( $cat, '' );
 
-		$selected_categories = ( empty( $_GET['mcat'] ) ) ? array() : map_deep( explode( ',', wp_unslash( $_GET['mcat'] ) ), 'absint' );
+		$selected_categories = ( empty( $_GET['mcat'] ) ) ? array() : map_deep( explode( ',', wp_unslash( $_GET['mcat'] ) ), 'absint' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$category_id         = (int) $cat->category_id;
 
 		$is_single_category = ( is_numeric( $category ) && (int) $category === $category_id );
@@ -438,7 +437,7 @@ function mc_category_key( $category, $position, $id = '' ) {
 			$class .= ' private';
 		}
 		$cat_name = wp_strip_all_tags( wp_unslash( $cat->category_name ) );
-		$cat_name = ( '' === $cat_name ) ? '<span class="screen-reader-text">' . __( 'Untitled Category', 'my-calendar' ) . '</span>' : $cat_name;
+		$cat_name = ( '' === $cat_name ) ? '(' . __( 'Untitled Category', 'my-calendar' ) . ')' : $cat_name;
 		$cat_key  = '';
 		if ( '' !== $cat->category_icon && $has_icons ) {
 			$image    = mc_category_icon( $cat );
@@ -463,7 +462,7 @@ function mc_category_key( $category, $position, $id = '' ) {
 	 * @return string
 	 */
 	$all = apply_filters( 'mc_text_all_categories', __( 'All Categories', 'my-calendar' ) );
-	if ( isset( $_GET['mcat'] ) ) {
+	if ( isset( $_GET['mcat'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$raw_url = remove_query_arg( 'mcat', mc_get_current_url() );
 		$key    .= "<li class='all-categories'><button type='button' class='mc-navigation-button' id='mc_cat_all-$id' data-href='" . esc_url( mc_url_in_loop( mc_build_url( array(), array( 'mcat' ), $raw_url ) ) ) . "'><span>" . $all . '</span></button></li>';
 	} else {
@@ -771,13 +770,13 @@ function my_calendar_prev_link( $date, $format, $time = 'month', $months = 1, $s
  *
  * @param array  $args can include 'categories', 'locations' and 'access' to define individual filters.
  * @param string $target_url Where to send queries.
- * @param string $ltype Which type of location data to show in form. Default ID.
+ * @param string $ltype Which type of location data to show in form. Default name.
  * @param array  $options Array of values to include in the form.
  *
  * @return string HTML output of form
  */
-function mc_filters( $args, $target_url, $ltype = 'id', $options = array() ) {
-	$id = ( isset( $args['id'] ) ) ? esc_attr( $args['id'] ) : 'mc_filters';
+function mc_filters( $args, $target_url, $ltype = 'name', $options = array() ) {
+	$id = ( isset( $args['id'] ) ) ? esc_attr( $args['id'] ) : 'mc_filters_' . uniqid();
 	if ( isset( $args['id'] ) ) {
 		unset( $args['id'] );
 	}
@@ -802,9 +801,7 @@ function mc_filters( $args, $target_url, $ltype = 'id', $options = array() ) {
 	if ( isset( $_SERVER['QUERY_STRING'] ) ) {
 		parse_str( map_deep( wp_unslash( $_SERVER['QUERY_STRING'] ), 'sanitize_text_field' ), $qsa );
 	}
-	if ( ! isset( $_GET['cid'] ) ) {
-		$form .= '<input type="hidden" name="cid" value="all" />';
-	}
+
 	foreach ( $qsa as $name => $argument ) {
 		$name = wp_strip_all_tags( $name );
 		if ( ! ( 'access' === $name || 'mcat' === $name || 'loc' === $name || 'ltype' === $name || 'mc_id' === $name || 'legacy-widget-preview' === $name ) ) {
@@ -825,13 +822,13 @@ function mc_filters( $args, $target_url, $ltype = 'id', $options = array() ) {
 		$show = trim( $show );
 		switch ( $show ) {
 			case 'categories':
-				$cats   = my_calendar_categories_list( 'form', 'group', '', $options );
+				$cats   = my_calendar_categories_list( 'form', 'group', '', $options, $id );
 				$form  .= '<div class="mc-category-filter">' . $cats . '</div>';
 				$return = ( $cats || $return ) ? true : false;
 				$key    = __( 'Categories', 'my-calendar' );
 				break;
 			case 'locations':
-				$locs   = my_calendar_locations_list( 'form', $ltype, 'group' );
+				$locs   = my_calendar_locations_list( 'form', $ltype, 'group', '', $id );
 				$form  .= '<div class="mc-location-filter">' . $locs . '</div>';
 				$return = ( $locs || $return ) ? true : false;
 				$key    = __( 'Locations', 'my-calendar' );
@@ -863,25 +860,24 @@ function mc_filters( $args, $target_url, $ltype = 'id', $options = array() ) {
  * @param string $group single form or part of a field group.
  * @param string $target_url Where to post form to.
  * @param array  $options Categories to include in form.
+ * @param string $id Form ID.
  *
  * @return string HTML
  */
-function my_calendar_categories_list( $show = 'list', $group = 'single', $target_url = '', $options = array() ) {
+function my_calendar_categories_list( $show = 'list', $group = 'single', $target_url = '', $options = array(), $id = '' ) {
 	$mcdb        = mc_is_remote_db();
 	$output      = '';
 	$current_url = mc_get_uri();
 	$current_url = ( '' !== $target_url && esc_url( $target_url ) ) ? $target_url : $current_url;
 
-	$form = ( 'single' === $group ) ? '<form action="' . esc_url( $current_url ) . '" method="get">
+	$form = ( 'single' === $group ) ? '<form action="' . esc_url( $current_url ) . '" method="get" id="form_' . esc_attr( $id ) . '">
 				<div>' : '';
 	if ( 'single' === $group ) {
 		$qsa = array();
 		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
 			parse_str( map_deep( wp_unslash( $_SERVER['QUERY_STRING'] ), 'sanitize_text_field' ), $qsa );
 		}
-		if ( ! isset( $_GET['cid'] ) ) {
-			$form .= '<input type="hidden" name="cid" value="all" />';
-		}
+
 		foreach ( $qsa as $name => $argument ) {
 			if ( ! ( 'mcat' === $name || 'mc_id' === $name ) ) {
 				$form .= '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />' . "\n";
@@ -902,13 +898,13 @@ function my_calendar_categories_list( $show = 'list', $group = 'single', $target
 		$output .= ( 'list' === $show ) ? "
 		<ul>
 			<li><a href='" . esc_url( $url ) . "' rel='nofollow'>" . __( 'All Categories', 'my-calendar' ) . '</a></li>' : $form . '
-			<label for="mc-category-filter">' . __( 'Categories', 'my-calendar' ) . '</label>
-			<select name="mcat" id="mc-category-filter">
+			<label for="mc-category-filter-' . esc_attr( $id ) . '">' . __( 'Categories', 'my-calendar' ) . '</label>
+			<select name="mcat" id="mc-category-filter-' . esc_attr( $id ) . '">
 			<option value="all">' . __( 'All Categories', 'my-calendar' ) . '</option>' . "\n";
 
 		foreach ( $categories as $category ) {
 			$category_name = strip_tags( wp_unslash( $category->category_name ), mc_strip_tags() );
-			$mcat          = ( empty( $_GET['mcat'] ) ) ? '' : (int) $_GET['mcat'];
+			$mcat          = ( empty( $_GET['mcat'] ) ) ? '' : (int) $_GET['mcat']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$category_id   = (int) $category->category_id;
 			if ( ! empty( $options ) ) {
 				if ( ! in_array( $category_id, $options, true ) ) {
@@ -954,22 +950,21 @@ function my_calendar_categories_list( $show = 'list', $group = 'single', $target
  * @param string $show type of view.
  * @param string $group single or multiple.
  * @param string $target_url Where to post form to.
+ * @param string $id Form ID.
  *
  * @return string HTML
  */
-function mc_access_list( $show = 'list', $group = 'single', $target_url = '' ) {
+function mc_access_list( $show = 'list', $group = 'single', $target_url = '', $id = '' ) {
 	$output      = '';
 	$current_url = mc_get_uri();
 	$current_url = ( '' !== $target_url && esc_url( $target_url ) ) ? $target_url : $current_url;
-	$form        = ( 'single' === $group ) ? "<form action='" . esc_url( $current_url ) . "' method='get'><div>" : '';
+	$form        = ( 'single' === $group ) ? "<form action='" . esc_url( $current_url ) . "' method='get' id='form_" . esc_attr( $id ) . "'><div>" : '';
 	if ( 'single' === $group ) {
 		$qsa = array();
 		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
 			parse_str( $_SERVER['QUERY_STRING'], $qsa );
 		}
-		if ( ! isset( $_GET['cid'] ) ) {
-			$form .= '<input type="hidden" name="cid" value="all" />';
-		}
+
 		foreach ( $qsa as $name => $argument ) {
 			if ( ! ( 'access' === $name || 'mc_id' === $name ) ) {
 				$form .= '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />' . "\n";
@@ -988,19 +983,18 @@ function mc_access_list( $show = 'list', $group = 'single', $target_url = '' ) {
 		$access_options[ $term->term_taxonomy_id ] = $term->name;
 	}
 	if ( ! empty( $access_options ) ) {
-		$output       = ( 'single' === $group ) ? "<div id='mc_access'>\n" : '';
-		$url          = mc_build_url( array( 'access' => 'all' ), array() );
-		$not_selected = ( ! isset( $_GET['access'] ) ) ? ' selected="selected"' : '';
-		$output      .= ( 'list' === $show ) ? "
+		$output  = ( 'single' === $group ) ? "<div id='mc_access'>\n" : '';
+		$url     = mc_build_url( array( 'access' => 'all' ), array() );
+		$output .= ( 'list' === $show ) ? "
 		<ul>
 			<li><a href='$url'>" . __( 'Accessibility Services', 'my-calendar' ) . '</a></li>' : $form . '
-		<label for="mc-access-filter">' . __( 'Accessibility Services', 'my-calendar' ) . '</label>
-			<select name="access" id="mc-access-filter">
-			<option value=""' . $not_selected . '>' . __( 'All Services', 'my-calendar' ) . '</option>' . "\n";
+		<label for="mc-access-filter-' . esc_attr( $id ) . '">' . __( 'Accessibility Services', 'my-calendar' ) . '</label>
+			<select name="access" id="mc-access-filter-' . esc_attr( $id ) . '">
+			<option value="">' . __( 'All Services', 'my-calendar' ) . '</option>' . "\n";
 
 		foreach ( $access_options as $key => $access ) {
 			$access_name = $access;
-			$this_access = ( empty( $_GET['access'] ) ) ? '' : (int) $_GET['access'];
+			$this_access = ( empty( $_GET['access'] ) ) ? '' : (int) $_GET['access']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			if ( 'list' === $show ) {
 				$this_url = mc_build_url( array( 'access' => $key ), array() );
 				$selected = ( $key === $this_access ) ? ' class="selected"' : '';
@@ -1030,6 +1024,173 @@ function mc_access_list( $show = 'list', $group = 'single', $target_url = '' ) {
 }
 
 /**
+ * Map datatype to location field in the database.
+ *
+ * @param string $datatype Type of data to map.
+ *
+ * @return string Corresponding location field.
+ */
+function mc_map_datatype_to_location_field( $datatype ) {
+	switch ( $datatype ) {
+		case 'name':
+		case 'location':
+			return 'location_label';
+		case 'city':
+			return 'location_city';
+		case 'state':
+			return 'location_state';
+		case 'zip':
+			return 'location_postcode';
+		case 'country':
+			return 'location_country';
+		case 'hcard':
+			return 'location_label';
+		case 'region':
+			return 'location_region';
+		case 'id':
+			return 'location_id';
+		default:
+			return 'location_label';
+	}
+}
+
+/**
+ * Normalize a location value from the database or URL for comparison.
+ *
+ * @param string $value Location value.
+ *
+ * @return string
+ */
+function mc_normalize_location_value( $value ) {
+	$value = wp_unslash( (string) $value );
+	// Handle values that were double-encoded in a URL.
+	$value = urldecode( $value );
+
+	return trim( sanitize_text_field( html_entity_decode( $value, ENT_QUOTES ) ) );
+}
+
+/**
+ * Generate list of locations for filtering.
+ *
+ * @param string $show either 'list' or 'form'.
+ * @param string $datatype Type of data to sort by. Default name.
+ * @param string $group whether this is being output as a single filter or as part of the group filters.
+ * @param string $target_url URL to send requests to.
+ * @param string $id Form ID.
+ *
+ * @return string HTML to trigger location filters.
+ */
+function my_calendar_locations_list( $show = 'list', $datatype = 'name', $group = 'single', $target_url = '', $id = '' ) {
+	$output      = '';
+	$locations   = mc_get_list_locations( $datatype, $datatype, ARRAY_A );
+	$current_url = mc_get_uri();
+	$ltype       = '';
+	$current_url = ( '' !== $target_url && esc_url( $target_url ) ) ? $target_url : $current_url;
+	if ( current_user_can( 'manage_options' ) && count( $locations ) <= 1 ) {
+		return '';
+	}
+	if ( count( $locations ) > 1 ) {
+		if ( 'list' === $show ) {
+			$url     = mc_build_url(
+				array(
+					'loc'   => 'all',
+					'ltype' => 'all',
+				),
+				array()
+			);
+			$output .= '<ul id="mc-locations-list">
+			<li class="mc-show-all"><a href="' . $url . '">' . __( 'Show all', 'my-calendar' ) . '</a></li>';
+		} else {
+			$ltype   = mc_map_datatype_to_location_field( $datatype );
+			$output .= ( 'single' === $group ) ? '<div id="mc_locations">' : '';
+			$output .= ( 'single' === $group ) ? "<form action='" . esc_url( $current_url ) . "' method='get' id='form_" . esc_attr( $id ) . "'><div>" : '';
+			$output .= "<input type='hidden' name='ltype' value='" . esc_attr( $ltype ) . "' />";
+			if ( 'single' === $group ) {
+				$qsa = array();
+				if ( isset( $_SERVER['QUERY_STRING'] ) ) {
+					parse_str( $_SERVER['QUERY_STRING'], $qsa );
+				}
+				foreach ( $qsa as $name => $argument ) {
+					if ( 'loc' !== $name && 'ltype' !== $name ) {
+						$output .= "\n" . '<input type="hidden" name="' . esc_attr( wp_strip_all_tags( $name ) ) . '" value="' . esc_attr( wp_strip_all_tags( $argument ) ) . '" />';
+					}
+				}
+			}
+			$output .= "
+			<label for='mc-locations-list'>" . __( 'Location', 'my-calendar' ) . "</label>
+			<select name='loc' id='mc-locations-list-" . esc_attr( $id ) . "'>
+			<option value='all'>" . __( 'All Locations', 'my-calendar' ) . "</option>\n";
+		}
+		$is_single_location_filter = ( 'location_id' === $ltype || 'location_label' === $ltype );
+		foreach ( $locations as $location ) {
+			$value = $location[ $ltype ];
+			$vt    = ( $is_single_location_filter ) ? absint( $location['location_id'] ) : $value;
+			if ( is_numeric( $value ) && 'location_id' === $ltype ) {
+				// If the value is numeric and represents a location ID, get the location label instead of the ID.
+				$value = mc_location_data( 'location_label', $value );
+			} else {
+				$value = strip_tags( wp_unslash( $value ), mc_strip_tags() );
+			}
+			if ( '' === trim( $value ) ) {
+				continue;
+			}
+			if ( $is_single_location_filter ) {
+				// for single filters, value is always an int.
+				$selected_location = ( empty( $_GET['loc'] ) ) ? '' : (string) absint( $_GET['loc'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				$compare_value     = (string) $vt;
+			} else {
+				$selected_location = ( empty( $_GET['loc'] ) ) ? '' : mc_normalize_location_value( $_GET['loc'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
+				$compare_value     = mc_normalize_location_value( $vt );
+			}
+			$selected = ( '' !== $selected_location && $compare_value === $selected_location );
+			if ( 'list' === $show ) {
+				$current  = ( $selected ) ? ' class="selected" aria-current="true"' : '';
+				$this_url = esc_url(
+					mc_build_url(
+						array(
+							'loc'   => $vt,
+							'ltype' => $datatype,
+						),
+						array()
+					)
+				);
+				$output  .= " <li$current><a rel='nofollow' href='$this_url'>" . esc_html( $value ) . "</a></li>\n";
+			} else {
+				$current = ( $selected ) ? ' selected="selected"' : '';
+				$vt      = ( $is_single_location_filter ) ? absint( $vt ) : $vt;
+				$output .= " <option value='" . esc_attr( $vt ) . "'$current>" . esc_html( $value ) . "</option>\n";
+			}
+		}
+		if ( 'list' === $show ) {
+			$output .= '</ul>';
+			$output .= ( 'single' === $group ) ? '</div>' : '';
+		} else {
+			$output .= '</select>';
+			$output .= ( 'single' === $group ) ? '</div>' : '';
+			$output .= ( 'single' === $group ) ? '<input type="submit" class="mc-button" value="' . __( 'Submit', 'my-calendar' ) . '" />
+					</div>
+				</form>' : '';
+			$output .= ( 'single' === $group ) ? '</div>' : '';
+		}
+		/**
+		 * Filter the output HTML of the location selector.
+		 *
+		 * @hook mc_location_selector
+		 *
+		 * @param string $output Output HTML for the form.
+		 * @param array  $add Array of locations represented in this list.
+		 *
+		 * @return string
+		 */
+		$output = apply_filters( 'mc_location_selector', $output, $locations );
+
+		return $output;
+	} else {
+		return '';
+	}
+}
+
+/**
  * Build date switcher
  *
  * @param string    $type Current view being shown.
@@ -1054,9 +1215,6 @@ function mc_date_switcher( $type = 'calendar', $cid = 'all', $time = 'month', $d
 	$qsa            = array();
 	if ( isset( $_SERVER['QUERY_STRING'] ) ) {
 		parse_str( $_SERVER['QUERY_STRING'], $qsa );
-	}
-	if ( ! isset( $_GET['cid'] ) ) {
-		$date_switcher .= '<input type="hidden" name="cid" value="' . esc_attr( $cid ) . '" />';
 	}
 	$data_href = $current_url;
 	foreach ( $qsa as $name => $argument ) {
@@ -1121,7 +1279,7 @@ function mc_date_switcher( $type = 'calendar', $cid = 'all', $time = 'month', $d
 		$p   .= $year - $past;
 		$p   .= '"' . selected( $year - $past, $c_year, false ) . '>';
 		$p   .= $year - $past . "</option>\n";
-		$past = $past - 1;
+		$past = --$past;
 	}
 
 	while ( $fut <= $future ) {
@@ -1129,7 +1287,7 @@ function mc_date_switcher( $type = 'calendar', $cid = 'all', $time = 'month', $d
 		$f  .= $year + $fut;
 		$f  .= '"' . selected( $year + $fut, $c_year, false ) . '>';
 		$f  .= $year + $fut . "</option>\n";
-		$fut = $fut + 1;
+		$fut = ++$fut;
 	}
 
 	$date_switcher .= $p;
@@ -1260,15 +1418,16 @@ function mc_time_toggle( $format, $time, $month, $year, $current, $start_of_week
 	$year      = (int) $year;
 	$weeks_day = mc_first_day_of_week( $current );
 	$adjusted  = false;
-	if ( isset( $_GET['dy'] ) ) {
-		if ( '' === $_GET['dy'] ) {
+	$dy        = ( isset( $_GET['dy'] ) ) ? absint( $_GET['dy'] ) : false; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( $dy ) {
+		if ( '' === $dy ) {
 			$current_day = $weeks_day[0];
 			if ( -1 === (int) $weeks_day[1] ) {
 				$adjusted = true;
-				$month    = $month - 1;
+				$month    = --$month;
 			}
 		} else {
-			$current_day = absint( $_GET['dy'] );
+			$current_day = absint( $dy );
 		}
 		$current_set = mktime( 0, 0, 0, $month, $current_day, $year );
 		if ( (int) mc_date( 'N', $current_set, false ) === $start_of_week ) {
@@ -1277,19 +1436,43 @@ function mc_time_toggle( $format, $time, $month, $year, $current, $start_of_week
 	} else {
 		$weeks_day = mc_first_day_of_week();
 	}
-	$day = $weeks_day[0];
-	if ( isset( $_GET['time'] ) && 'day' === $_GET['time'] ) {
-		// don't adjust day if viewing day format.
+	$day      = $weeks_day[0];
+	$day_view = isset( $_GET['time'] ) && 'day' === $_GET['time']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	// Without a day parameter, use the week containing today if showing the current month, or the first of the displayed month otherwise.
+	if ( ! $dy && ! $day_view ) {
+		$is_current_month = ( (int) current_time( 'n' ) === $month && (int) current_time( 'Y' ) === $year );
+		$base             = ( $is_current_month ) ? strtotime( current_time( 'Y-m-d' ) ) : mktime( 0, 0, 0, $month, 1, $year );
+		$weeks_day        = mc_first_day_of_week( $base );
+		$day              = $weeks_day[0];
+		$day_link         = (int) mc_date( 'j', $base, false );
 	} else {
-		// if the current date is displayed and the week beginning day is greater than 20 in the month.
-		if ( ! isset( $_GET['dy'] ) && $day > 20 ) {
-			$day = mc_date( 'j', strtotime( "$from + 1 week" ), false );
+		$day_link = $day;
+	}
+
+	// When viewing a week that contains today, the day view should open on today instead of the first day of the week.
+	$day_month = $month;
+	$day_year  = $year;
+	$day_today = false;
+	if ( 'week' === $time && $dy ) {
+		$first_dow  = ( '1' === get_option( 'start_of_week' ) ) ? 1 : 0;
+		$back       = ( (int) gmdate( 'w', mktime( 0, 0, 0, $month, $dy, $year ) ) - $first_dow + 7 ) % 7;
+		$week_start = mktime( 0, 0, 0, $month, $dy - $back, $year );
+		$week_end   = mktime( 0, 0, 0, $month, $dy - $back + 6, $year );
+		$today_ts   = mktime( 0, 0, 0, (int) current_time( 'n' ), (int) current_time( 'j' ), (int) current_time( 'Y' ) );
+		if ( $today_ts >= $week_start && $today_ts <= $week_end ) {
+			$day_link  = (int) current_time( 'j' );
+			$day_month = (int) current_time( 'n' );
+			$day_year  = (int) current_time( 'Y' );
+			$day_today = true;
 		}
 	}
+
 	$adjust = ( isset( $weeks_day[1] ) ) ? $weeks_day[1] : 0;
+	$wyear  = $year;
 	$toggle = "<div class='mc-time'><ul>";
 	if ( -1 === (int) $adjust && ! $adjusted ) {
 		$wmonth = ( 1 !== (int) $month ) ? $month - 1 : 12;
+		$wyear  = ( 1 !== (int) $month ) ? $year : $year - 1;
 	} else {
 		$wmonth = $month;
 	}
@@ -1305,17 +1488,22 @@ function mc_time_toggle( $format, $time, $month, $year, $current, $start_of_week
 			'time'  => 'week',
 			'dy'    => $day,
 			'month' => $wmonth,
-			'yr'    => $year,
+			'yr'    => $wyear,
 			'cid'   => $id,
 		),
 		array( 'dy', 'month', 'mc_id' )
 	);
-	$day_url   = mc_build_url(
-		array(
-			'time' => 'day',
-			'dy'   => $day,
-			'cid'  => $id,
-		),
+	$day_args  = array(
+		'time' => 'day',
+		'dy'   => $day_link,
+		'cid'  => $id,
+	);
+	if ( $day_today ) {
+		$day_args['month'] = $day_month;
+		$day_args['yr']    = $day_year;
+	}
+	$day_url = mc_build_url(
+		$day_args,
 		array( 'dy', 'mc_id' )
 	);
 

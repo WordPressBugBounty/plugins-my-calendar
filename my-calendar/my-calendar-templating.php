@@ -20,24 +20,18 @@ function mc_templates_do_edit() {
 	$legacy_templating = ( 'true' === mc_get_option( 'disable_legacy_templates' ) ) ? false : true;
 	if ( isset( $_GET['page'] ) && 'my-calendar-design' === $_GET['page'] && $legacy_templating ) {
 		if ( ! empty( $_POST ) ) {
-			$nonce = $_REQUEST['_wpnonce'];
-			if ( ! wp_verify_nonce( $nonce, 'my-calendar-nonce' ) ) {
-				wp_die( 'My Calendar: Security check failed' );
-			}
-		}
-		if ( isset( $_POST['mc_template_key'] ) ) {
-			$key = sanitize_text_field( $_POST['mc_template_key'] );
-		} else {
-			$key = isset( $_GET['mc_template'] ) ? sanitize_text_field( $_GET['mc_template'] ) : '';
-		}
-		if ( isset( $_POST['delete'] ) ) {
-			delete_option( 'mc_ctemplate_' . $key );
-			wp_safe_redirect( admin_url( 'admin.php?page=my-calendar-design&action=deleted#my-calendar-templates' ) );
-		} else {
-			if ( mc_is_core_template( $key ) && isset( $_POST['add-new'] ) ) {
-				wp_safe_redirect( admin_url( 'admin.php?page=my-calendar-design&action=duplicate#my-calendar-templates' ) );
-			} else {
-				if ( mc_is_core_template( $key ) && isset( $_POST['mc_template'] ) ) {
+			if ( isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'my-calendar-nonce' ) ) {
+				if ( isset( $_POST['mc_template_key'] ) ) {
+					$key = sanitize_text_field( $_POST['mc_template_key'] );
+				} else {
+					$key = isset( $_GET['mc_template'] ) ? sanitize_text_field( $_GET['mc_template'] ) : '';
+				}
+				if ( isset( $_POST['delete'] ) ) {
+					delete_option( 'mc_ctemplate_' . $key );
+					wp_safe_redirect( admin_url( 'admin.php?page=my-calendar-design&action=deleted#my-calendar-templates' ) );
+				} elseif ( mc_is_core_template( $key ) && isset( $_POST['add-new'] ) ) {
+					wp_safe_redirect( admin_url( 'admin.php?page=my-calendar-design&action=duplicate#my-calendar-templates' ) );
+				} elseif ( mc_is_core_template( $key ) && isset( $_POST['mc_template'] ) ) {
 					// Curly braces are not allowed in style attributes, so replace plain color template tags with invalid color before sanitizing.
 					$template = ( ! empty( $_POST['mc_template'] ) ) ? wp_kses_post( wp_unslash( str_replace( array( '{color}', '{inverse}' ), array( '#fff1a', '#000a1' ), $_POST['mc_template'] ) ) ) : '';
 					$template = mc_kses_replacement( $template, $_POST['mc_template'] );
@@ -60,6 +54,8 @@ function mc_templates_do_edit() {
 					}
 					wp_safe_redirect( esc_url_raw( admin_url( 'admin.php?page=my-calendar-design&action=custom&mc_template=' . $key . '#my-calendar-templates' ) ) );
 				}
+			} else {
+				wp_die( 'My Calendar: Security check failed' );
 			}
 		}
 	}
@@ -125,7 +121,7 @@ function mc_php_templates_docs() {
 			$nonce     = wp_nonce_field( 'mc-copy-file', '_wpnonce', true, false );
 			$button    = '<form method="post">' . $nonce . '<input type="hidden" name="mc_file_template" value="' . $type . '/' . $temp . '"><button type="submit" class="button button-compact" aria-describedby="' . $id . '">Copy to Theme</button></form>';
 			$append    = ( $exists ) ? '<span><span class="dashicons dashicons-yes" aria-hidden-"true"></span> <a href="' . esc_url( $edit_link ) . '">' . __( 'Edit in Theme', 'my-calendar' ) . '</a></span></span>' : $button;
-			$output   .= '<li>' . $append . '<code id="' . $id . '">/' . $base . '/' . $temp . '.php' . '</code></li>';
+			$output   .= "<li>$append <code id=\"$id\">/$base/$temp.php</code></li>";
 		}
 		$output .= '</ul></li>';
 	}
@@ -139,10 +135,9 @@ function mc_php_templates_docs() {
  * Copy a template from the plugin into the theme.
  */
 function mc_move_template_to_theme_dir() {
-	if ( isset( $_POST['mc_file_template'] ) ) {
-		$nonce = $_REQUEST['_wpnonce'];
-		if ( ! wp_verify_nonce( $nonce, 'mc-copy-file' ) ) {
-			wp_die( 'My Calendar: Security check failed.' );
+	if ( isset( $_POST['mc_file_template'] ) && isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( $_REQUEST['_wpnonce'], 'mc-copy-file' ) ) {
+		if ( ! current_user_can( 'mc_edit_templates' ) ) {
+			wp_die( 'My Calendar: You do not have permission to edit templates.' );
 		}
 		// Value should be a slash separated directory and filename, without extension.
 		$template        = array_map( 'sanitize_file_name', explode( '/', $_POST['mc_file_template'] ) );
@@ -223,7 +218,8 @@ function mc_template_exists( $path ) {
  * Throw an admin notice if PHP templates are enabled but a legacy template is still active.
  */
 function mc_legacy_admin_notice() {
-	if ( isset( $_GET['page'] ) && 'my-calendar-design' === $_GET['page'] ) {
+	$screen = get_current_screen();
+	if ( $screen && 'my-calendar_page_my-calendar-design' === $screen->id ) {
 		$legacy_templating = ( 'true' === mc_get_option( 'disable_legacy_templates' ) ) ? false : true;
 		if ( ! $legacy_templating ) {
 			$grid_template   = ( mc_get_option( 'use_grid_template' ) === '1' ) ? true : false;
@@ -262,22 +258,18 @@ function mc_templates_edit() {
 		return;
 	}
 	$templates = mc_get_option( 'templates', array() );
-	$key       = ( isset( $_GET['mc_template'] ) ) ? sanitize_text_field( $_GET['mc_template'] ) : false;
+	$key       = ( isset( $_GET['mc_template'] ) ) ? sanitize_text_field( $_GET['mc_template'] ) : false; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-	if ( isset( $_GET['action'] ) && 'delete' === $_GET['action'] ) {
+	if ( isset( $_GET['action'] ) && 'delete' === $_GET['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		mc_show_notice( __( 'Custom template deleted', 'my-calendar' ), true, false, 'success' );
 		$key = '';
-	} else {
-		if ( mc_is_core_template( $key ) && isset( $_GET['action'] ) && 'duplicate' === $_GET['action'] ) {
-			mc_show_error( __( 'Custom templates cannot have the same key as a core template', 'my-calendar' ) );
-		} else {
-			if ( mc_is_core_template( $key ) && isset( $_GET['action'] ) && 'core' === $_GET['action'] ) {
-				// Translators: unique key for template.
-				mc_show_notice( sprintf( __( '%s Template saved', 'my-calendar' ), ucfirst( $key ) ), true, false, 'success' );
-			} elseif ( isset( $_GET['action'] ) && 'custom' === $_GET['action'] ) {
-				mc_show_notice( __( 'Custom Template saved', 'my-calendar' ), true, false, 'success' );
-			}
-		}
+	} elseif ( mc_is_core_template( $key ) && isset( $_GET['action'] ) && 'duplicate' === $_GET['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		mc_show_error( __( 'Custom templates cannot have the same key as a core template', 'my-calendar' ) );
+	} elseif ( mc_is_core_template( $key ) && isset( $_GET['action'] ) && 'core' === $_GET['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		// Translators: unique key for template.
+		mc_show_notice( sprintf( __( '%s Template saved', 'my-calendar' ), ucfirst( $key ) ), true, false, 'success' );
+	} elseif ( isset( $_GET['action'] ) && 'custom' === $_GET['action'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		mc_show_notice( __( 'Custom Template saved', 'my-calendar' ), true, false, 'success' );
 	}
 
 	$template = ( mc_is_core_template( $key ) ) ? $templates[ $key ] : mc_get_custom_template( $key );
@@ -379,7 +371,7 @@ function mc_templates_edit() {
 function mc_get_template_tag_preview( $mc_id, $return_type = 'array' ) {
 	$event = ( 'array' === $return_type ) ? array() : 0;
 	$data  = array();
-	if ( ! isset( $_GET['mc-event'] ) && ! $mc_id ) {
+	if ( ! $mc_id ) {
 		$args   = array(
 			'before' => 1,
 			'after'  => 1,
@@ -390,7 +382,6 @@ function mc_get_template_tag_preview( $mc_id, $return_type = 'array' ) {
 			$mc_id = $event->occur_id;
 		}
 	} else {
-		$mc_id = ( $mc_id ) ? $mc_id : absint( $_GET['mc-event'] );
 		$event = mc_get_event( $mc_id );
 	}
 	if ( $event ) {
@@ -631,8 +622,8 @@ function mc_admin_template_description( $key ) {
 function mc_list_core_templates( $current = '' ) {
 	$check           = "<span class='dashicons dashicons-yes' aria-hidden='true'></span><span>" . __( 'Enabled', 'my-calendar' ) . '</span>';
 	$uncheck         = "<span class='dashicons dashicons-no' aria-hidden='true'></span><span>" . __( 'Not Enabled', 'my-calendar' ) . '</span>';
-	$switched        = ( isset( $_POST['mc_use_template'] ) ) ? true : false;
-	$type            = ( isset( $_GET['mc_template'] ) ) ? $_GET['mc_template'] : '';
+	$switched        = ( isset( $_POST['mc_use_template'] ) ) ? true : false; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+	$type            = ( isset( $_GET['mc_template'] ) ) ? sanitize_text_field( wp_unslash( $_GET['mc_template'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$grid_enabled    = ( ( 'grid' === $type && $switched ) || mc_get_option( 'use_grid_template' ) === '1' ) ? $check : $uncheck;
 	$list_enabled    = ( ( 'list' === $type && $switched ) || mc_get_option( 'use_list_template' ) === '1' ) ? $check : $uncheck;
 	$mini_enabled    = ( ( 'mini' === $type && $switched ) || mc_get_option( 'use_mini_template' ) === '1' ) ? $check : $uncheck;
@@ -708,7 +699,7 @@ add_action(
 			return;
 		}
 
-		if ( isset( $_GET['mc_template'] ) ) {
+		if ( isset( $_GET['mc_template'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			// Enqueue code editor and settings for manipulating HTML.
 			$settings = wp_enqueue_code_editor(
 				array(

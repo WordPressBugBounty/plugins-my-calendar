@@ -193,10 +193,28 @@ function mc_location_access() {
 /**
  * Function deprecated: mc_expand was deprecated in 3.7.0. Kept to prevent fatal errors if used for templating.
  *
- * @param array $data Array of data to format.
- *
  * @return string
  */
-function mc_expand( $data ) {
+function mc_expand() {
 	return '';
+}
+
+/**
+ * Function deprecated: mc_debug was deprecated in 3.8.12. Kept to prevent fatal errors if used.
+ *
+ * @param string $subject Text for email subject.
+ * @param string $body Text for email body.
+ *
+ * @return void
+ */
+function mc_debug( $subject, $body ) {
+	/**
+	 * Execute a custom debug action during an mc_debug call.
+	 *
+	 * @hook mc_debug
+	 *
+	 * @param string $subject Subject line of email debugging message.
+	 * @param string $body Body of email debugging message.
+	 */
+	do_action( 'mc_debug', $subject, $body );
 }
