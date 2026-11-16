@@ -580,10 +580,12 @@ function mc_head() {
 	if ( mc_is_single_event() ) {
 		$mc_id = mc_get_mc_id();
 		if ( $mc_id ) {
-			$event  = mc_get_event( $mc_id );
-			$schema = mc_event_schema( $event );
+			$event = mc_get_event( $mc_id );
+			if ( is_object( $event ) ) {
+				$schema = mc_event_schema( $event );
 
-			echo PHP_EOL . '<script type="application/ld+json">' . PHP_EOL . '[' . wp_json_encode( map_deep( $schema, 'esc_html' ), JSON_UNESCAPED_SLASHES ) . ']' . PHP_EOL . '</script>' . PHP_EOL;
+				echo PHP_EOL . '<script type="application/ld+json">' . PHP_EOL . '[' . wp_json_encode( map_deep( $schema, 'esc_html' ), JSON_UNESCAPED_SLASHES ) . ']' . PHP_EOL . '</script>' . PHP_EOL;
+			}
 		}
 	}
 
@@ -615,16 +617,18 @@ function mc_add_yoast_schema( $graph, $context ) {
 	if ( mc_is_single_event() ) {
 		$mc_id = mc_get_mc_id();
 		if ( $mc_id ) {
-			$event  = mc_get_event( $mc_id );
-			$schema = mc_event_schema( $event );
+			$event = mc_get_event( $mc_id );
+			if ( is_object( $event ) ) {
+				$schema = mc_event_schema( $event );
 
-			unset( $schema['@context'] );
-			$schema['mainEntityOfPage'] = array( '@id' => $context->canonical );
+				unset( $schema['@context'] );
+				$schema['mainEntityOfPage'] = array( '@id' => $context->canonical );
 
-			if ( isset( $schema['location'] ) ) {
-				unset( $schema['location']['@context'] );
+				if ( isset( $schema['location'] ) ) {
+					unset( $schema['location']['@context'] );
+				}
+				$graph[] = $schema;
 			}
-			$graph[] = $schema;
 		}
 	}
 
@@ -817,8 +821,7 @@ function mc_register_scripts() {
 	if ( version_compare( $version, '2.1', '<' ) ) {
 		wp_register_style( 'mcs-back-compat', plugins_url( 'css/backcompat.css', __FILE__ ), array(), $version );
 	}
-	wp_register_script( 'mc-stickyscroll', plugins_url( 'js/jquery.stick.js', __FILE__ ), array( 'jquery' ), $version, true );
-	wp_register_script( 'mc-color-picker', plugins_url( 'js/color-picker.js', __FILE__ ), array( 'wp-color-picker', 'mc-stickyscroll' ), $version, true );
+	wp_register_script( 'mc-color-picker', plugins_url( 'js/color-picker.js', __FILE__ ), array( 'wp-color-picker' ), $version, true );
 	$api_key = mc_get_option( 'gmap_api_key' );
 	if ( $api_key ) {
 		$gmaps = ( SCRIPT_DEBUG ) ? plugins_url( 'js/gmaps.js', __FILE__ ) : plugins_url( 'js/gmaps.min.js', __FILE__ );
@@ -859,14 +862,17 @@ function mc_admin_styles() {
 	$ajax         = 'false';
 	if ( false !== strpos( $id, 'my-calendar' ) || $is_mc_page ) {
 		// Toggle CSS & Scripts based on current mode.
-		$mode = mc_get_option( 'default_admin_view' );
-		if ( isset( $_GET['view'] ) && 'grid' === $_GET['view'] && 'grid' !== $mode ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			mc_update_option( 'default_admin_view', 'grid' );
-			$mode = 'grid';
+		$mode          = mc_get_option( 'default_admin_view' );
+		$can_save_view = isset( $_GET['_mc_view_nonce'] ) && wp_verify_nonce( $_GET['_mc_view_nonce'], 'mc_admin_view' );
+		if ( $can_save_view && isset( $_GET['view'] ) && 'grid' === $_GET['view'] && 'grid' !== $mode ) {
+			if ( mc_update_event_view_settings( array( 'default_admin_view' => 'grid' ) ) ) {
+				$mode = 'grid';
+			}
 		}
-		if ( isset( $_GET['view'] ) && 'list' === $_GET['view'] && 'list' !== $mode ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			mc_update_option( 'default_admin_view', 'list' );
-			$mode = 'list';
+		if ( $can_save_view && isset( $_GET['view'] ) && 'list' === $_GET['view'] && 'list' !== $mode ) {
+			if ( mc_update_event_view_settings( array( 'default_admin_view' => 'list' ) ) ) {
+				$mode = 'list';
+			}
 		}
 		$grid = ( 'grid' === $mode );
 		if ( $grid ) {
@@ -2189,7 +2195,7 @@ Version: $version
 DB Version: $mc_db_version
 URI: $mc_uri
 CSS: $mc_css$license
-Requester Email: wp_get_current_user()->user_email
+Requester Email: " . wp_get_current_user()->user_email . "
 Admin Email: $admin_email
 
 ==WordPress:==
@@ -2323,9 +2329,12 @@ function mc_get_mc_id() {
 			$post_id   = get_the_ID();
 			$parent_id = get_post_meta( $post_id, '_mc_event_id', true );
 			$event     = mc_get_nearest_event( $parent_id, true );
-			$mc_id     = $event->occur_id;
+			if ( $event ) {
+				$mc_id = $event->occur_id;
+			}
 		}
 	}
+
 	return $mc_id;
 }
 
@@ -2371,7 +2380,12 @@ function mc_next_post_link( $output, $format ) {
 			$post_id   = get_the_ID();
 			$parent_id = get_post_meta( $post_id, '_mc_event_id', true );
 			$event     = mc_get_nearest_event( $parent_id, true );
-			$mc_id     = $event->occur_id;
+			if ( $event ) {
+				$mc_id = $event->occur_id;
+			} else {
+				// return early if no valid event.
+				return '';
+			}
 		}
 		$event = mc_adjacent_event( $mc_id, 'next' );
 		if ( empty( $event ) ) {

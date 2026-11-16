@@ -161,14 +161,20 @@ function my_calendar_manage_categories() {
 				if ( isset( $post['mode'] ) && 'add' === $post['mode'] ) {
 					$cat_id = mc_create_category( $post );
 
-					if ( isset( $post['mc_default_category'] ) ) {
-						mc_update_option( 'default_category', $cat_id );
-						$append[] = __( 'Default category changed.', 'my-calendar' );
+					if ( $cat_id && isset( $post['mc_default_category'] ) ) {
+						if ( ! mc_update_category_settings( array( 'default_category' => $cat_id ) ) ) {
+							$append[] = __( 'Default category could not be changed.', 'my-calendar' );
+						} else {
+							$append[] = __( 'Default category changed.', 'my-calendar' );
+						}
 					}
 
-					if ( isset( $post['mc_skip_holidays_category'] ) ) {
-						mc_update_option( 'skip_holidays_category', $cat_id );
-						$append[] = __( 'Holiday category changed.', 'my-calendar' );
+					if ( $cat_id && isset( $post['mc_skip_holidays_category'] ) ) {
+						if ( ! mc_update_category_settings( array( 'skip_holidays_category' => $cat_id ) ) ) {
+							$append[] = __( 'Holiday category could not be changed.', 'my-calendar' );
+						} else {
+							$append[] = __( 'Holiday category changed.', 'my-calendar' );
+						}
 					}
 
 					if ( $cat_id ) {
@@ -183,18 +189,30 @@ function my_calendar_manage_categories() {
 					$append = array();
 					$mode   = 'edit';
 					if ( isset( $post['mc_default_category'] ) && $default_category !== $post['category_id'] ) {
-						mc_update_option( 'default_category', (int) $post['category_id'] );
-						$append[] = __( 'Default category changed.', 'my-calendar' );
+						if ( ! mc_update_category_settings( array( 'default_category' => (int) $post['category_id'] ) ) ) {
+							$append[] = __( 'Default category could not be changed.', 'my-calendar' );
+						} else {
+							$append[] = __( 'Default category changed.', 'my-calendar' );
+						}
 					} elseif ( $default_category === $post['category_id'] ) {
-							mc_update_option( 'default_category', '' );
+						if ( ! mc_update_category_settings( array( 'default_category' => '' ) ) ) {
+							$append[] = __( 'Default category could not be cleared.', 'my-calendar' );
+						} else {
 							$append[] = __( 'Default category removed.', 'my-calendar' );
+						}
 					}
 					if ( isset( $post['mc_skip_holidays_category'] ) && $holiday_category !== $post['category_id'] ) {
-						mc_update_option( 'skip_holidays_category', (int) $post['category_id'] );
-						$append[] = __( 'Holiday category changed.', 'my-calendar' );
+						if ( ! mc_update_category_settings( array( 'skip_holidays_category' => (int) $post['category_id'] ) ) ) {
+							$append[] = __( 'Holiday category could not be changed.', 'my-calendar' );
+						} else {
+							$append[] = __( 'Holiday category changed.', 'my-calendar' );
+						}
 					} elseif ( $holiday_category === (string) $post['category_id'] ) {
-							mc_update_option( 'skip_holidays_category', '' );
+						if ( ! mc_update_category_settings( array( 'skip_holidays_category' => '' ) ) ) {
+							$append[] = __( 'Holiday category could not be cleared.', 'my-calendar' );
+						} else {
 							$append[] = __( 'Holiday category removed.', 'my-calendar' );
+						}
 					}
 
 					$update  = array(
@@ -221,9 +239,13 @@ function my_calendar_manage_categories() {
 		if ( isset( $_REQUEST['_mcnonce'] ) && wp_verify_nonce( $_REQUEST['_mcnonce'], 'mcnonce' ) ) {
 			// Set default.
 			if ( isset( $_GET['default'] ) && is_numeric( $_GET['default'] ) ) {
-				mc_update_option( 'default_category', (int) $_GET['default'] );
+				if ( ! mc_update_category_settings( array( 'default_category' => (int) $_GET['default'] ) ) ) {
+					$message = esc_html__( 'The default category could not be updated.', 'my-calendar' );
+				} else {
+					$message = esc_html__( 'Default Category Changed', 'my-calendar' );
+				}
 				$default_category = (int) $_GET['default'];
-				mc_show_notice( __( 'Default Category Changed', 'my-calendar' ), true, false, 'success' );
+				mc_show_notice( $message, true, false, 'success' );
 			}
 			// Trigger delete.
 			if ( isset( $_GET['mode'] ) && isset( $_GET['category_id'] ) && 'delete' === $_GET['mode'] ) {
@@ -248,7 +270,9 @@ function my_calendar_manage_categories() {
 					$cal_results = false;
 				}
 				if ( $default_category === (string) $cat_id ) {
-					mc_update_option( 'default_category', '' );
+					if ( ! mc_update_category_settings( array( 'default_category' => '' ) ) ) {
+						mc_show_error( __( 'The default category could not be cleared.', 'my-calendar' ) );
+					}
 				}
 				if ( $results && ( $cal_results || $rel_results ) ) {
 					mc_show_notice( __( 'Category deleted successfully. Categories in calendar updated.', 'my-calendar' ), true, false, 'success' );
@@ -326,9 +350,12 @@ function mc_update_category_relationships( $cats, $event_id ) {
  * @param array $category Array of params to update.
  * @param int   $category_id ID of the category to update.
  *
- * @return mixed boolean/int query result
+ * @return boolean|int query result
  */
 function mc_update_category( $category, $category_id ) {
+	if ( ! current_user_can( 'mc_edit_cats' ) ) {
+		return false;
+	}
 	global $wpdb;
 	$category_id = (int) ( $category_id );
 	$formats     = array( '%s', '%s', '%s', '%d', '%d', '%d' );
@@ -911,7 +938,7 @@ function mc_manage_categories() {
 			<th scope="row" aria-label="<?php echo esc_attr( $cat_name ); ?>"><?php echo absint( $cat->category_id ); ?></th>
 			<td>
 			<?php
-			$category_event_url = add_query_arg( 'filter', $cat->category_id, admin_url( 'admin.php?page=my-calendar-manage&restrict=category&view=list&limit=all' ) );
+			$category_event_url = wp_nonce_url( add_query_arg( 'filter', $cat->category_id, admin_url( 'admin.php?page=my-calendar-manage&restrict=category&view=list&limit=all' ) ), 'mc_admin_view', '_mc_view_nonce' );
 			$count              = mc_get_category_count( $cat->category_id );
 			$count              = ( $count ) ? '<a href="' . esc_url( $category_event_url ) . '">' . $count . '</a>' : '0';
 			echo esc_html( $cat_name );

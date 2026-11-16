@@ -51,7 +51,8 @@ function mc_generate( $format = 'shortcode' ) {
 						$templatekey = "Today's Events Shortcode";
 						break;
 					default:
-						$shortcode = 'my_calendar';
+						// For unrecognized or custom shortcode types, exit early.
+						return;
 				}
 				$keys = array( 'navigation', 'category', 'ltype', 'lvalue', 'search', 'format', 'time', 'year', 'month', 'day', 'months', 'above', 'below', 'author', 'host', 'order', 'from', 'to', 'type', 'skip', 'after', 'before', 'preset_template', 'template', 'fallback', 'show_recurring', 'weekends' );
 				$post = map_deep( $_POST, 'sanitize_text_field' );
@@ -92,7 +93,7 @@ function mc_generate( $format = 'shortcode' ) {
 					}
 				}
 				$output = esc_html( $shortcode . $string );
-				mc_update_option( 'last_shortcode_' . $type, $output );
+				mc_update_generator_settings( array( 'last_shortcode_' . $type => $output ) );
 			}
 			if ( 'shortcode' === $format && ! is_array( $output ) ) {
 				$return = "<div class='notice notice-success'><p><textarea readonly='readonly' class='large-text readonly'>[$output]</textarea>$append</p></div>";

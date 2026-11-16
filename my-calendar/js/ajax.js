@@ -93,10 +93,42 @@
 					let display  = time[0] + ':' + time[1];
 					let edit_url = mc_data.url + response.id;
 					let dateEnd  = ( typeof( enddate ) === 'undefined' ) ? date : enddate;
+					let li = document.createElement( 'li' );
+					li.className = 'new';
+					let span = document.createElement( 'span' );
+					span.id = 'occur_date_' + response.id;
+					let strong = document.createElement( 'strong' );
+
+					strong.textContent = ( instance_id ) ? 'Edited:' : 'Added:';
+					span.appendChild( strong );
+					span.innerText += ' ' + date + ' @ ' + display;
+					let wrapper = document.createElement( 'p' );
+					wrapper.className = 'instance-wrapper';
+					wrapper.appendChild( span );
+					li.appendChild( wrapper );
+
 					if ( instance_id ) {
-						$( '.instance-list' ).append( '<li class="new"><p><span id="occur_date_' + response.id + '"><strong>Edited:</strong> ' + date + ' @ ' + display + '</span></p></li>' );
+						document.querySelector( '.instance-list' ).insertAdjacentElement( 'beforeend', li );
 					} else {
-						$( '.instance-list' ).append( '<li class="new"><p><span id="occur_date_' + response.id + '"><strong>Added:</strong> ' + date + ' @ ' + display + '</span></p><p class="instance-buttons"><button class="button delete_occurrence" type="button" data-event="' + event_id + '" data-begin="' + date + ' ' + begin + '" data-end="' + dateEnd + ' ' + end + '" data-value="' + response.id + '" aria-describedby="occur_date_' + response.id + '">Delete</button> <a href="' + edit_url + '" class="button">Edit</a></p></li>' );
+						let buttons = document.createElement( 'p' );
+						buttons.className = 'instance-buttons';
+						let deleteButton = document.createElement( 'button' );
+						deleteButton.className = 'button delete_occurrence button-compact';
+						deleteButton.type = 'button';
+						deleteButton.setAttribute( 'data-event', event_id );
+						deleteButton.setAttribute( 'data-begin', date + ' ' + begin );
+						deleteButton.setAttribute( 'data-end', dateEnd + ' ' + end );
+						deleteButton.setAttribute( 'data-value', response.id );
+						deleteButton.setAttribute( 'aria-describedby', 'occur_date_' + response.id );
+						deleteButton.textContent = 'Delete';
+						let editLink = document.createElement( 'a' );
+						editLink.href = edit_url;
+						editLink.className = 'button button-compact';
+						editLink.textContent = 'Edit';
+						buttons.appendChild( deleteButton );
+						buttons.appendChild( editLink );
+						li.appendChild( buttons );
+						document.querySelector( '.instance-list' ).insertAdjacentElement( 'beforeend', li );
 					}
 				}
 				$('.mc_response').text( response.response ).show( 300 );
@@ -168,9 +200,25 @@
 					if ( response.success == 1 ) {
 						let category_id = response.category_id;
 						$( '#event_category_name' ).val( '' );
-						$( '<li class="new"><input type="checkbox" name="event_category[]" id="mc_cat_' + category_id + '" value="' + category_id + '" checked> <label for="mc_cat_' + category_id + '">' + category_name + '</label></li>' ).insertBefore( '.categories .event-new-category' );
+						let li = document.createElement( 'li' );
+						li.className = 'new';
+						let input = document.createElement( 'input' );
+						input.type = 'checkbox';
+						input.name = 'event_category[]';
+						input.id = 'mc_cat_' + category_id;
+						input.value = category_id;
+						input.checked = true;
+						let label = document.createElement( 'label' );
+						label.setAttribute( 'for', 'mc_cat_' + category_id );
+						label.textContent = category_name;
+						li.appendChild( input );
+						li.appendChild( label );
+						document.querySelector( '.categories .event-new-category' ).insertAdjacentElement( 'beforebegin', li );
 						let primary = $( '#e_category' );
-						primary.append( '<option value="' + category_id + '">' + category_name + '</option>' );
+						let el = document.createElement( 'option' );
+						el.value = category_id;
+						el.textContent = category_name;
+						primary.append( el );
 					}
 				}, "json" );
 			}

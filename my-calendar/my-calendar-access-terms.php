@@ -27,16 +27,12 @@ function mc_update_default_access_terms( $term_id, $action = 'add' ) {
 	$default_terms = (array) mc_get_option( $option, array() );
 	if ( ! in_array( $term_id, $default_terms, true ) && 'add' === $action ) {
 		$default_terms[] = $term_id;
-		mc_update_option( $option, $default_terms );
-
-		return true;
+		return mc_update_category_settings( array( $option => $default_terms ) );
 	}
 	if ( in_array( $term_id, $default_terms, true ) && 'remove' === $action ) {
 		$key = array_search( $term_id, $default_terms, true );
 		unset( $default_terms[ $key ] );
-		mc_update_option( $option, $default_terms );
-
-		return true;
+		return mc_update_category_settings( array( $option => $default_terms ) );
 	}
 
 	return false;
@@ -61,9 +57,12 @@ function my_calendar_manage_access_terms() {
 			if ( isset( $post['mode'] ) && 'add' === $post['mode'] ) {
 				$term_id = mc_create_access_term( $post, $taxonomy );
 
-				if ( isset( $post['mc_default_access_term'] ) ) {
-					mc_update_default_access_terms( $term_id );
-					$append[] = __( 'Term Added to Default Event Access Terms', 'my-calendar' );
+				if ( $term_id && isset( $post['mc_default_access_term'] ) ) {
+					if ( ! mc_update_default_access_terms( $term_id ) ) {
+						$append[] = esc_html__( 'The default access terms could not be updated.', 'my-calendar' );
+					} else {
+						$append[] = esc_html__( 'Term Added to Default Event Access Terms', 'my-calendar' );
+					}
 				}
 
 				if ( $term_id ) {
@@ -75,13 +74,18 @@ function my_calendar_manage_access_terms() {
 			}
 			// Display the edit form if we're editing a term.
 			if ( isset( $post['mode'] ) && isset( $post['access_term_id'] ) && isset( $post['access_term_name'] ) && 'edit' === $post['mode'] ) {
+				$append = '';
 				// This term is in the set, but not checked.
 				if ( in_array( (int) $post['access_term_id'], $default_access, true ) && ! isset( $post['mc_default_access_term'] ) ) {
-					mc_update_default_access_terms( (int) $post['access_term_id'], 'remove' );
+					if ( mc_update_default_access_terms( (int) $post['access_term_id'], 'remove' ) ) {
+						$append = esc_html__( 'The default access terms could not be updated.', 'my-calendar' );
+					}
 				}
 				// This term is checked, but not in the set.
 				if ( ! in_array( (int) $post['access_term_id'], $default_access, true ) && isset( $post['mc_default_access_term'] ) ) {
-					mc_update_default_access_terms( $post['access_term_id'] );
+					if ( mc_update_default_access_terms( $post['access_term_id'] ) ) {
+						$append = esc_html__( 'The default access terms could not be updated.', 'my-calendar' );
+					}
 				}
 
 				$results = wp_update_term(
@@ -92,9 +96,9 @@ function my_calendar_manage_access_terms() {
 					)
 				);
 				if ( $results ) {
-					mc_show_notice( __( 'Access term edited successfully.', 'my-calendar' ), true, false, 'success' );
+					mc_show_notice( __( 'Access term edited successfully.', 'my-calendar' ) . " $append", true, false, 'success' );
 				} else {
-					mc_show_error( __( 'Access term was not changed.', 'my-calendar' ) );
+					mc_show_error( __( 'Access term was not changed.', 'my-calendar' ) . " $append" );
 				}
 				$cur_cat = (int) $post['access_term_id'];
 			}
@@ -103,8 +107,11 @@ function my_calendar_manage_access_terms() {
 		if ( isset( $_GET['default'] ) && is_numeric( $_GET['default'] ) ) {
 			if ( isset( $_REQUEST['_mcnonce'] ) && wp_verify_nonce( $_REQUEST['_mcnonce'], 'mcnonce' ) ) {
 				$add_default_access = (int) $_GET['default'];
-				mc_update_default_access_terms( $add_default_access );
-				mc_show_notice( __( 'Term Added to Default Event Access Terms', 'my-calendar' ), true, false, 'success' );
+				if ( mc_update_default_access_terms( $add_default_access ) ) {
+					mc_show_notice( __( 'Term Added to Default Event Access Terms', 'my-calendar' ), true, false, 'success' );
+				} else {
+					mc_show_error( __( 'The default access terms were not changed.', 'my-calendar' ) );
+				}
 			} else {
 				mc_show_error( 'Invalid security key; please try again!', 'my-calendar' );
 			}
@@ -115,8 +122,10 @@ function my_calendar_manage_access_terms() {
 				$term_id = (int) $_GET['access_term_id'];
 				$results = wp_delete_term( $term_id, $taxonomy );
 
-				mc_update_default_access_terms( $term_id, 'remove' );
 				if ( $results ) {
+					if ( in_array( $term_id, (array) $default_access, true ) && ! mc_update_default_access_terms( $term_id, 'remove' ) ) {
+						mc_show_error( __( 'The default access terms could not be updated.', 'my-calendar' ) );
+					}
 					mc_show_notice( __( 'Accessibility term deleted successfully.', 'my-calendar' ), true, false, 'success' );
 				}
 			} else {

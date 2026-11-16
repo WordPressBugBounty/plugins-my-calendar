@@ -194,8 +194,11 @@ add_filter( 'the_title', 'mc_search_results_title', 10, 2 );
  * @return string New title
  */
 function mc_search_results_title( $title, $id = null ) {
-	if ( ( isset( $_GET['mcs'] ) || isset( $_POST['mcs'] ) ) && ( is_page( $id ) || is_single( $id ) ) && in_the_loop() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
-		$query = ( isset( $_GET['mcs'] ) ) ? sanitize_text_field( wp_unslash( $_GET['mcs'] ) ) : sanitize_text_field( wp_unslash( $_POST['mcs'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.NonceVerification.Missing
+	if ( ( isset( $_GET['mcs'] ) ) && ( is_page( $id ) || is_single( $id ) ) && in_the_loop() ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$query = ( isset( $_GET['mcs'] ) ) ? sanitize_text_field( wp_unslash( $_GET['mcs'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( '' === $query ) {
+			return $title;
+		}
 		// Translators: entered search query.
 		$title = sprintf( __( 'Events Search for &ldquo;%s&rdquo;', 'my-calendar' ), esc_html( $query ) );
 	}
@@ -213,7 +216,8 @@ add_filter( 'the_content', 'mc_show_search_results' );
  */
 function mc_show_search_results( $content ) {
 	global $post;
-	if ( is_object( $post ) && in_the_loop() && ! is_page( mc_get_option( 'uri_id' ) ) && ! has_shortcode( $post->post_content, 'my_calendar' ) ) {
+	$calendar_page = mc_get_option( 'uri_id' );
+	if ( is_object( $post ) && in_the_loop() && ( ! $calendar_page || ! is_page( $calendar_page ) ) && ! has_shortcode( $post->post_content, 'my_calendar' ) ) {
 		// if this is the result of a search, show search output.
 		$ret   = false;
 		$query = false;
@@ -403,15 +407,16 @@ function mc_produce_search_results( $events, $template ) {
 
 	$html = '';
 	foreach ( $output as $out ) {
-		$data    = array(
+		$template_class = esc_attr( wp_strip_all_tags( $template ) );
+		$data           = array(
 			'event'    => $out['event'],
 			'tags'     => $out['tags'],
 			'template' => $template,
 			'type'     => 'list',
-			'class'    => ( str_contains( $template, 'list_preset_' ) ) ? "list-preset $template" : '',
+			'class'    => ( str_contains( $template, 'list_preset_' ) ) ? "list-preset $template_class" : '',
 		);
-		$details = mc_load_template( 'event/search', $data );
-		$html   .= $details;
+		$details        = mc_load_template( 'event/search', $data );
+		$html          .= $details;
 		if ( ! $details ) {
 			$html .= mc_format_upcoming_event( $out, $template, 'list' );
 		}

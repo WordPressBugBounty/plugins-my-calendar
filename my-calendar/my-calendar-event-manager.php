@@ -377,8 +377,8 @@ function my_calendar_manage() {
 						<h2 class="mc-heading-inline"><?php esc_html_e( 'My Events', 'my-calendar' ); ?></h2>
 							<?php
 								$grid     = ( 'grid' === mc_get_option( 'default_admin_view' ) ) ? true : false;
-								$grid_url = admin_url( 'admin.php?page=my-calendar-manage&view=grid' );
-								$list_url = admin_url( 'admin.php?page=my-calendar-manage&view=list' );
+								$grid_url = wp_nonce_url( admin_url( 'admin.php?page=my-calendar-manage&view=grid' ), 'mc_admin_view', '_mc_view_nonce' );
+								$list_url = wp_nonce_url( admin_url( 'admin.php?page=my-calendar-manage&view=list' ), 'mc_admin_view', '_mc_view_nonce' );
 							?>
 						<ul class="mc-admin-mode">
 							<li><span class="dashicons dashicons-calendar" aria-hidden="true"></span><a <?php echo ( $grid ) ? 'aria-current="true"' : ''; ?> href="<?php echo esc_url( $grid_url ); ?>"><?php esc_html_e( 'Grid View', 'my-calendar' ); ?></a></li>
@@ -505,10 +505,12 @@ function mc_handle_post() {
 	if ( $verify ) {
 		$action = ! empty( $_POST['event_action'] ) ? sanitize_text_field( wp_unslash( $_POST['event_action'] ) ) : '';
 		if ( 'delete' === $action ) {
-			$event_id       = ! empty( $_POST['event_id'] ) ? (int) $_POST['event_id'] : '';
-			$event_instance = ! empty( $_POST['event_instance'] ) ? (int) $_POST['event_instance'] : 0;
-			$message        = mc_delete_event( $event_id, $event_instance );
-			echo wp_kses_post( $message );
+			$event_id = ! empty( $_POST['event_id'] ) ? (int) $_POST['event_id'] : '';
+			if ( mc_can_edit_event( $event_id ) ) {
+				$event_instance = ! empty( $_POST['event_instance'] ) ? (int) $_POST['event_instance'] : 0;
+				$message        = mc_delete_event( $event_id, $event_instance );
+				echo wp_kses_post( $message );
+			}
 		}
 	} else {
 		return;
